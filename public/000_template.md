@@ -1,11 +1,11 @@
 ---
 title: Template
 tags:
-  - "AWS Bedrock"
-  - "Bedrock"
-  - "生成AI"
-  - "RAG"
-  - "Advanced RAG"
+  - Python
+  - AWS
+  - rag
+  - bedrock
+  - 生成AI
 private: true
 updated_at: ""
 id: null

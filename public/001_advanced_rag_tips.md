@@ -178,7 +178,7 @@ def expand_queries(self, llm_conf: LLMConfig, prompt_conf: PromptConfig) -> dict
 ```
 
 :::note info
-ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライを行うようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数を指定しています．
+ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライするようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数を指定しています．
 
 ```python:src/llm.py(__init__)
 from botocore.config import Config
@@ -199,10 +199,40 @@ self.bedrock_runtime = boto3.client(
 
 ### step2. Retrieve: 拡張したクエリで非同期処理として並列ベクトル検索
 
-step1.で拡張した複数のクエリを利用して，Knowledge Base でベクトル検索を行う．本実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に検索を行い，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve している．
-また，AWS 公式ブログ[^0-0]でも言及されている通り，各クエリの検索は`concurrent.futures.ThreadPoolExecutor `を利用して並列実行している．
+クエリ拡張によるベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．具体的には，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Base で検索を行い，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
 
-今回の実験でクエリを拡張する際は、元のクエリ (question) と拡張したクエリ (query 1/2/3) の計 4 回独立に検索します。実装の際には Kendra へのクエリは非同期処理として並行して実行することで、クエリ拡張によるレイテンシーのオーバーヘッドを最小限に抑えることができるでしょう。Kendra のエンタープライズエディションでは 1 日あたりの最大クエリ件数が 8,000 件となっており、それを超えると追加の料金がかかることには注意が必要です。Advanced RAG の手法を追加する際には、追加のレイテンシー、料金、サービスクォータなどへの影響を評価することも忘れないようにしましょう。
+以下にコードの該当箇所を示します．各クエリの検索は`concurrent.futures.ThreadPoolExecutor `を利用して，`retrieve`メソッドを並列実行しております．
+
+```python:src/retriever.py
+@classmethod
+def retrieve_parallel(
+    cls,
+    kb_id: str,
+    region: str,
+    queries: dict,
+    max_workers: int = 10,
+    no_of_results: int = 5,
+) -> dict:
+    retriever = cls(kb_id, region)
+    results = {}
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+        futures = {
+            executor.submit(retriever.retrieve, query, no_of_results): key
+            for key, query in queries.items()
+        }
+        for future in concurrent.futures.as_completed(futures):
+            key = futures[future]
+            try:
+                result = future.result()
+            except Exception as e:
+                results[key] = str(e)
+            else:
+                results[key] = result
+
+    return results
+
+```
 
 ### Post-Retrieve での工夫
 

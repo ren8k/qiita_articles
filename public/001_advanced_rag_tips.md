@@ -1,13 +1,13 @@
 ---
 title: Amazon Bedrock で Advanced RAG を実装する上での Tips
 tags:
-  - AWS
-  - Bedrock
-  - RAG
-  - 生成AI
   - Python
+  - AWS
+  - rag
+  - bedrock
+  - 生成AI
 private: true
-updated_at: "2024-05-18T16:56:43+09:00"
+updated_at: '2024-05-18T18:11:57+09:00'
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false

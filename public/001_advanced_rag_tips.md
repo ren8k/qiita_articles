@@ -2,12 +2,12 @@
 title: Amazon Bedrock で Advanced RAG を実装する上での Tips
 tags:
   - AWS
-  - rag
-  - bedrock
+  - Bedrock
+  - RAG
   - 生成AI
-  - Advanced-RAG
+  - Python
 private: true
-updated_at: '2024-05-18T16:56:43+09:00'
+updated_at: "2024-05-18T16:56:43+09:00"
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false
@@ -197,22 +197,17 @@ self.bedrock_runtime = boto3.client(
 
 :::
 
-### step2. Retrieve: 拡張したクエリで非同期処理として並列ベクトル検索
+### step2. Retrieve: Knowledge Base でのベクトル検索の並列実行
 
-クエリ拡張によるベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．具体的には，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Base で検索を行い，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
+ベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Base で検索を行っており，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
 
-以下にコードの該当箇所を示します．各クエリの検索は`concurrent.futures.ThreadPoolExecutor `を利用して，`retrieve`メソッドを並列実行しております．
+以下にコードの該当箇所を示します．各クエリの検索は`concurrent.futures.ThreadPoolExecutor`を利用して，`retrieve`メソッドをスレッドベースで並列実行しております．
 
 ```python:src/retriever.py
+import concurrent.futures
+
 @classmethod
-def retrieve_parallel(
-    cls,
-    kb_id: str,
-    region: str,
-    queries: dict,
-    max_workers: int = 10,
-    no_of_results: int = 5,
-) -> dict:
+def retrieve_parallel(cls, kb_id: str, region: str, queries: dict, max_workers: int = 10, no_of_results: int = 5) -> dict:
     retriever = cls(kb_id, region)
     results = {}
 
@@ -232,9 +227,51 @@ def retrieve_parallel(
 
     return results
 
+def retrieve(self, query: str, no_of_results: int = 5) -> list:
+    response = self.bedrock_agent_client.retrieve(
+        retrievalQuery={"text": query},
+        knowledgeBaseId=self.kb_id,
+        retrievalConfiguration={
+            "vectorSearchConfiguration": {
+                "numberOfResults": no_of_results,
+                # "overrideSearchType": "HYBRID",  # optional
+            }
+        },
+    )
+    return response["retrievalResults"]
 ```
 
-### Post-Retrieve での工夫
+<details><summary>コードの補足説明</summary>
+
+:::note info
+`concurrent.futures` モジュールは複数の処理を並列実行するための機能を提供し，特に，`ThreadPoolExecutor` クラスはスレッドを利用した並列タスクを実行するためのクラスです．
+
+以下にコードの補足説明を行います．
+
+- `with concurrent.futures.ThreadPoolExecutor(max_workers) as executor` ステートメントでは，`max_workers` で指定した数のスレッドを利用して並列処理を行います．
+- 辞書 `futures` には，`executor.submit` によって返される `Future` オブジェクトをキーとし，対応するクエリのキー（`query_0`, `query_1`, ...）を値として格納しています．
+- 各スレッドは，`executor.submit` にて指定した関数を非同期に実行し，その結果（ベクトル検索で取得した抜粋）を `future.result()` で取得します．デフォルトでは 10 並列で実行しています．
+- 最終的に，以下のような辞書 `results`を得ます．
+
+```
+{
+    "query_0": retrieve APIの結果 [抜粋1, 抜粋2, ...],
+    "query_1": retrieve APIの結果 [抜粋1, 抜粋2, ...],
+    ...
+}
+```
+
+:::
+
+</details>
+
+### step3. Post-Retrieve: LLM による関連度評価の並列実行
+
+---
+
+---
+
+---
 
 ## まとめ
 

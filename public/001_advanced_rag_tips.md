@@ -21,7 +21,7 @@ ignorePublish: false
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/
 
-上記ブログの内容に感化され，AWS SDK for Python (Boto3)を利用して，ブログで紹介されている Advanced RAG の再現実装を私の方で行いました．その際に，Advanced RAG を実現する上での実装方法や Claude3 を利用する際のプロンプトエンジニアリングで学べた点が多かったので，本ブログにまとめようと思います．なお，Advanced RAG の再現実装（Python）は[本リポジトリ](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline)に公開していますので，興味のある方はご参照ください．
+上記ブログの内容に感化され，2024/05/06 に，AWS SDK for Python (Boto3)を利用して，ブログで紹介されている Advanced RAG の再現実装を私の方で行いました．その際に，Advanced RAG を実現する上での実装方法や Claude3 を利用する際のプロンプトエンジニアリングで学べた点が多かったので，本ブログにまとめようと思います．なお，Advanced RAG の再現実装（Python）は[本リポジトリ](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline)に公開していますので，興味のある方はご参照ください．
 
 https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
@@ -58,30 +58,36 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 ---
 
-## 実装の工夫・Tips
+## 再現実装時の工夫
 
-### Pre-Retrieve: Claude3 を利用したクエリ拡張
+Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
+
+### step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
 
 クエリ拡張は，単一のクエリから多様な観点で複数のクエリを作成し，それらに対して検索を実行して検索結果をマージする手法です．これにより，クエリとソースドキュメントの表記・表現が異なる場合でも適切な回答を得ることを目的としています．特に，[RAG-Fusion](https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1)という手法では，LLM を利用してクエリ拡張を行うことが提案されています．
 
-本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．
+本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．なお，公式ブログと同様，3 つのクエリを生成するように Claude3 Haiku に指示しています．
 
 1. Claude3 特有のプロンプトエンジニアリング
 2. システムプロンプトおよび Claude3 の応答の事前入力の工夫
-3. JSON 形式で取得できなかった場合は再度 Claude3 Haiku にリクエストを送信（リトライ）
+3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
 
 以降，各工夫について詳細に解説します．
 
 #### 1. Claude3 特有のプロンプトエンジニアリング
 
-プロンプト中では以下の Tips を取り入れております．なお，プロンプトは[公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを流用させていただいております．
+プロンプト中では以下の Tips を取り入れております．
 
 - 具体例を記載する(Few-shot Prompting)
 - XML タグを利用した詳細な指示
 
-以下にプロンプトを示します．なお，簡単のために，実際に利用されているプロンプトテンプレート中の変数を展開した状態で記載しています．プロンプトでは，`<example>`タグ内に具体例を，`<format>`タグ内に出力フォーマットを記載しております．Claude3 では，指示とコンテンツ・例をタグを利用し分離して提示することで，より精度の高い回答を得ることができます．詳細は，Anthropic の公式ドキュメントの「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」および「[Use examples](https://docs.anthropic.com/en/docs/use-examples)」を参照下さい．
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を展開した状態で記載しています．プロンプトでは，`<example>`タグ内に具体例を，`<format>`タグ内に出力フォーマットを記載しております．Claude3 では，指示とコンテンツ・例をタグを利用し分離して提示することで，より精度の高い回答を得ることができます．
 
-```yaml:claude-3_query_expansion.yaml
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」および「[Use examples](https://docs.anthropic.com/en/docs/use-examples)」を参照下さい．
+:::
+
+```yaml:config/prompt_template/query_expansion.yaml
 検索エンジンに入力するクエリを最適化し、様々な角度から検索を行うことで、より適切で幅広い検索結果が得られるようにします。
 具体的には、類義語や日本語と英語の表記揺れを考慮し、多角的な視点からクエリを生成します。
 
@@ -109,16 +115,18 @@ JSON形式で、各キーには単一のクエリを格納する。
 
 #### 2. システムプロンプトおよび Claude3 の応答の事前入力の工夫
 
-- システムプロンプトでも有効な JSON 形式での出力を指定
-- Claude3 の引数 messages では，prefill の Assistant フィールドに`{`を指定[^2-2]
-  https://docs.anthropic.com/ja/docs/control-output-format
+Claude3 のプロンプト以外の引数部にて，以下の Tips を取り入れております．こちらは[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)には記載はありませんでしたが，実装上の工夫として取り入れております．
 
-```yaml
+- 引数 system（システムメッセージ） にて，有効な JSON 形式での出力を指示
+- 引数 messages にて，応答の事前入力として Assistant フィールドに`{`を指定
+
+以下に Claude3 の引数を示します．システムメッセージの`Respond valid json format.`という部分と，応答の事前入力の`{ "role": "assistant", "content": [{ "type": "text", "text": "{" }] }`という部分が該当箇所です．
+
+```yaml:config/llm/claude-3_query_expansion.yaml
 anthropic_version: bedrock-2023-05-31
 max_tokens: 1000
 temperature: 0
 system: Respond valid json format.
-# https://docs.anthropic.com/claude/docs/control-output-format#prefilling-claudes-response
 messages:
   [
     { "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] },
@@ -127,17 +135,74 @@ messages:
 stop_sequences: ["</output>"]
 ```
 
-実際にクエリ拡張際に得られるクエリ(例)を以下に示す．
+なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．
 
-```json
-{
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
+:::
+
+```
+
   "query_1": "Amazon generative AI models language GPT-3 Alexa",
   "query_2": "Amazon generative AI 生成モデル 自然言語処理 AI",
   "query_3": "Amazon generative AI 言語生成 人工知能 AI技術"
 }
 ```
 
-### Retrieve での工夫
+#### 3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
+
+`try-except`文を利用して，JSON 形式で回答が生成されなかった場合には，再度 Claude3 Haiku にリクエストを送信するようにしています．以下にコードの該当箇所を示します．コードでは，`self.generate(body) `にて JSON 形式で生成しており，JSON 形式で回答が生成されなかった場合に，`Failed to decode JSON, retrying...`というメッセージを表示し，再度リクエストを送信するようにしています．
+
+```python:src/llm.py
+def expand_queries(self, llm_conf: LLMConfig, prompt_conf: PromptConfig) -> dict:
+    llm_conf.format_message(prompt_conf.prompt_query_expansion) # プロンプトをClaude3の引数としてフォーマット
+    body = json.dumps(llm_conf.llm_args)
+
+    for attempt in range(prompt_conf.retries):
+        try:
+            if "claude-3" in self.model_id:
+                generate_text = "{" + self.generate(body) # JSON形式で拡張したクエリを生成
+            else:
+                generate_text = self.generate(body)
+            query_expanded = json.loads(generate_text)
+            query_expanded["query_0"] = prompt_conf.query # オリジナルの質問を追加
+            return query_expanded
+        except json.JSONDecodeError:
+            if attempt < prompt_conf.retries - 1:
+                print(
+                    f"Failed to decode JSON, retrying... (Attempt {attempt + 1}/{prompt_conf.retries})"
+                )
+                continue
+            else:
+                raise Exception("Failed to decode JSON after several retries.")
+```
+
+:::note info
+ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライを行うようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数を指定しています．
+
+```python:src/llm.py(__init__)
+from botocore.config import Config
+
+retry_config = Config(
+    region_name=region,
+    retries={
+        "max_attempts": 10,
+        "mode": "standard",
+    },
+)
+self.bedrock_runtime = boto3.client(
+    "bedrock-runtime", config=retry_config, region_name=region
+)
+```
+
+:::
+
+### step2. Retrieve: 拡張したクエリで非同期処理として並列ベクトル検索
+
+step1.で拡張した複数のクエリを利用して，Knowledge Base でベクトル検索を行う．本実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に検索を行い，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve している．
+また，AWS 公式ブログ[^0-0]でも言及されている通り，各クエリの検索は`concurrent.futures.ThreadPoolExecutor `を利用して並列実行している．
+
+今回の実験でクエリを拡張する際は、元のクエリ (question) と拡張したクエリ (query 1/2/3) の計 4 回独立に検索します。実装の際には Kendra へのクエリは非同期処理として並行して実行することで、クエリ拡張によるレイテンシーのオーバーヘッドを最小限に抑えることができるでしょう。Kendra のエンタープライズエディションでは 1 日あたりの最大クエリ件数が 8,000 件となっており、それを超えると追加の料金がかかることには注意が必要です。Advanced RAG の手法を追加する際には、追加のレイテンシー、料金、サービスクォータなどへの影響を評価することも忘れないようにしましょう。
 
 ### Post-Retrieve での工夫
 

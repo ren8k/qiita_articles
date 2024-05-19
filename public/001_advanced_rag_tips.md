@@ -7,7 +7,7 @@ tags:
   - bedrock
   - 生成AI
 private: true
-updated_at: '2024-05-18T18:11:57+09:00'
+updated_at: "2024-05-18T18:11:57+09:00"
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false
@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の@ren8k です。
-2024/05/01 に，AWS から「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的なブログが公開されました．
+2024/05/01 に，AWS から「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしいブログが公開されました．
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/
 
@@ -40,7 +40,7 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 - 構築したアーキテクチャ
 - 実施手順
   - 前提条件
-  - Knowledge Base の作成（任意）
+  - Knowledge Bases の作成（任意）
   - Advanced RAG の実行
 - 実装の工夫・Tips
   - Pre-Retrieve での工夫
@@ -64,7 +64,7 @@ Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにお�
 
 ### step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
 
-クエリ拡張は，単一のクエリから多様な観点で複数のクエリを作成し，それらに対して検索を実行して検索結果をマージする手法です．これにより，クエリとソースドキュメントの表記・表現が異なる場合でも適切な回答を得ることを目的としています．特に，[RAG-Fusion](https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1)という手法では，LLM を利用してクエリ拡張を行うことが提案されています．
+クエリ拡張は，単一のクエリから，多様な観点で検索に適した複数のクエリを作成し，それらに対して検索を実行して検索結果をマージする手法です．これにより，クエリとソースドキュメントの表記・表現が異なる場合でも適切な回答を得ることを目的としています．特に，[RAG-Fusion](https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1)という手法では，LLM を利用してクエリ拡張を行うことが提案されています．
 
 本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．なお，公式ブログと同様，3 つのクエリを生成するように Claude3 Haiku に指示しています．
 
@@ -197,9 +197,9 @@ self.bedrock_runtime = boto3.client(
 
 :::
 
-### step2. Retrieve: Knowledge Base でのベクトル検索の並列実行
+### step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行
 
-ベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Base で検索を行っており，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
+ベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Bases で検索を行っており，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
 
 以下にコードの該当箇所を示します．各クエリの検索は`concurrent.futures.ThreadPoolExecutor`を利用して，`retrieve`メソッドをスレッドベースで並列実行しております．
 
@@ -249,7 +249,16 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 以下にコードの補足説明を行います．
 
 - `with concurrent.futures.ThreadPoolExecutor(max_workers) as executor` ステートメントでは，`max_workers` で指定した数のスレッドを利用して並列処理を行います．
-- 辞書 `futures` には，`executor.submit` によって返される `Future` オブジェクトをキーとし，対応するクエリのキー（`query_0`, `query_1`, ...）を値として格納しています．
+- 辞書 `futures` には，`executor.submit` によって返される `Future` オブジェクトをキーとし，対応するクエリのキー（`query_0`, `query_1`, ...）を値として格納しています．（以下参考）
+
+```
+{
+    <Future at 0x721e69c3b430 state=running>: 'query_0',
+    <Future at 0x721e69d86490 state=running>: 'query_1',
+    ...
+}
+```
+
 - 各スレッドは，`executor.submit` にて指定した関数を非同期に実行し，その結果（ベクトル検索で取得した抜粋）を `future.result()` で取得します．デフォルトでは 10 並列で実行しています．
 - 最終的に，以下のような辞書 `results`を得ます．
 
@@ -265,7 +274,109 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 
 </details>
 
-### step3. Post-Retrieve: LLM による関連度評価の並列実行
+### step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
+
+検索結果の関連度評価では，LLM に検索結果とユーザーからの質問（クエリ）との関連性を評価させ，関連性が低い検索結果を除外する手法です．検索結果（抜粋）を圧縮することで，モデルの回答の精度を向上させることを目的としています．冗長な抜粋を基に LLM に回答を生成させる場合，重要な情報がコンテキストの中央に位置していると，回答精度が著しく低下してしまいます．詳細は論文[Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)で報告されております．また，冗長な抜粋には，誤った回答を誘発するような内容が含まれている可能性も考えられます．
+
+本実装では，Claude3 Haiku に対して全ての検索結果の抜粋に対してクエリとの関連度を効率的に評価させるため，以下の工夫を行っています．なお，公式ブログと同様，関連しているか否かの`True` or `False` で評価しております．
+
+1. Claude3 特有のプロンプト，およびシステムプロンプトの工夫
+2. 非同期での LLM の関連度評価の並列実行
+
+以降，各工夫について詳細に解説します．
+
+また，step2 と同様，非同期で Claude3 Haiku による評価を並列実行しております．以下にコードの該当箇所を示します．Claude3 は，`True` または `False` のバイナリスコアを返すようにプロンプトを工夫しており，`True` の場合は関連があると判断し，`False` の場合は関連がないと判断している．
+
+```python
+@classmethod
+def eval_relevance_parallel(
+    cls,
+    region: str,
+    llm_conf: LLMConfig,
+    prompts_and_contexts: list,
+    max_workers: int = 10,
+) -> list:
+    results = []
+
+    def generate_single_message(
+        llm: LLM, llm_conf: LLMConfig, prompt_and_context: dict
+    ):
+        llm_conf_tmp = copy.deepcopy(llm_conf)
+        llm_conf_tmp.format_message(prompt_and_context["prompt"])
+        body = json.dumps(llm_conf_tmp.llm_args)
+        is_relevant = llm.generate_message(body)
+
+        if is_relevant == "True":
+            return prompt_and_context["context"]
+        else:
+            return None
+
+    llm = cls(region, llm_conf.model_id)
+
+    with ThreadPoolExecutor(max_workers) as executor:
+        futures = {
+            executor.submit(
+                generate_single_message, llm, llm_conf, prompt_and_context
+            ): prompt_and_context
+            for prompt_and_context in prompts_and_contexts
+        }
+        for future in as_completed(futures):
+            result = future.result()
+            if result:
+                results.append(result)
+
+    return results
+```
+
+以下に利用している cofig ファイルを示す．
+
+**`config/prompt_template/relevance_eval.yaml`**
+
+```yaml
+format_instructions: TrueまたはFalseのみ回答すること。
+template: |
+  あなたは、ユーザーからの質問と検索で得られたドキュメントの関連度を評価する専門家です。
+  <excerpt>タグ内は、検索により取得したドキュメントの抜粋です。
+
+  <excerpt>{context}</excerpt>
+
+  <question>タグ内は、ユーザーからの質問です。
+
+  <question>{question}</question>
+
+  このドキュメントの抜粋は、ユーザーの質問に回答するための正確な情報を含んでいるかを慎重に判断してください。
+  正確な情報を含んでいる場合は 'yes'、含んでいない場合は 'no' のバイナリスコアを返してください。
+
+  {format_instructions}
+```
+
+<br>
+
+**`config/llm/claude-3_relevance_eval.yaml`**
+
+```yaml
+anthropic_version: bedrock-2023-05-31
+max_tokens: 1000
+temperature: 0
+system: Respond only true or false.
+messages:
+  [{ "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] }]
+stop_sequences: ["</output>"]
+
+stream: false
+model_id: anthropic.claude-3-haiku-20240307-v1:0
+```
+
+</details>
+
+### step4. Augment and Generate: Claude3 Haiku による回答生成
+
+プロンプトエンジニアリングが使われている
+
+- CoT
+- XML タグ
+
+一般的に，LLM に試行の過程をを吐き出させたほうが性能は向上する
 
 ---
 

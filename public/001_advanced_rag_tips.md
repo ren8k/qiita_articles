@@ -58,7 +58,7 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 ---
 
-## 再現実装時の工夫
+## 実装時の工夫
 
 Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
 
@@ -68,13 +68,13 @@ Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにお�
 
 本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．なお，公式ブログと同様，3 つのクエリを生成するように Claude3 Haiku に指示しています．
 
-1. Claude3 特有のプロンプトエンジニアリング（例・XML タグの利用）
+1. プロンプトエンジニアリング（例・XML タグの利用）
 2. システムプロンプトおよび Claude3 の応答の事前入力の工夫
 3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
 
 以降，各工夫について詳細に解説します．
 
-#### 1. Claude3 特有のプロンプトエンジニアリング（例・XML タグの利用）
+#### 1. プロンプトエンジニアリング（例・XML タグの利用）
 
 プロンプト中では以下の Tips を取り入れております．
 
@@ -283,17 +283,17 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 
 本実装では，Claude3 Haiku に対して全ての検索結果の抜粋に対してクエリとの関連度を効率的に評価させるため，以下の工夫を行っています．なお，公式ブログと同様，関連しているか否かの`True` or `False` で評価させており，`True` or `False` の文字列のみ回答するよう指示しております．
 
-1. Claude3 特有のプロンプトエンジニアリング（Role・XML タグの利用）
+1. プロンプトエンジニアリング（Role・XML タグの利用）
 2. システムプロンプトの工夫
 3. 非同期での LLM の関連度評価の並列実行
 
 以降，各工夫について詳細に解説します．
 
-#### 1. Claude3 特有のプロンプトエンジニアリング（Role・XML タグの利用）
+#### 1. プロンプトエンジニアリング（Role・XML タグの利用）
 
 プロンプト中では以下の Tips を取り入れております．
 
-- Role を与える
+- Role の付与
 - XML タグを利用した詳細な指示
 
 以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトの冒頭で，`質問とドキュメントの関連度を評価する専門家`という Role を与えるテクニック（ロールプロンプティング）を利用しております．Claude3 では，ロールプロンプティングにより，論理的で複雑なタスクでの精度向上やコミュニケーションスタイルの変更を促すことができます．また，XML タグを利用して，指示およびコンテンツを分離して指示しております．
@@ -404,15 +404,22 @@ def _get_generated_text(self, response_body: dict) -> Any:
 
 ### step4. Augment and Generate: Claude3 Haiku による回答生成
 
-step3 での関連度評価で抽出した抜粋を基に，Claude3 Haiku を利用してユーザーからの質問に対する回答を生成します．ここでのステップでの考え方は，Naive-RAG の考え方と同様です．本ステップで利用されているプロンプトには，以下のプロンプトエンジニアリングの工夫が導入されています．
+step3 での関連度評価で抽出した抜粋を基に，Claude3 Haiku を利用してユーザーからの質問に対する回答を生成します．ここでのステップでの考え方は，Naive-RAG の考え方と同様です．本ステップには，以下の工夫があります．
 
-- Role を与える
-- XML タグを利用した詳細な指示
+- プロンプトエンジニアリング（Role・CoT・XML タグの利用）
+- システムプロンプトの工夫
+
+以降，各工夫について詳細に解説します．
+
+#### 1. プロンプトエンジニアリング（Role・CoT・XML タグの利用）
+
+プロンプト中では以下の Tips を取り入れております．
+
+- Role の付与
 - CoT（Chain Of Thought）
+- XML タグを利用した詳細な指示
 
-一般的に，LLM に試行の過程をを吐き出させたほうが性能は向上する
-
-以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．まず，プロンプトの冒頭で`親切で知識豊富なチャットアシスタント`という Role を与える与えております．また，`まず、質問に対して<excerpts>タグ内にある情報で答えられるかを考え、<related>true</related>、もしくは、<related>false</related>の形式で答えてください。`という部分では，CoT（Chain Of Thought）を利用して，思考の手順を示しつつ，思考の過程を出力するように指示しております．特に，Claude3 では，段階的な推論と最終的な応答を区別しやすくするために XML タグを利用することが有効です．
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．まず，プロンプトの冒頭で`親切で知識豊富なチャットアシスタント`という Role を与えております．また，`まず、質問に対して<excerpts>タグ内にある情報で答えられるかを考え、<related>true</related>、もしくは、<related>false</related>の形式で答えてください。`という部分では，CoT（Chain Of Thought）を利用して，思考の手順を示しつつ，思考の過程を出力するように指示しております．特に，Claude3 では，段階的な推論と最終的な応答を区別しやすくするために XML タグを利用することが有効です．
 
 ```yaml:config/prompt_template/rag.yaml
 template: |
@@ -434,8 +441,29 @@ template: |
     - 簡潔に3つ以内のセンテンスで回答すること。
     - 日本語で回答すること。
     - 質問への回答は<answer></answer>タグに含めること。
-
 ```
+
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」，「[Let Claude think](https://docs.anthropic.com/en/docs/let-claude-think)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」を参照下さい．
+:::
+
+#### 2. システムプロンプトの工夫
+
+Claude3 のシステムプロンプト部で，日本語で回答するように指示しております．以下に Claude3 の引数を示します．
+
+```yaml:config/llm/claude-3_rag.yaml
+anthropic_version: bedrock-2023-05-31
+max_tokens: 1000
+temperature: 0
+system: Respond only the answer in Japanese.
+messages:
+    [{ "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] }]
+stop_sequences: ["</output>"]
+```
+
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」を参照下さい．
+:::
 
 ## まとめ
 

@@ -7,7 +7,7 @@ tags:
   - bedrock
   - 生成AI
 private: true
-updated_at: "2024-05-18T18:11:57+09:00"
+updated_at: '2024-05-20T21:31:28+09:00'
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false

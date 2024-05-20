@@ -296,7 +296,7 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 - Role を与える
 - XML タグを利用した詳細な指示
 
-以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトの冒頭で，「質問とドキュメントの関連度を評価する専門家」という Role を与えるテクニック（ロールプロンプティング）を取り入れております．Claude3 では，ロールプロンプティングにより，論理的で複雑なタスクでの精度向上やコミュニケーションスタイルの変更を促すことができます．また，XML タグを利用して，指示およびコンテンツを分離して指示しております．
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトの冒頭で，`質問とドキュメントの関連度を評価する専門家`という Role を与えるテクニック（ロールプロンプティング）を利用しております．Claude3 では，ロールプロンプティングにより，論理的で複雑なタスクでの精度向上やコミュニケーションスタイルの変更を促すことができます．また，XML タグを利用して，指示およびコンテンツを分離して指示しております．
 
 ```yaml:config/prompt_template/relevance_eval.yaml
 template: |
@@ -339,7 +339,7 @@ stop_sequences: ["</output>"]
 
 #### 3. 非同期での LLM の関連度評価の並列実行
 
-前述の「step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．
+前述の「step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．実装では，計 20 件分の抜粋に対して，10 並列で関連度評価しております．
 
 以下にコードの該当箇所を示します．関連度評価は`concurrent.futures.ThreadPoolExecutor`を利用して，内包関数`generate_single_message`を並列実行しております．`generate_single_message`には，引数としてプロンプトとプロンプトに埋め込んだ抜粋のセットを渡しており，Claude3 Haiku が，`True` と回答した場合のみ抜粋を返却するように実装することで，最終的に関連のある抜粋のみを抽出しております．
 
@@ -404,20 +404,42 @@ def _get_generated_text(self, response_body: dict) -> Any:
 
 ### step4. Augment and Generate: Claude3 Haiku による回答生成
 
-プロンプトエンジニアリングが使われている
+step3 での関連度評価で抽出した抜粋を基に，Claude3 Haiku を利用してユーザーからの質問に対する回答を生成します．ここでのステップでの考え方は，Naive-RAG の考え方と同様です．本ステップで利用されているプロンプトには，以下のプロンプトエンジニアリングの工夫が導入されています．
 
-- CoT
-- XML タグ
+- Role を与える
+- XML タグを利用した詳細な指示
+- CoT（Chain Of Thought）
 
 一般的に，LLM に試行の過程をを吐き出させたほうが性能は向上する
 
----
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．まず，プロンプトの冒頭で`親切で知識豊富なチャットアシスタント`という Role を与える与えております．また，`まず、質問に対して<excerpts>タグ内にある情報で答えられるかを考え、<related>true</related>、もしくは、<related>false</related>の形式で答えてください。`という部分では，CoT（Chain Of Thought）を利用して，思考の手順を示しつつ，思考の過程を出力するように指示しております．特に，Claude3 では，段階的な推論と最終的な応答を区別しやすくするために XML タグを利用することが有効です．
 
----
+```yaml:config/prompt_template/rag.yaml
+template: |
+    あなたは親切で知識豊富なチャットアシスタントです。
+    <excerpts>タグには、ユーザーが知りたい情報に関連する複数のドキュメントの抜粋が含まれています。
 
----
+    <excerpts>{contexts}</excerpts>
+
+    これらの情報をもとに、<question>タグ内のユーザーの質問に対する回答を提供してください。
+
+    <question>{query}</question>
+
+    まず、質問に対して<excerpts>タグ内にある情報で答えられるかを考え、<related>true</related>、もしくは、<related>false</related>の形式で答えてください。
+
+    質問に答えるための情報がない場合は、「情報が不十分で回答できません」と答えてください。
+    また、質問への回答は以下の点に留意してください:
+
+    - <excerpts>タグの内容を参考にするが、回答に<excerpts>タグを含めないこと。
+    - 簡潔に3つ以内のセンテンスで回答すること。
+    - 日本語で回答すること。
+    - 質問への回答は<answer></answer>タグに含めること。
+
+```
 
 ## まとめ
+
+本記事では，Advanced RAG を実現する上でのプロンプトエンジニアリングや実装方法の Tips について解説しました．また，解説を通して，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)には沢山の技術的ナレッジが含まれていることもお伝えできたかと思います．本記事および公式ブログを参考に，Advanced RAG の実装を行う際には，是非工夫を取り入れてみてください．
 
 ## 仲間募集
 
@@ -518,3 +540,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
 </div></details>
+```

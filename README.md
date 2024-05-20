@@ -1,6 +1,9 @@
 # Qiita Articles
 
-本リポジトリでは，Qiita の記事を管理している．
+本リポジトリでは，Qiita CLI と Github Actions を利用して Qiita の記事の投稿・更新を行っている．具体的には，以下の公式ドキュメントを参考にしている．
+
+- [Qiita の記事を GitHub リポジトリで管理する方法](https://qiita.com/Qiita/items/32c79014509987541130)
+- [qiita-cli](https://github.com/increments/qiita-cli)
 
 ## 備忘
 
@@ -11,6 +14,9 @@ npx qiita preview
 ```
 
 - 記事の作成
+  - 記事のファイル名は XXX\_記事のファイル名.md としている．
+  - XXX は数字 3 桁，記事のファイル名は英語で記述する．
+  - 記事の markdown ファイルは `public` ディレクトリに作成される．
 
 ```
 npx qiita new 記事のファイルのベース名
@@ -21,3 +27,6 @@ npx qiita new 記事のファイルのベース名
 ```
 npx qiita publish 記事のファイルのベース名
 ```
+
+- 記事の変更の反映について
+  - `main` または `master` ブランチに commit がある場合，自動で Qiita への記事の投稿・更新が行われる．

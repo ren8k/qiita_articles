@@ -68,57 +68,58 @@ Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにお�
 
 本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．なお，公式ブログと同様，3 つのクエリを生成するように Claude3 Haiku に指示しています．
 
-1. Claude3 特有のプロンプトエンジニアリング
+1. Claude3 特有のプロンプトエンジニアリング（例・XML タグの利用）
 2. システムプロンプトおよび Claude3 の応答の事前入力の工夫
 3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
 
 以降，各工夫について詳細に解説します．
 
-#### 1. Claude3 特有のプロンプトエンジニアリング
+#### 1. Claude3 特有のプロンプトエンジニアリング（例・XML タグの利用）
 
 プロンプト中では以下の Tips を取り入れております．
 
 - 具体例を記載する(Few-shot Prompting)
 - XML タグを利用した詳細な指示
 
-以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を展開した状態で記載しています．プロンプトでは，`<example>`タグ内に具体例を，`<format>`タグ内に出力フォーマットを記載しております．Claude3 では，指示とコンテンツ・例をタグを利用し分離して提示することで，より精度の高い回答を得ることができます．
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトでは，`<example></example>`タグ内に具体例を，`<format></format>`タグ内に出力フォーマットを記載しております．Claude3 では，指示とコンテンツ・例をタグを利用し分離して提示することで，より精度の高い回答を得ることができます．
 
 :::note info
 詳細は，Anthropic の公式ドキュメントの「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」および「[Use examples](https://docs.anthropic.com/en/docs/use-examples)」を参照下さい．
 :::
 
 ```yaml:config/prompt_template/query_expansion.yaml
-検索エンジンに入力するクエリを最適化し、様々な角度から検索を行うことで、より適切で幅広い検索結果が得られるようにします。
-具体的には、類義語や日本語と英語の表記揺れを考慮し、多角的な視点からクエリを生成します。
+template: |
+  検索エンジンに入力するクエリを最適化し、様々な角度から検索を行うことで、より適切で幅広い検索結果が得られるようにします。
+  具体的には、類義語や日本語と英語の表記揺れを考慮し、多角的な視点からクエリを生成します。
 
-以下の<question>タグ内にはユーザーの入力した質問文が入ります。
-この質問文に基づいて、3個の検索用クエリを生成してください。
-各クエリは30トークン以内とし、日本語と英語を適切に混ぜて使用することで、広範囲の文書が取得できるようにしてください。
+  以下の<question>タグ内にはユーザーの入力した質問文が入ります。
+  この質問文に基づいて、3個の検索用クエリを生成してください。
+  各クエリは30トークン以内とし、日本語と英語を適切に混ぜて使用することで、広範囲の文書が取得できるようにしてください。
 
-生成されたクエリは、<format>タグ内のフォーマットに従って出力してください。
+  生成されたクエリは、<format>タグ内のフォーマットに従って出力してください。
 
-<example>
-question: Knowledge Bases for Amazon Bedrock ではどのベクトルデータベースを使えますか？
-query_1: Knowledge Bases for Amazon Bedrock vector databases engine DB
-query_2: Amazon Bedrock ナレッジベース ベクトルエンジン vector databases DB
-query_3: Amazon Bedrock RAG 検索拡張生成 埋め込みベクトル データベース エンジン
-</example>
+  <example>
+  question: Knowledge Bases for Amazon Bedrock ではどのベクトルデータベースを使えますか？
+  query_1: Knowledge Bases for Amazon Bedrock vector databases engine DB
+  query_2: Amazon Bedrock ナレッジベース ベクトルエンジン vector databases DB
+  query_3: Amazon Bedrock RAG 検索拡張生成 埋め込みベクトル データベース エンジン
+  </example>
 
-<format>
-JSON形式で、各キーには単一のクエリを格納する。
-</format>
+  <format>
+  JSON形式で、各キーには単一のクエリを格納する。
+  </format>
 
-<question>
-{question}
-</question>
+  <question>
+  {question}
+  </question>
 ```
 
 #### 2. システムプロンプトおよび Claude3 の応答の事前入力の工夫
 
 Claude3 のプロンプト以外の引数部にて，以下の Tips を取り入れております．こちらは[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)には記載はありませんでしたが，実装上の工夫として取り入れております．
 
-- 引数 system（システムメッセージ） にて，有効な JSON 形式での出力を指示
-- 引数 messages にて，応答の事前入力として Assistant フィールドに`{`を指定
+- 引数 system（システムメッセージ） にて有効な JSON 形式での出力を指示
+- 引数 messages にて`Assistant`ロールを定義し，応答の事前入力として`{`を指定
 
 以下に Claude3 の引数を示します．システムメッセージの`Respond valid json format.`という部分と，応答の事前入力の`{ "role": "assistant", "content": [{ "type": "text", "text": "{" }] }`という部分が該当箇所です．
 
@@ -129,7 +130,7 @@ temperature: 0
 system: Respond valid json format.
 messages:
   [
-    { "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] },
+    { "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] }, # {prompt}にはプロンプトが入る
     { "role": "assistant", "content": [{ "type": "text", "text": "{" }] },
   ]
 stop_sequences: ["</output>"]
@@ -138,7 +139,7 @@ stop_sequences: ["</output>"]
 なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」および「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
 :::
 
 ```
@@ -178,7 +179,9 @@ def expand_queries(self, llm_conf: LLMConfig, prompt_conf: PromptConfig) -> dict
 ```
 
 :::note info
-ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライするようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数を指定しています．
+ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライするようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数（`max_attempts`）を 10 回に指定しています．
+
+なお，本機能を利用することで，リトライ間隔は Exponential Backoff アルゴリズムに基づき指数関数的に増加します．詳細は[公式ドキュメント](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#guide-retries)を参照下さい．
 
 ```python:src/llm.py(__init__)
 from botocore.config import Config
@@ -278,16 +281,69 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 
 検索結果の関連度評価では，LLM に検索結果とユーザーからの質問（クエリ）との関連性を評価させ，関連性が低い検索結果を除外する手法です．検索結果（抜粋）を圧縮することで，モデルの回答の精度を向上させることを目的としています．冗長な抜粋を基に LLM に回答を生成させる場合，重要な情報がコンテキストの中央に位置していると，回答精度が著しく低下してしまいます．詳細は論文[Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)で報告されております．また，冗長な抜粋には，誤った回答を誘発するような内容が含まれている可能性も考えられます．
 
-本実装では，Claude3 Haiku に対して全ての検索結果の抜粋に対してクエリとの関連度を効率的に評価させるため，以下の工夫を行っています．なお，公式ブログと同様，関連しているか否かの`True` or `False` で評価しております．
+本実装では，Claude3 Haiku に対して全ての検索結果の抜粋に対してクエリとの関連度を効率的に評価させるため，以下の工夫を行っています．なお，公式ブログと同様，関連しているか否かの`True` or `False` で評価させており，`True` or `False` の文字列のみ回答するよう指示しております．
 
-1. Claude3 特有のプロンプト，およびシステムプロンプトの工夫
-2. 非同期での LLM の関連度評価の並列実行
+1. Claude3 特有のプロンプトエンジニアリング（Role・XML タグの利用）
+2. システムプロンプトの工夫
+3. 非同期での LLM の関連度評価の並列実行
 
 以降，各工夫について詳細に解説します．
 
-また，step2 と同様，非同期で Claude3 Haiku による評価を並列実行しております．以下にコードの該当箇所を示します．Claude3 は，`True` または `False` のバイナリスコアを返すようにプロンプトを工夫しており，`True` の場合は関連があると判断し，`False` の場合は関連がないと判断している．
+#### 1. Claude3 特有のプロンプトエンジニアリング（Role・XML タグの利用）
 
-```python
+プロンプト中では以下の Tips を取り入れております．
+
+- Role を与える
+- XML タグを利用した詳細な指示
+
+以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトの冒頭で，「質問とドキュメントの関連度を評価する専門家」という Role を与えるテクニック（ロールプロンプティング）を取り入れております．Claude3 では，ロールプロンプティングにより，論理的で複雑なタスクでの精度向上やコミュニケーションスタイルの変更を促すことができます．また，XML タグを利用して，指示およびコンテンツを分離して指示しております．
+
+```yaml:config/prompt_template/relevance_eval.yaml
+template: |
+  あなたは、ユーザーからの質問と検索で得られたドキュメントの関連度を評価する専門家です。
+  <excerpt>タグ内は、検索により取得したドキュメントの抜粋です。
+
+  <excerpt>{context}</excerpt>
+
+  <question>タグ内は、ユーザーからの質問です。
+
+  <question>{question}</question>
+
+  このドキュメントの抜粋は、ユーザーの質問に回答するための正確な情報を含んでいるかを慎重に判断してください。
+  正確な情報を含んでいる場合は 'True'、含んでいない場合は 'False' を返してください。
+
+  TrueまたはFalseのみ回答すること。
+```
+
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」を参照下さい．
+:::
+
+#### 2. システムプロンプトの工夫
+
+Claude3 のシステムプロンプト部で，`True` または `False`のみを回答するように指示しております．以下に Claude3 の引数を示します．
+
+```yaml:config/llm/claude-3_relevance_eval.yaml
+anthropic_version: bedrock-2023-05-31
+max_tokens: 1000
+temperature: 0
+system: Respond only True or False.
+messages:
+    [{ "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] }] # {prompt}にはプロンプトが入る
+stop_sequences: ["</output>"]
+```
+
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」を参照下さい．
+:::
+
+#### 3. 非同期での LLM の関連度評価の並列実行
+
+前述の「step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．
+
+以下にコードの該当箇所を示します．関連度評価は`concurrent.futures.ThreadPoolExecutor`を利用して，内包関数`generate_single_message`を並列実行しております．`generate_single_message`には，引数としてプロンプトとプロンプトに埋め込んだ抜粋のセットを渡しており，Claude3 Haiku が，`True` と回答した場合のみ抜粋を返却するように実装することで，最終的に関連のある抜粋のみを抽出しております．
+
+```python:src/llm.py
 @classmethod
 def eval_relevance_parallel(
     cls,
@@ -326,48 +382,25 @@ def eval_relevance_parallel(
                 results.append(result)
 
     return results
+
+def generate_message(self, body: str) -> None:
+    try:
+        response = self.bedrock_runtime.invoke_model(
+            body=body, modelId=self.model_id
+        )
+        response_body = json.loads(response.get("body").read())
+        generated_text = self._get_generated_text(response_body)
+        return generated_text
+    except ClientError as err:
+        message = err.response["Error"]["Message"]
+        logger.error("A client error occurred: %s", message)
+
+def _get_generated_text(self, response_body: dict) -> Any:
+    if "claude-3" in self.model_id:
+        return response_body["content"][0]["text"]
+    elif "command-r-plus" in self.model_id:
+        return response_body["text"]
 ```
-
-以下に利用している cofig ファイルを示す．
-
-**`config/prompt_template/relevance_eval.yaml`**
-
-```yaml
-format_instructions: TrueまたはFalseのみ回答すること。
-template: |
-  あなたは、ユーザーからの質問と検索で得られたドキュメントの関連度を評価する専門家です。
-  <excerpt>タグ内は、検索により取得したドキュメントの抜粋です。
-
-  <excerpt>{context}</excerpt>
-
-  <question>タグ内は、ユーザーからの質問です。
-
-  <question>{question}</question>
-
-  このドキュメントの抜粋は、ユーザーの質問に回答するための正確な情報を含んでいるかを慎重に判断してください。
-  正確な情報を含んでいる場合は 'yes'、含んでいない場合は 'no' のバイナリスコアを返してください。
-
-  {format_instructions}
-```
-
-<br>
-
-**`config/llm/claude-3_relevance_eval.yaml`**
-
-```yaml
-anthropic_version: bedrock-2023-05-31
-max_tokens: 1000
-temperature: 0
-system: Respond only true or false.
-messages:
-  [{ "role": "user", "content": [{ "type": "text", "text": "{prompt}" }] }]
-stop_sequences: ["</output>"]
-
-stream: false
-model_id: anthropic.claude-3-haiku-20240307-v1:0
-```
-
-</details>
 
 ### step4. Augment and Generate: Claude3 Haiku による回答生成
 

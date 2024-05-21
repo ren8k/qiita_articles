@@ -54,6 +54,17 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 ## 構築したアーキテクチャ
 
+構築したアーキテクチャを以下に示します．
+
+DB には Pinecone を利用している
+
+以下のステップで Advanced RAG を実行している
+
+- step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
+- step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行
+- step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
+- step4. Augment and Generate: Claude3 Haiku による回答生成
+
 ## 実施手順
 
 ---
@@ -136,11 +147,8 @@ messages:
 stop_sequences: ["</output>"]
 ```
 
-なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．
-
-:::note info
-詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」および「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
-:::
+なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．以下の例では，`"What is Amazon doing in the field of generative AI?"`
+という質問に対して 3 つのクエリを生成しています．
 
 ```
 
@@ -149,6 +157,10 @@ stop_sequences: ["</output>"]
   "query_3": "Amazon generative AI 言語生成 人工知能 AI技術"
 }
 ```
+
+:::note info
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」および「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
+:::
 
 #### 3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
 
@@ -244,15 +256,22 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
     return response["retrievalResults"]
 ```
 
-<details><summary>コードの補足説明</summary>
-
 :::note info
 `concurrent.futures` モジュールは複数の処理を並列実行するための機能を提供し，特に，`ThreadPoolExecutor` クラスはスレッドを利用した並列タスクを実行するためのクラスです．
 
 以下にコードの補足説明を行います．
 
-- `with concurrent.futures.ThreadPoolExecutor(max_workers) as executor` ステートメントでは，`max_workers` で指定した数のスレッドを利用して並列処理を行います．
-- 辞書 `futures` には，`executor.submit` によって返される `Future` オブジェクトをキーとし，対応するクエリのキー（`query_0`, `query_1`, ...）を値として格納しています．（以下参考）
+```python
+with concurrent.futures.ThreadPoolExecutor(max_workers) as executor:
+    futures = {
+        executor.submit(retriever.retrieve, query, no_of_results): key
+        for key, query in queries.items()
+    }
+```
+
+- `concurrent.futures.ThreadPoolExecutor` を使用して，最大 `max_workers` 個のスレッドで並行処理を行います．（本実装では 10 並列）
+- `executor.submit` を用いて，各クエリに対して`retrieve`を非同期に実行します．
+- 辞書 `futures` には，`executor.submit` によって返される `Future` オブジェクトを key とし，対応するクエリのキー（`query_0`, `query_1`, ...）を value として格納しています．（以下参考）
 
 ```
 {
@@ -262,7 +281,19 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 }
 ```
 
-- 各スレッドは，`executor.submit` にて指定した関数を非同期に実行し，その結果（ベクトル検索で取得した抜粋）を `future.result()` で取得します．デフォルトでは 10 並列で実行しています．
+```python
+for future in concurrent.futures.as_completed(futures):
+    key = futures[future]
+    try:
+        result = future.result()
+    except Exception as e:
+        results[key] = str(e)
+    else:
+        results[key] = result
+
+```
+
+- `concurrent.futures.as_completed` を使用して，タスクの完了を待ち，完了したタスクから結果（ベクトル検索で取得した抜粋）を取得します．結果は `future.result()` で取得しています．
 - 最終的に，以下のような辞書 `results`を得ます．
 
 ```
@@ -275,7 +306,9 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 
 :::
 
-</details>
+:::note warn
+執筆時点（2024/05/21）では，Knowledge Bases で OpenSearch Serverless を利用している場合のみ，ハイブリッド検索は可能です．
+:::
 
 ### step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
 
@@ -285,7 +318,7 @@ def retrieve(self, query: str, no_of_results: int = 5) -> list:
 
 1. プロンプトエンジニアリング（Role・XML タグの利用）
 2. システムプロンプトの工夫
-3. 非同期での LLM の関連度評価の並列実行
+3. LLM の関連度評価の並列実行
 
 以降，各工夫について詳細に解説します．
 
@@ -337,11 +370,11 @@ stop_sequences: ["</output>"]
 詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」を参照下さい．
 :::
 
-#### 3. 非同期での LLM の関連度評価の並列実行
+#### 3. LLM の関連度評価の並列実行
 
 前述の「step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．実装では，計 20 件分の抜粋に対して，10 並列で関連度評価しております．
 
-以下にコードの該当箇所を示します．関連度評価は`concurrent.futures.ThreadPoolExecutor`を利用して，内包関数`generate_single_message`を並列実行しております．`generate_single_message`には，引数としてプロンプトとプロンプトに埋め込んだ抜粋のセットを渡しており，Claude3 Haiku が，`True` と回答した場合のみ抜粋を返却するように実装することで，最終的に関連のある抜粋のみを抽出しております．
+以下にコードの該当箇所を示します．関連度評価は`concurrent.futures.ThreadPoolExecutor`を利用して，内包関数`generate_single_message`を並列実行しております．`generate_single_message`には，引数として`プロンプト`と`プロンプトに埋め込んだ抜粋`のセットを渡しており，Claude3 Haiku が`True` と回答した場合のみ`抜粋`を返却するように実装することで，最終的に関連のある抜粋のみを抽出しております．
 
 ```python:src/llm.py
 @classmethod
@@ -404,7 +437,7 @@ def _get_generated_text(self, response_body: dict) -> Any:
 
 ### step4. Augment and Generate: Claude3 Haiku による回答生成
 
-step3 での関連度評価で抽出した抜粋を基に，Claude3 Haiku を利用してユーザーからの質問に対する回答を生成します．ここでのステップでの考え方は，Naive-RAG の考え方と同様です．本ステップには，以下の工夫があります．
+step3 での関連度評価で抽出した抜粋を基に，Claude3 Haiku を利用してユーザーからの質問に対する回答を生成します．ここでのステップでの考え方は，Naive-RAG の考え方と同様です．本ステップには以下の工夫があります．
 
 - プロンプトエンジニアリング（Role・CoT・XML タグの利用）
 - システムプロンプトの工夫
@@ -467,7 +500,7 @@ stop_sequences: ["</output>"]
 
 ## まとめ
 
-本記事では，Advanced RAG を実現する上でのプロンプトエンジニアリングや実装方法の Tips について解説しました．また，解説を通して，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)には沢山の技術的ナレッジが含まれていることもお伝えできたかと思います．本記事および公式ブログを参考に，Advanced RAG の実装を行う際には，是非工夫を取り入れてみてください．
+本記事では，Advanced RAG を実現する上でのプロンプトエンジニアリングや実装方法に関する Tips をご紹介しました．Advanced RAG の実装を行う際には，本記事および[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)を参考に，是非工夫を取り入れてみてください．
 
 ## 仲間募集
 

@@ -5,7 +5,7 @@ tags:
   - AWS
   - rag
   - bedrock
-  - 生成AI
+  - KnowledgeBaseForAmazonBedrock
 private: true
 updated_at: "2024-05-18T18:11:57+09:00"
 id: dcdb7f0c61fda384c478
@@ -54,16 +54,22 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 ## 構築したアーキテクチャ
 
-構築したアーキテクチャを以下に示します．
+再現実装の際に構築した Advanced RAG のアーキテクチャを以下に示します．
 
-DB には Pinecone を利用している
+![advanced_rag_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png)
 
-以下のステップで Advanced RAG を実行している
+[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)とは異なり，retriever（検索器）として [Knowledge bases for Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html) を利用しております．また，検証コストを最小限に抑えるため，ベクトルデータベース として [Pinecone](https://www.pinecone.io/) を利用しました．
+
+Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にクエリやデータのインデックス作成の最適化を行う Pre-Retrieve ステップと，検索後にクエリと検索結果を効果的に結合するための後処理を行う Post-Retrieve ステップが追加されています．公式ブログでは，以下の 4 つのステップで Advanced RAG の検証を行っております．
 
 - step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
 - step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行
 - step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
 - step4. Augment and Generate: Claude3 Haiku による回答生成
+
+:::note info
+Advanced RAG の詳細については，AWS 公式ブログ「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」およびサーベイ論文「[Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997)」を参照下さい．
+:::
 
 ## 実施手順
 
@@ -71,7 +77,7 @@ DB には Pinecone を利用している
 
 ## 実装時の工夫
 
-Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
+Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve, Augment and Generate の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
 
 ### step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
 

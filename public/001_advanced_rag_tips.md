@@ -32,10 +32,9 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 - Claude3 のプロンプトエンジニアリングの工夫について
   - XML タグ，具体例，ロールプロンプティング，CoT の利用
   - システムプロンプトの工夫による回答形式の指示
-- boto3 のみを利用した Advanced RAG の実装方法について
+- Bedrock，Knowledge Bases の並列実行について
   - Bedrock の`invoke_model`メソッド，Knowledge Bases の`retrieve`メソッドの利用
-- Python の非同期による並列実行について
-  - `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
+- `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
 
 ## 目次<!-- omit in toc -->
 

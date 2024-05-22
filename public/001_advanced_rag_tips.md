@@ -16,8 +16,8 @@ ignorePublish: false
 
 ## はじめに<!-- omit in toc -->
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の @ren8k です。
-2024/05/01 に，AWS から「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしいブログが公開されました．
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
+2024/05/01 に，「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしい AWS 公式ブログが公開されました．
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/
 
@@ -25,11 +25,17 @@ https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-adva
 
 https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
-<!-- 以下の Tips について重点的に解説しております．
+## TL;DR<!-- omit in toc -->
+
+以下の Tips について重点的に解説しております．
 
 - Claude3 のプロンプトエンジニアリングの工夫について
+  - XML タグ，具体例，ロールプロンプティング，CoT の利用
+  - システムプロンプトの工夫による回答形式の指示
 - boto3 のみを利用した Advanced RAG の実装方法について
-- Python の非同期による並列実行について -->
+  - Bedrock の`invoke_model`メソッド，Knowledge Bases の`retrieve`メソッドの利用
+- Python の非同期による並列実行について
+  - `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
 
 ## 目次<!-- omit in toc -->
 

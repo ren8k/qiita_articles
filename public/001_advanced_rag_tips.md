@@ -14,9 +14,9 @@ slide: false
 ignorePublish: false
 ---
 
-## はじめに
+## はじめに<!-- omit in toc -->
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の@ren8k です。
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の @ren8k です。
 2024/05/01 に，AWS から「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしいブログが公開されました．
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/
@@ -25,63 +25,105 @@ https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-adva
 
 https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
-## TL;DR
+<!-- 以下の Tips について重点的に解説しております．
 
-以下の Tips について重点的に解説しております．
+- Claude3 のプロンプトエンジニアリングの工夫について
+- boto3 のみを利用した Advanced RAG の実装方法について
+- Python の非同期による並列実行について -->
 
-- XML タグ，Chain Of Thought（CoT）を利用したプロンプトエンジニアリングが有効
-- Python の非同期による並列実行が有効
+## 目次<!-- omit in toc -->
 
-## 目次
-
-- Advanced RAG について
-  - アルゴリズム：
-  - pre-retrieve, retrieve, post-retrieve の各ステップにおける工夫
-- 構築したアーキテクチャ
-- 実施手順
-  - 前提条件
-  - Knowledge Bases の作成（任意）
-  - Advanced RAG の実行
-- 実装の工夫・Tips
-  - Pre-Retrieve での工夫
-    - プロンプトエンジニアリング(JSON 形式での回答取得)
-    - 複数回の実行
-  - Retrieve での工夫
-    - 並列実行
-  - Post-Retrieve
-    - プロンプトエンジニアリング(CoT，XML タグの利用)
-    - 並列実行
+- [構築したアーキテクチャ](#構築したアーキテクチャ)
+- [実施手順](#実施手順)
+  - [Knowledge Bases for Amazon Bedrock の構築](#knowledge-bases-for-amazon-bedrock-の構築)
+  - [コードの clone と環境構築](#コードの-clone-と環境構築)
+  - [Advanced RAG の実行](#advanced-rag-の実行)
+- [実装時の工夫](#実装時の工夫)
+  - [step1. Pre-Retrieval: Claude3 を利用したクエリ拡張](#step1-pre-retrieval-claude3-を利用したクエリ拡張)
+    - [1. プロンプトエンジニアリング（例・XML タグの利用）](#1-プロンプトエンジニアリング例xml-タグの利用)
+    - [2. システムプロンプトおよび Claude3 の応答の事前入力の工夫](#2-システムプロンプトおよび-claude3-の応答の事前入力の工夫)
+    - [3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）](#3-json-形式で回答が生成されなかった場合に再度-claude3-haiku-にリクエストを送信リトライ)
+  - [step2. Retrieval: Knowledge Bases でのベクトル検索の並列実行](#step2-retrieval-knowledge-bases-でのベクトル検索の並列実行)
+  - [step3. Post-Retrieval: Claude3 Haiku による関連度評価の並列実行](#step3-post-retrieval-claude3-haiku-による関連度評価の並列実行)
+    - [1. プロンプトエンジニアリング（Role・XML タグの利用）](#1-プロンプトエンジニアリングrolexml-タグの利用)
+    - [2. システムプロンプトの工夫](#2-システムプロンプトの工夫)
+    - [3. LLM の関連度評価の並列実行](#3-llm-の関連度評価の並列実行)
+  - [step4. Augment and Generate: Claude3 Haiku による回答生成](#step4-augment-and-generate-claude3-haiku-による回答生成)
+    - [1. プロンプトエンジニアリング（Role・CoT・XML タグの利用）](#1-プロンプトエンジニアリングrolecotxml-タグの利用)
+    - [2. システムプロンプトの工夫](#2-システムプロンプトの工夫-1)
+- [まとめ](#まとめ)
 
 ## 構築したアーキテクチャ
 
 再現実装の際に構築した Advanced RAG のアーキテクチャを以下に示します．
 
-![advanced_rag_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png)
+<!-- ![advanced_rag_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png) -->
+
+<img width="700" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png">
 
 [AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)とは異なり，retriever（検索器）として [Knowledge bases for Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html) を利用しております．また，検証コストを最小限に抑えるため，ベクトルデータベース として [Pinecone](https://www.pinecone.io/) を利用しました．
 
-Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にクエリやデータのインデックス作成の最適化を行う Pre-Retrieve ステップと，検索後にクエリと検索結果を効果的に結合するための後処理を行う Post-Retrieve ステップが追加されています．公式ブログでは，以下の 4 つのステップで Advanced RAG の検証を行っております．
+Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にクエリやデータのインデックス構造の最適化を行う Pre-Retrieval ステップと，検索後にクエリと検索結果を効果的に結合するための後処理を行い，LLM への入力を最適化する Post-Retrieval ステップが追加されています．公式ブログでは，以下の 4 つのステップで Advanced RAG の検証を行っております．
 
-- step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
-- step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行
-- step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
-- step4. Augment and Generate: Claude3 Haiku による回答生成
+| ステップ                    | 処理内容                                   |
+| --------------------------- | ------------------------------------------ |
+| step1. Pre-Retrieval        | Claude3 を利用したクエリ拡張               |
+| step2. Retrieval            | Knowledge Bases でのベクトル検索の並列実行 |
+| step3. Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
+| step4. Augment and Generate | Claude3 Haiku による回答生成               |
+
+各プロセスのワークフローとしては，以下のようになります．
+
+![advanced_rag_workflow_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a453eb3-66b1-4971-4cfb-e09f2660aea0.png)
 
 :::note info
-Advanced RAG の詳細については，AWS 公式ブログ「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」およびサーベイ論文「[Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997)」を参照下さい．
+Advanced RAG の詳細については，AWS 公式ブログ「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」およびサーベイ論文 “[Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997)” [Yunfan Gao et al. (2023)] をご参照下さい．
 :::
 
 ## 実施手順
 
----
+[本リポジトリ](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline)を利用した Advanced RAG の実行方法を簡易説明します．コードで利用されている config ファイルなどの詳細な説明は`README.md`にて記載しておりますので，興味のある方はご参照ください．
+
+### Knowledge Bases for Amazon Bedrock の構築
+
+Pinecone アカウントを作成後，ベクター DB のインデックスの作成を行います．“[Amazon Bedrock の Knowledge Base を Pinecone 無料枠で構築してみた](https://benjamin.co.jp/blog/technologies/bedrock-knowledgeaase-pinecone/)” などが参考になります．また，AWS 公式の “[Amazon Bedrock + Anthropic Claude 3 開発体験ワークショップ](https://catalog.us-east-1.prod.workshops.aws/workshops/7271111a-22bd-40e7-971a-817b0c083c67/ja-JP/rag/kb)” を参考に，OpenSearch Serverless を利用した Knowledge Bases を構築しても問題ございません．
+
+- 簡単のため，データソースの S3 には以下の 2020 ~ 2023 年度の Amazon の株主向け年次報告書を格納し，これを Embedding しました．
+  - [AMZN-2022-Shareholder-Letter.pdf](https://s2.q4cdn.com/299287126/files/doc_financials/2023/ar/2022-Shareholder-Letter.pdf)
+  - [AMZN-2021-Shareholder-Letter.pdf](https://s2.q4cdn.com/299287126/files/doc_financials/2022/ar/2021-Shareholder-Letter.pdf)
+  - [AMZN-2020-Shareholder-Letter.pdf](https://s2.q4cdn.com/299287126/files/doc_financials/2021/ar/Amazon-2020-Shareholder-Letter-and-1997-Shareholder-Letter.pdf)
+  - [AMZN-2019-Shareholder-Letter.pdf](https://s2.q4cdn.com/299287126/files/doc_financials/2020/ar/2019-Shareholder-Letter.pdf)
+
+### コードの clone と環境構築
+
+以下を実行し，リポジトリを clone します．
+
+```bash
+git clone https://github.com/ren8k/aws-bedrock-advanced-rag-baseline.git
+```
+
+続いて，`boto3` をインストールします．
+
+```bash
+pip install boto3==1.34.101
+```
+
+### Advanced RAG の実行
+
+`./src`ディレクトリに移動し，以下を実行します．引数`--kb-id`には，Knowledge Bases の ID を指定してください．また，引数`--relevance-eval`の有無で，関連度評価を行うかどうかを指定できます．
+
+```bash
+cd src
+python advanced_rag.py --kb-id <Knowledge Bases の ID> --relevance-eval
+```
 
 ## 実装時の工夫
 
-Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve, Augment and Generate の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
+Advanced RAG の Pre-Retrieval, Retrieval, Post-Retrieval, Augment and Generate の各ステップにおける実装の工夫について解説します．なお，本実装で利用しているプロンプトは，[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)のものを参考にさせていただいております．
 
-### step1. Pre-Retrieve: Claude3 を利用したクエリ拡張
+### step1. Pre-Retrieval: Claude3 を利用したクエリ拡張
 
-クエリ拡張は，単一のクエリから，多様な観点で検索に適した複数のクエリを作成し，それらに対して検索を実行して検索結果をマージする手法です．これにより，クエリとソースドキュメントの表記・表現が異なる場合でも適切な回答を得ることを目的としています．特に，[RAG-Fusion](https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1)という手法では，LLM を利用してクエリ拡張を行うことが提案されています．
+クエリ拡張は，単一のクエリから，多様な観点で検索に適した複数のクエリを作成し，それらに対して検索を実行して検索結果をマージする手法です．これにより，クエリとソースドキュメントの表記・表現が異なる場合でも適切な回答を得ることを目的としています．特に，“[Forget RAG, the Future is RAG-Fusion](https://towardsdatascience.com/forget-rag-the-future-is-rag-fusion-1147298d8ad1)” [A. H. Raudaschl (2023)] で提案されている RAG-Fusion という手法では，LLM を利用してクエリ拡張を行っています．
 
 本実装では，Claude3 Haiku に対して 拡張したクエリを **JSON 形式**で出力させるため，以下の工夫を行っています．なお，公式ブログと同様，3 つのクエリを生成するように Claude3 Haiku に指示しています．
 
@@ -101,7 +143,7 @@ Advanced RAG の Pre-Retrieve, Retrieve, Post-Retrieve, Augment and Generate の
 以下にプロンプトを示します．簡単のために，実際に利用されているプロンプトテンプレート中の変数を一部展開した状態で記載しています．プロンプトでは，`<example></example>`タグ内に具体例を，`<format></format>`タグ内に出力フォーマットを記載しております．Claude3 では，指示とコンテンツ・例をタグを利用し分離して提示することで，より精度の高い回答を得ることができます．
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」および「[Use examples](https://docs.anthropic.com/en/docs/use-examples)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」および「[Use examples](https://docs.anthropic.com/en/docs/use-examples)」をご参照下さい．
 :::
 
 ```yaml:config/prompt_template/query_expansion.yaml
@@ -165,7 +207,7 @@ stop_sequences: ["</output>"]
 ```
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」および「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」および「[Control output format (JSON mode)](https://docs.anthropic.com/en/docs/control-output-format)」をご参照下さい．
 :::
 
 #### 3. JSON 形式で回答が生成されなかった場合に再度 Claude3 Haiku にリクエストを送信（リトライ）
@@ -199,7 +241,7 @@ def expand_queries(self, llm_conf: LLMConfig, prompt_conf: PromptConfig) -> dict
 :::note info
 ネットワーク障害や一時的なサービスの不具合などで API 実行に失敗した場合にも，リトライするようにしています．具体的には，以下のように，`boto3`の`botocore.config.Config`クラスの`retries`パラメータにて，リトライ回数（`max_attempts`）を 10 回に指定しています．
 
-なお，本機能を利用することで，リトライ間隔は Exponential Backoff アルゴリズムに基づき指数関数的に増加します．詳細は[公式ドキュメント](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#guide-retries)を参照下さい．
+なお，本機能を利用することで，リトライ間隔は Exponential Backoff アルゴリズムに基づき指数関数的に増加します．詳細は[AWS Boto3 の公式ドキュメント](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#guide-retries)をご参照下さい．
 
 ```python:src/llm.py(__init__)
 from botocore.config import Config
@@ -218,7 +260,7 @@ self.bedrock_runtime = boto3.client(
 
 :::
 
-### step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行
+### step2. Retrieval: Knowledge Bases でのベクトル検索の並列実行
 
 ベクトル検索のレイテンシーを最小限に抑えるため，拡張した複数のクエリを利用して，非同期でベクトル検索を並列実行します．実装では，元のクエリと拡張した 3 つのクエリの計 4 つのクエリで独立に Knowledge Bases で検索を行っており，検索毎に 5 件の抜粋を取得しているので，計 20 件分の抜粋を Retrieve しています．
 
@@ -316,9 +358,9 @@ for future in concurrent.futures.as_completed(futures):
 執筆時点（2024/05/21）では，Knowledge Bases で OpenSearch Serverless を利用している場合のみ，ハイブリッド検索は可能です．
 :::
 
-### step3. Post-Retrieve: Claude3 Haiku による関連度評価の並列実行
+### step3. Post-Retrieval: Claude3 Haiku による関連度評価の並列実行
 
-検索結果の関連度評価では，LLM に検索結果とユーザーからの質問（クエリ）との関連性を評価させ，関連性が低い検索結果を除外する手法です．検索結果（抜粋）を圧縮することで，モデルの回答の精度を向上させることを目的としています．冗長な抜粋を基に LLM に回答を生成させる場合，重要な情報がコンテキストの中央に位置していると，回答精度が著しく低下してしまいます．詳細は論文[Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)で報告されております．また，冗長な抜粋には，誤った回答を誘発するような内容が含まれている可能性も考えられます．
+検索結果の関連度評価では，LLM に検索結果とユーザーからの質問（クエリ）との関連性を評価させ，関連性が低い検索結果を除外する手法です．検索結果（抜粋）を圧縮することで，モデルの回答の精度を向上させることを目的としています．冗長な抜粋を基に LLM に回答を生成させる場合，重要な情報がコンテキストの中央に位置していると，回答精度が著しく低下してしまいます．詳細は論文 “[Lost in the Middle: How Language Models Use Long Contexts](https://arxiv.org/abs/2307.03172)” [Nelson F. Liu1 et al. (2023)]で報告されております．また，冗長な抜粋には，誤った回答を誘発するような内容が含まれている可能性も考えられます．
 
 本実装では，Claude3 Haiku に対して全ての検索結果の抜粋に対してクエリとの関連度を効率的に評価させるため，以下の工夫を行っています．なお，公式ブログと同様，関連しているか否かの`True` or `False` で評価させており，`True` or `False` の文字列のみ回答するよう指示しております．
 
@@ -355,7 +397,7 @@ template: |
 ```
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」をご参照下さい．
 :::
 
 #### 2. システムプロンプトの工夫
@@ -373,12 +415,12 @@ stop_sequences: ["</output>"]
 ```
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」をご参照下さい．
 :::
 
 #### 3. LLM の関連度評価の並列実行
 
-前述の「step2. Retrieve: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．実装では，計 20 件分の抜粋に対して，10 並列で関連度評価しております．
+前述の「step2. Retrieval: Knowledge Bases でのベクトル検索の並列実行」と同様，非同期で Claude3 Haiku による評価を並列実行しております．実装では，計 20 件分の抜粋に対して，10 並列で関連度評価しております．
 
 以下にコードの該当箇所を示します．関連度評価は`concurrent.futures.ThreadPoolExecutor`を利用して，内包関数`generate_single_message`を並列実行しております．`generate_single_message`には，引数として`プロンプト`と`プロンプトに埋め込んだ抜粋`のセットを渡しており，Claude3 Haiku が`True` と回答した場合のみ`抜粋`を返却するように実装することで，最終的に関連のある抜粋のみを抽出しております．
 
@@ -483,7 +525,7 @@ template: |
 ```
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」，「[Let Claude think](https://docs.anthropic.com/en/docs/let-claude-think)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」，「[Let Claude think](https://docs.anthropic.com/en/docs/let-claude-think)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」をご参照下さい．
 :::
 
 #### 2. システムプロンプトの工夫
@@ -501,14 +543,14 @@ stop_sequences: ["</output>"]
 ```
 
 :::note info
-詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」を参照下さい．
+詳細は，Anthropic の公式ドキュメントの「[System prompts](https://docs.anthropic.com/en/docs/system-prompts)」をご参照下さい．
 :::
 
 ## まとめ
 
 本記事では，Advanced RAG を実現する上でのプロンプトエンジニアリングや実装方法に関する Tips をご紹介しました．Advanced RAG の実装を行う際には，本記事および[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)を参考に，是非工夫を取り入れてみてください．
 
-## 仲間募集
+## 仲間募集<!-- omit in toc -->
 
 NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
@@ -542,7 +584,7 @@ https://nttdata.jposting.net/u/job.phtml?job_code=898
 
 </details>
 
-## ソリューション紹介
+## ソリューション紹介<!-- omit in toc -->
 
 <details><summary> Trusted Data Foundationについて</summary><div>
 

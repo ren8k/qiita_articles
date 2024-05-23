@@ -33,8 +33,8 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
   - XML タグ，具体例，ロールプロンプティング，CoT の利用
   - システムプロンプトの工夫による回答形式の指示
 - Bedrock，Knowledge Bases の並列実行について
-  - Bedrock の`invoke_model`メソッド，Knowledge Bases の`retrieve`メソッドの利用
-- `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
+  - Bedrock の`invoke_model`メソッド，Knowledge Bases の`retrieve`メソッドの利用例
+  - `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
 
 ## 目次<!-- omit in toc -->
 
@@ -70,12 +70,12 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にクエリやデータのインデックス構造の最適化を行う Pre-Retrieval ステップと，検索後にクエリと検索結果を効果的に結合するための後処理を行い，LLM への入力を最適化する Post-Retrieval ステップが追加されています．公式ブログでは，以下の 4 つのステップで Advanced RAG の検証を行っております．
 
-| ステップ                    | 処理内容                                   |
-| --------------------------- | ------------------------------------------ |
-| step1. Pre-Retrieval        | Claude3 を利用したクエリ拡張               |
-| step2. Retrieval            | Knowledge Bases でのベクトル検索の並列実行 |
-| step3. Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
-| step4. Augment and Generate | Claude3 Haiku による回答生成               |
+| ステップ | プロセス             | 処理内容                                   |
+| -------- | -------------------- | ------------------------------------------ |
+| step1.   | Pre-Retrieval        | Claude3 を利用したクエリ拡張               |
+| step2.   | Retrieval            | Knowledge Bases でのベクトル検索の並列実行 |
+| step3.   | Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
+| step4.   | Augment and Generate | Claude3 Haiku による回答生成               |
 
 各プロセスのワークフローとしては，以下のようになります．
 

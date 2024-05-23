@@ -7,7 +7,7 @@ tags:
   - bedrock
   - KnowledgeBaseForAmazonBedrock
 private: true
-updated_at: "2024-05-18T18:11:57+09:00"
+updated_at: "2024-05-23T21:59:45+09:00"
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false
@@ -16,8 +16,7 @@ ignorePublish: false
 
 ## はじめに<!-- omit in toc -->
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の @ren8k です。
-2024/05/01 に，「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしい AWS 公式ブログが公開されました．
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/05/01 に，「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしい AWS 公式ブログが公開されました．
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/
 
@@ -77,7 +76,7 @@ Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にク
 | step3.   | Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
 | step4.   | Augment and Generate | Claude3 Haiku による回答生成               |
 
-各プロセスのワークフローとしては，以下のようになります．
+各プロセスのワークフローとしては，以下のようになります．（以下は，関連度評価の結果，検索結果 1 および 3 のみを利用して回答生成を行っている例です．）
 
 ![advanced_rag_workflow_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a453eb3-66b1-4971-4cfb-e09f2660aea0.png)
 

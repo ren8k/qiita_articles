@@ -7,7 +7,7 @@ tags:
   - bedrock
   - KnowledgeBaseForAmazonBedrock
 private: true
-updated_at: '2024-05-23T00:18:01+09:00'
+updated_at: '2024-05-23T09:49:54+09:00'
 id: dcdb7f0c61fda384c478
 organization_url_name: null
 slide: false

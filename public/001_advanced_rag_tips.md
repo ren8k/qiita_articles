@@ -61,8 +61,6 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 再現実装の際に構築した Advanced RAG のアーキテクチャを以下に示します．
 
-<!-- ![advanced_rag_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png) -->
-
 <img width="700" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5de3eed4-e711-73dc-1d31-2301913d2a29.png">
 
 [AWS 公式ブログ](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)とは異なり，retriever（検索器）として [Knowledge bases for Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base.html) を利用しております．また，検証コストを最小限に抑えるため，ベクトルデータベース として [Pinecone](https://www.pinecone.io/) を利用しました．
@@ -78,7 +76,7 @@ Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にク
 
 各プロセスのワークフローとしては，以下のようになります．（以下は，関連度評価の結果，検索結果 1 および 3 のみを利用して回答生成を行っている例です．）
 
-![advanced_rag_workflow_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a453eb3-66b1-4971-4cfb-e09f2660aea0.png)
+![advanced_rag_workflow_qiita.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/512712f0-4bc9-c1f1-5f05-36b4ad2c6049.png)
 
 :::note info
 Advanced RAG の詳細については，AWS 公式ブログ「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」およびサーベイ論文 “[Retrieval-Augmented Generation for Large Language Models: A Survey](https://arxiv.org/abs/2312.10997)” [Yunfan Gao et al. (2023)] をご参照下さい．

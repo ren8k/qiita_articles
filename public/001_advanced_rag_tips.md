@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに<!-- omit in toc -->
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の @ren8k です。
 2024/05/01 に，「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」という先進的で素晴らしい AWS 公式ブログが公開されました．
 
 https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/

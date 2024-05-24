@@ -6,10 +6,10 @@ tags:
   - rag
   - bedrock
   - KnowledgeBaseForAmazonBedrock
-private: true
-updated_at: '2024-05-24T00:49:09+09:00'
+private: false
+updated_at: "2024-05-23T21:59:45+09:00"
 id: dcdb7f0c61fda384c478
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---

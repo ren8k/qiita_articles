@@ -30,7 +30,7 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 - Claude3 のプロンプトエンジニアリングの工夫について
   - XML タグ，具体例，ロールプロンプティング，CoT の利用
-  - システムプロンプトの工夫による回答形式の指示
+  - システムプロンプトの工夫による回答形式の指示（JSON 出力）
 - Bedrock，Knowledge Bases の並列実行について
   - Bedrock の`invoke_model`メソッド，Knowledge Bases の`retrieve`メソッドの利用例
   - `concurrent.futures.ThreadPoolExecutor` を利用した並列処理
@@ -39,6 +39,7 @@ https://github.com/ren8k/aws-bedrock-advanced-rag-baseline
 
 - [構築したアーキテクチャ](#構築したアーキテクチャ)
 - [実施手順](#実施手順)
+  - [前提](#前提)
   - [Knowledge Bases for Amazon Bedrock の構築](#knowledge-bases-for-amazon-bedrock-の構築)
   - [コードの clone と環境構築](#コードの-clone-と環境構築)
   - [Advanced RAG の実行](#advanced-rag-の実行)
@@ -69,10 +70,10 @@ Advanced RAG では，通常の RAG（Naive RAG）と異なり，検索前にク
 
 | ステップ | プロセス             | 処理内容                                   |
 | -------- | -------------------- | ------------------------------------------ |
-| step1.   | Pre-Retrieval        | Claude3 を利用したクエリ拡張               |
-| step2.   | Retrieval            | Knowledge Bases でのベクトル検索の並列実行 |
-| step3.   | Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
-| step4.   | Augment and Generate | Claude3 Haiku による回答生成               |
+| step1    | Pre-Retrieval        | Claude3 を利用したクエリ拡張               |
+| step2    | Retrieval            | Knowledge Bases でのベクトル検索の並列実行 |
+| step3    | Post-Retrieval       | Claude3 Haiku による関連度評価の並列実行   |
+| step4    | Augment and Generate | Claude3 Haiku による回答生成               |
 
 各プロセスのワークフローとしては，以下のようになります．（以下は，関連度評価の結果，検索結果 1 および 3 のみを利用して回答生成を行っている例です．）
 
@@ -84,7 +85,13 @@ Advanced RAG の詳細については，AWS 公式ブログ「[Amazon Kendra と
 
 ## 実施手順
 
-[本リポジトリ](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline)を利用した Advanced RAG の実行方法を簡易説明します．コードで利用されている config ファイルなどの詳細な説明は`README.md`にて記載しておりますので，興味のある方はご参照ください．
+[本リポジトリ](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline)を利用した Advanced RAG の実行方法を簡易説明します．コードで利用されている config ファイルなどの詳細な説明は[README.md](https://github.com/ren8k/aws-bedrock-advanced-rag-baseline/blob/main/README.md)にて記載しておりますので，興味のある方はご参照ください．
+
+### 前提
+
+- バージニア北部リージョン（`us-east-1`），またはオレゴンリージョン（`us-west-2`）での実行を前提としている．（Pinecone を利用する場合は`us-east-1`である必要があります．）
+- 適切な認証情報の設定・ロールの設定がなされている．（設定が面倒な場合，例えば Cloud9 上で実行しても良いです．）
+- Bedrock のモデルアクセスの有効化が適切になされている．（最低限，Claude3 Haiku が利用できれば問題ございません．）
 
 ### Knowledge Bases for Amazon Bedrock の構築
 
@@ -197,8 +204,7 @@ messages:
 stop_sequences: ["</output>"]
 ```
 
-なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．以下の例では，`"What is Amazon doing in the field of generative AI?"`
-という質問に対して 3 つのクエリを生成しています．
+なお，上記の工夫で得られる回答は，以下のように，JSON の`{`の続きからなので，コード側で`{`を補完する必要があります．この工夫により，かなり高確率で JSON 形式の回答を得ることができるようになります．以下の例では，`"What is Amazon doing in the field of generative AI?"`という質問に対して 3 つのクエリを生成しています．
 
 ```
 

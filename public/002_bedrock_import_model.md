@@ -1,5 +1,5 @@
 ---
-title: 世界最速！？Amazon Bedrockの Custom model importの機能検証
+title: 世界最速！？Amazon Bedrock の Custom model import の機能検証
 tags:
   - AWS
   - bedrock
@@ -16,61 +16,89 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://aws.amazon.com/jp/about-aws/whats-new/2024/04/custom-model-import-amazon-bedrock/) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請に時間がかかる or 用途によっては reject される模様です．）
 
-## コードの書き方
+そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を受理していただくことで，本機能を利用することができました．
 
-以下にコードを示す．
+本記事では，Custom model import の利用手順および，機能検証した結果を共有いたします。
 
-```python:main.py
-print("hello")
-```
+https://aws.amazon.com/jp/about-aws/whats-new/2024/04/custom-model-import-amazon-bedrock/
 
-```bash:main.sh
-echo "hello"
-```
+https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-preview/
 
 :::note info
-インフォメーション
-info は省略可能です。
+本機能を検証するにあたり，ご協力いただいた AWS Partner Solutions Architect の方，および，海外の Bedrock チームの方々には感謝申し上げます．
 :::
 
 :::note warn
-警告
-○○ に注意してください。
+本記事の内容は執筆時点（2024/05/25）の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
 :::
 
-:::note alert
-より強い警告
-○○ しないでください。
-:::
+## Custom model import とは
 
-<!-- open属性なし -->
-<details><summary>サンプルコード（open属性なし）</summary>
+Amazon Bedrock に自前のモデルが持ち込める Custom model import の Preview が開始しました。 Llama2/3、Mistral ベースのモデルを import し API 形式で動かせます。 Model Evaluation が GA したので、Bedrock 標準+自前モデルを並べて評価が可能になったはず。
 
-(上に空行が必要)
+## 利用手順
 
-```rb:sample.rb
-puts 'Hello, World'
+現時点（2024/05/25）では，以下のフローで Custom model import を利用することができます．
+
+- Service Quotas の上限緩和申請
+- S3 へモデルをアップロード
+- Import job の実行
+
+## Service Quotas の上限緩和申請
+
+以下の 2 つの Service Quotas の上限緩和申請が必要です．申請が受理されるまで，約 1 ヶ月を要しました．以下は，Import job の実行に必要となります．
+
+- `Concurrent model import jobs`
+- `Imported models per account`
+
+特に 2 つ目の上限緩和には，かなり時間がかかる可能性があります．具体的には，海外の Bedrock チームからユースケースの詳細を求められ，その後，Bedrock チームおよび，担当者によるユースケースのレビューを通過するまで待つ必要があります．私の場合，PSA の方にご協力いただけたので，1~2 週間程度で受理されました．
+
+## S3 へモデルをアップロード
+
+バージニア北部の任意の S3 バケットにモデルをアップロードします．本検証では，rinna 社が提供する Llama3 の日本語継続事前学習モデルの [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用しました．
+
+以下に実行したコマンドを示します．
+
+- git lfs のインストール
+
+```bash
+sudo apt install git-lfs
 ```
 
-```json:sample.json
-{
-  "key": "value"
-}
+- モデルのダウンロード
+
+```bash
+git clone https://huggingface.co/rinna/llama-3-youko-8b
 ```
 
-```yaml:sample.yaml
+- S3 へのアップロード（下記の`<your bucket>` は，任意のバケット名に置き換えてください．）
 
+```bash
+aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 ```
 
-</details>
+## Import job の実行
 
-![recat.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/93909c5c-b2a6-5b2e-6885-715caa8e6977.jpeg)
+![001.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8bcfc966-bc03-db37-8477-287b82ea75d1.png)
+![002.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/eedc2fdb-c10a-1b51-0a96-7223d8663153.png)
+![003.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/90e48e5c-a619-9f52-220d-d20ed91db5ff.png)
+![004.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed3ad2b4-1239-f1cc-ba24-09f29465536d.png)
+![005.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c11cd1-3d98-777f-b9ef-043bd9d6f9a8.png)
+![006.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a709da9-fb30-4769-164e-4f8dea33d539.png)
 
-上記が実装したコードのフローである．
+## 機能検証
 
-![naive-rag-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/dde0d43e-2bfb-b17f-6c6a-67062ad30903.png)
+### 検証設定
+
+モデルには，前述の yoko を利用しています．評価用データとしては，JCommonsenseQA の validation データを利用しました．[3]
+
+### プレイグラウンドでの検証
+
+データセット hoge を利用しました．
+
+### API での検証
 
 ## まとめ
 

@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://aws.amazon.com/jp/about-aws/whats-new/2024/04/custom-model-import-amazon-bedrock/) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請に時間がかかる or 用途によっては reject される模様です．）
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請に時間がかかる or 用途によっては reject される模様です．）
 
 そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を受理していただくことで，本機能を利用することができました．
 
@@ -36,7 +36,15 @@ https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-previ
 
 ## Custom model import とは
 
-Amazon Bedrock に自前のモデルが持ち込める Custom model import の Preview が開始しました。 Llama2/3、Mistral ベースのモデルを import し API 形式で動かせます。 Model Evaluation が GA したので、Bedrock 標準+自前モデルを並べて評価が可能になったはず。
+Amazon SageMaker や他の機械学習プラットフォームで学習させたモデルを Amazon Bedrock に取り込み，Bedrock の API を通じてモデルを呼び出し推論することができる機能です．
+
+現時点では，本機能は以下のモデルアーキテクチャをサポートしています：
+
+- Llama2 と Llama3
+- Mistral
+- FLAN-T5
+
+インポート元として，Amazon SageMaker や Amazon S3 からモデルを選択することが可能です．S3 からモデルをインポートする場合，モデルファイルは Hugging Face の safetensors 形式で保存されている必要があります．
 
 ## 利用手順
 
@@ -44,11 +52,11 @@ Amazon Bedrock に自前のモデルが持ち込める Custom model import の P
 
 - Service Quotas の上限緩和申請
 - S3 へモデルをアップロード
-- Import job の実行
+- Model Import Job の実行
 
 ## Service Quotas の上限緩和申請
 
-以下の 2 つの Service Quotas の上限緩和申請が必要です．申請が受理されるまで，約 1 ヶ月を要しました．以下は，Import job の実行に必要となります．
+後続の Import job の実行のため，以下の 2 つの Service Quotas の上限緩和申請が必要です．
 
 - `Concurrent model import jobs`
 - `Imported models per account`
@@ -57,7 +65,7 @@ Amazon Bedrock に自前のモデルが持ち込める Custom model import の P
 
 ## S3 へモデルをアップロード
 
-バージニア北部の任意の S3 バケットにモデルをアップロードします．本検証では，rinna 社が提供する Llama3 の日本語継続事前学習モデルの [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用しました．
+バージニア北部の任意の S3 バケットにモデルをアップロードします．本検証では，rinna 社が提供する Llama3 の日本語継続事前学習モデルである [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用しました．Llama 3 Youko 8B は，80 億パラメータの Llama 3 8B に対して，日本語と英語の学習データ 220 億トークンを用いて継続事前学習したモデルです．[[1]](https://rinna.co.jp/news/2024/05/20240507.html)
 
 以下に実行したコマンドを示します．
 
@@ -79,30 +87,159 @@ git clone https://huggingface.co/rinna/llama-3-youko-8b
 aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 ```
 
-## Import job の実行
+:::note warn
+モデルファイルの総量は 約 30GB あるので，S3 への転送時間が少しかかります．また，Cloud9 などでアップロードする場合，ディスク容量にご注意下さい．
+:::
+
+## Model Import Job の実行
+
+実際の操作画面を示しながら，解説いたします．
+
+- バージニア北部リージョンで，Amazon Bedrock コンソールから，ナビケーションペインの[基盤モデル]セクションから[Imported models]を選択します．
+
+![000.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f7752729-bec9-c34d-bf13-8c25580e9252.png)
+
+- [Import model] を選択します．
 
 ![001.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8bcfc966-bc03-db37-8477-287b82ea75d1.png)
-![002.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/eedc2fdb-c10a-1b51-0a96-7223d8663153.png)
+
+- `Model Import Job` を実行するため，以下の情報を入力します．その他の項目は，デフォルト値のままで問題ございません．
+  - `Model name`: 任意のモデル名
+  - `S3の場所`: 先ほどアップロードしたモデルの S3 パス
+
+<img width="500" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/eedc2fdb-c10a-1b51-0a96-7223d8663153.png">
+
+- `Model Import Job`が開始されます．Status が`Importing`から`Completed`に変わるまで待ちます．
+
 ![003.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/90e48e5c-a619-9f52-220d-d20ed91db5ff.png)
+
+- `Model Import Job`が完了すると，Status が`Completed`に変わります．私の環境では約 10~15 分程度で完了しました．
+
 ![004.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed3ad2b4-1239-f1cc-ba24-09f29465536d.png)
-![005.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c11cd1-3d98-777f-b9ef-043bd9d6f9a8.png)
-![006.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a709da9-fb30-4769-164e-4f8dea33d539.png)
+
+- [Models]を選択し，モデル名を選択すると，モデル ファイルの S3 の場所などの詳細情報が取得されます。右上のプレイグラウンドでの検証が可能です．
+
+★TODO: 追加（Model タブを選択した際の画面）
+★TODO: 追加（モデルの詳細）
+
+- 以下がプレイグラウンドでの検証画面です．画面の左上に表示されているモデル名が，自身で Import したモデル名になっていることを確認できます．
+
+★TODO: 追加（プレイグラウンドでの未入力画面）
 
 ## 機能検証
 
 ### 検証設定
 
-モデルには，前述の yoko を利用しています．評価用データとしては，JCommonsenseQA の validation データを利用しました．[3]
+利用するモデルとしては，前述の [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用します．評価用データとしては，[JCommonsenseQA](https://huggingface.co/datasets/leemeng/jcommonsenseqa-v1.1) の validation データを利用しました．
+
+### プロンプトの設定
+
+以下のような，1-shot のプロンプトを与えました．
+
+```
+### 例 ###
+質問: 電子機器で使用される最も主要な電子回路基板の事をなんと言う？
+choice0: 掲示板
+choice1: パソコン
+choice2: マザーボード
+choice3: ハードディスク
+choice4: まな板
+回答: <answer>マザーボード</answer>
+
+質問: 次のうち、金管楽器であるのはどれ？
+choice0: トランペット
+choice1: ガラス
+choice2: メビウス
+choice3: メタル
+choice4: 設計
+回答:
+```
 
 ### プレイグラウンドでの検証
 
-データセット hoge を利用しました．
+前述のプロンプトをプレイグラウンドに入力し，停止シーケンスに`</answer>`を設定後，`実行`ボタンを押下しました．
+
+★TODO: 追加（API での検証結果）
+
+![005.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c11cd1-3d98-777f-b9ef-043bd9d6f9a8.png)
+
+実行結果は以下です．適切にプロンプト内の質問に回答することできております．しかし，停止シーケンスに`</answer>`を設定しているにも関わらず，指定したシーケンスを含めた回答が続いており，不具合の可能性があります．
+
+★TODO: 追加（API での検証結果）
+
+![006.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a709da9-fb30-4769-164e-4f8dea33d539.png)
 
 ### API での検証
 
+プレイグラウンドの右上にある 3 つの小さな縦のドットを選択し，`View API request` を選択することで，API リクエストの構文を確認できます．今回の検証では，以下の shell を利用しました．
+
+特徴として，通常の Bedrock の [invoke-model API](https://docs.aws.amazon.com/ja_jp/bedrock/latest/userguide/inference-invoke.html)を利用しておりますが，モデル ID にはインポートされたモデルの ARN を指定しています．
+
+```bash
+PROMPT=$(cat <<EOD
+### 例 ###
+質問: 電子機器で使用される最も主要な電子回路基板の事をなんと言う？
+choice0: 掲示板
+choice1: パソコン
+choice2: マザーボード
+choice3: ハードディスク
+choice4: まな板
+回答: <answer>マザーボード</answer>
+
+質問: 次のうち、金管楽器であるのはどれ？
+choice0: トランペット
+choice1: ガラス
+choice2: メビウス
+choice3: メタル
+choice4: 設計
+回答:
+EOD
+)
+
+aws bedrock-runtime invoke-model \
+--model-id arn:aws:bedrock:us-east-1:<account-id>:imported-model/XXXXXXXXXXXX \
+--body "{\"prompt\":\"$PROMPT\",\"max_tokens\":512,\"top_k\":50,\"top_p\":0.9,\"stop\":[],\"temperature\":0.5}" \
+--cli-binary-format raw-in-base64-out \
+--region us-east-1 \
+invoke-model-output.txt
+```
+
+結果としては，プレイグラウンドでの検証と同様の結果が得られました．
+
+```
+★TODO: 追加（API での検証結果）
+```
+
+## 機能改善のためリクエストしたい点
+
+以下については，実際に機能を利用し，個人的に感じた改善点を挙げております．
+
+- Hugging Face 上のモデルを import する際に，URL を指定するだけで直接 import できる機能
+  - 開発・Fine-Tuning したモデルを Hugging Face 上で公開することはデファクトスタンダードになっているため，Hugging Face の URL からモデルを直接 import できる機能があると便利だと考えております．
+- 対応モデルの拡充
+  - 現状， Llama2/3，Mistral，FLAN-T5 ベースのモデルのみ対応しておりますが，他のモデルも対応していただけると汎用性が高まると考えております．
+- Service Quotas での承認に要する時間の短縮
+  - 他の Bedrocker にも利用していただき，多様な観点でのフィードバックを得るためにも，承認時間の短縮は望ましいと考えております．
+
+## 一部不具合の可能性のある点
+
+以下については，まだ preview 段階であり致し方ないということを前提に，AWS 社にフィードバックを行っております．
+
+- コンソール上で`Model Import Job`を実行する際の，以下のデフォルトの設定値の datetime の month の値が先月の値になっている
+  - `Import job name `
+  - `Service role`
+- 停止シーケンスが正常に機能していない
+  - 同様のプロンプトおよび停止シーケンスの設定で，Claude3 sonnet で試した場合，正常に機能していることを確認しております．
+
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+本記事では，Amazon Bedrock の Custom model import の機能を利用するための手順および機能検証結果を共有いたしました．外部で公開されているモデルを import し，統一的な Bedrock の API で利用することができるため，非常に便利な機能だと感じました．また，Bedrock のモデル評価機能である [Model Evaluation](https://aws.amazon.com/jp/blogs/aws/amazon-bedrock-model-evaluation-is-now-generally-available/) を利用することで，Bedrock 標準モデルとの比較評価も容易に行うことができそうです．
+
+なお，リクエストしたい機能や一部不具合の可能性のある点については，AWS 社 にフィードバックを行っている状況です．今後の機能改善が楽しみです．
+
+## 参考文献
+
+[1] [rinna、Llama 3 の日本語継続事前学習モデル「Llama 3 Youko 8B」を公開](https://rinna.co.jp/news/2024/05/20240507.html)
 
 ## 仲間募集
 

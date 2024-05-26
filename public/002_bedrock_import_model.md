@@ -16,9 +16,9 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請に時間がかかる or 用途によっては reject される模様です．）
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請承認に時間がかかる or 用途によっては reject される模様です．）
 
-そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を受理していただくことで，本機能を利用することができました．
+そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を優先的に承認していただくことで，本機能を利用することができました．
 
 本記事では，Custom model import の利用手順および，機能検証した結果を共有いたします。
 
@@ -38,7 +38,7 @@ https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-previ
 
 Amazon SageMaker や他の機械学習プラットフォームで学習させたモデルを Amazon Bedrock に取り込み，Bedrock の API を通じてモデルを呼び出し推論することができる機能です．
 
-現時点では，本機能は以下のモデルアーキテクチャをサポートしています：
+現時点では，本機能は以下のモデルアーキテクチャーをサポートしています．
 
 - Llama2 と Llama3
 - Mistral
@@ -61,7 +61,7 @@ Amazon SageMaker や他の機械学習プラットフォームで学習させた
 - `Concurrent model import jobs`
 - `Imported models per account`
 
-特に 2 つ目の上限緩和には，かなり時間がかかる可能性があります．具体的には，海外の Bedrock チームからユースケースの詳細を求められ，その後，Bedrock チームおよび，担当者によるユースケースのレビューを通過するまで待つ必要があります．私の場合，PSA の方にご協力いただけたので，1~2 週間程度で受理されました．
+特に 2 つ目の上限緩和には，かなり時間がかかる可能性があります．具体的には，海外の Bedrock チームからユースケースの詳細を求められ，その後，Bedrock チームおよび，担当者によるユースケースのレビューを通過するまで待つ必要があります．私の場合，PSA の方にご協力いただけたので，1~2 週間程度で承認されました．
 
 ## S3 へモデルをアップロード
 
@@ -93,9 +93,9 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 
 ## Model Import Job の実行
 
-実際の操作画面を示しながら，解説いたします．
+実際の操作画面を示しながら，手順を解説いたします．
 
-- バージニア北部リージョンで，Amazon Bedrock コンソールから，ナビケーションペインの[基盤モデル]セクションから[Imported models]を選択します．
+- バージニア北部リージョンで，Amazon Bedrock コンソールから，ナビケーションペインの [基盤モデル] セクションから [Imported models] を選択します．
 
 ![000.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f7752729-bec9-c34d-bf13-8c25580e9252.png)
 
@@ -105,7 +105,7 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 
 - `Model Import Job` を実行するため，以下の情報を入力します．その他の項目は，デフォルト値のままで問題ございません．
   - `Model name`: 任意のモデル名
-  - `S3の場所`: 先ほどアップロードしたモデルの S3 パス
+  - `S3の場所`: 先ほどアップロードしたモデルの S3 URI
 
 <img width="500" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/eedc2fdb-c10a-1b51-0a96-7223d8663153.png">
 
@@ -117,7 +117,7 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 
 ![004.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed3ad2b4-1239-f1cc-ba24-09f29465536d.png)
 
-- [Models]を選択し，モデル名を選択すると，モデル ファイルの S3 の場所などの詳細情報が取得されます。右上のプレイグラウンドでの検証が可能です．
+- [Models] を選択し，モデル名を選択すると，モデルの S3 URI や，インポートしたモデルの Model ARN などの詳細情報を確認できます。また，右上の [Open in playground] を選択すると，プレイグラウンドでの検証が可能です．
 
 ★TODO: 追加（Model タブを選択した際の画面）
 ★TODO: 追加（モデルの詳細）
@@ -127,6 +127,8 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 ★TODO: 追加（プレイグラウンドでの未入力画面）
 
 ## 機能検証
+
+今回は，プレイグラウンド（GUI）および，API（CUI）を利用して，実際にインポートしたモデルで推論することができるかを検証しました．
 
 ### 検証設定
 
@@ -173,7 +175,9 @@ choice4: 設計
 
 プレイグラウンドの右上にある 3 つの小さな縦のドットを選択し，`View API request` を選択することで，API リクエストの構文を確認できます．今回の検証では，以下の shell を利用しました．
 
-特徴として，通常の Bedrock の [invoke-model API](https://docs.aws.amazon.com/ja_jp/bedrock/latest/userguide/inference-invoke.html)を利用しておりますが，モデル ID にはインポートされたモデルの ARN を指定しています．
+通常の Bedrock の [invoke-model API](https://docs.aws.amazon.com/ja_jp/bedrock/latest/userguide/inference-invoke.html)を利用しておりますが，モデル ID にはインポートされたモデルの ARN を指定している点が特徴です．
+
+★TODO: 下記では，停止シーケンスの設定がなされていない
 
 ```bash
 PROMPT=$(cat <<EOD
@@ -212,28 +216,28 @@ invoke-model-output.txt
 
 ## 機能改善のためリクエストしたい点
 
-以下については，実際に機能を利用し，個人的に感じた改善点を挙げております．
+実際に機能を利用し，個人的に感じた改善点を以下に示します．
 
 - Hugging Face 上のモデルを import する際に，URL を指定するだけで直接 import できる機能
   - 開発・Fine-Tuning したモデルを Hugging Face 上で公開することはデファクトスタンダードになっているため，Hugging Face の URL からモデルを直接 import できる機能があると便利だと考えております．
 - 対応モデルの拡充
-  - 現状， Llama2/3，Mistral，FLAN-T5 ベースのモデルのみ対応しておりますが，他のモデルも対応していただけると汎用性が高まると考えております．
+  - 現状， Llama2/3，Mistral，FLAN-T5 ベースのモデルのみ対応しておりますが，他のモデルにも対応していただけると汎用性が高まると考えております．
 - Service Quotas での承認に要する時間の短縮
-  - 他の Bedrocker にも利用していただき，多様な観点でのフィードバックを得るためにも，承認時間の短縮は望ましいと考えております．
+  - 他の Bedrocker にも利用いただき，多様な観点でのフィードバックを得るためにも，承認時間の短縮は望ましいと考えております．
 
 ## 一部不具合の可能性のある点
 
 以下については，まだ preview 段階であり致し方ないということを前提に，AWS 社にフィードバックを行っております．
 
-- コンソール上で`Model Import Job`を実行する際の，以下のデフォルトの設定値の datetime の month の値が先月の値になっている
+- コンソール上で`Model Import Job`を実行する際，下記項目のデフォルト設定値の datetime の month の値が先月の値になっている．
   - `Import job name `
   - `Service role`
-- 停止シーケンスが正常に機能していない
+- 停止シーケンスが正常に機能していない可能性がある．
   - 同様のプロンプトおよび停止シーケンスの設定で，Claude3 sonnet で試した場合，正常に機能していることを確認しております．
 
 ## まとめ
 
-本記事では，Amazon Bedrock の Custom model import の機能を利用するための手順および機能検証結果を共有いたしました．外部で公開されているモデルを import し，統一的な Bedrock の API で利用することができるため，非常に便利な機能だと感じました．また，Bedrock のモデル評価機能である [Model Evaluation](https://aws.amazon.com/jp/blogs/aws/amazon-bedrock-model-evaluation-is-now-generally-available/) を利用することで，Bedrock 標準モデルとの比較評価も容易に行うことができそうです．
+本記事では，Amazon Bedrock の Custom model import の機能を利用するための手順および機能検証結果を共有いたしました．外部で公開されているモデルを import し，統一的な Bedrock の API でモデルを利用することができるため，非常に便利な機能だと感じました．また，Bedrock のモデル評価機能である [Model Evaluation](https://aws.amazon.com/jp/blogs/aws/amazon-bedrock-model-evaluation-is-now-generally-available/) を利用することで，Bedrock 標準モデルとの比較評価も容易に行うことができそうです．
 
 なお，リクエストしたい機能や一部不具合の可能性のある点については，AWS 社 にフィードバックを行っている状況です．今後の機能改善が楽しみです．
 

@@ -6,10 +6,10 @@ tags:
   - 生成AI
   - LLM
   - Llama3
-private: true
-updated_at: '2024-05-27T09:55:21+09:00'
+private: false
+updated_at: "2024-05-27T09:55:21+09:00"
 id: 97022fa42dde9c8e8fd8
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---

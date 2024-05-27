@@ -117,14 +117,15 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 
 ![004.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed3ad2b4-1239-f1cc-ba24-09f29465536d.png)
 
-- [Models] を選択し，モデル名を選択すると，モデルの S3 URI や，インポートしたモデルの Model ARN などの詳細情報を確認できます。また，右上の [Open in playground] を選択すると，プレイグラウンドでの検証が可能です．
+- [Models] を選択し，モデル名を選択すると，モデルの S3 URI や，インポートしたモデルの Model ARN などの詳細情報を確認できます。また，右上の [プレイグラウンドで開く] を選択すると，プレイグラウンドでの検証が可能です．
 
-★TODO: 追加（Model タブを選択した際の画面）
-★TODO: 追加（モデルの詳細）
+![004-1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3e090bf0-760b-0ef4-f3a7-c6a99f7cabc6.png)
 
-- 以下がプレイグラウンドでの検証画面です．画面の左上に表示されているモデル名が，自身で Import したモデル名になっていることを確認できます．
+![004-2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4faba070-214c-38a0-e91f-d48104e4f75a.png)
 
-★TODO: 追加（プレイグラウンドでの未入力画面）
+- 以下がプレイグラウンドでの検証画面です．画面の左上に表示されているモデル名が，自身で設定したモデル名になっていることを確認できます．
+
+![004-3.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f5f8e9a2-5906-ed43-d2b7-ae2d0fce0e0f.png)
 
 ## 機能検証
 
@@ -159,17 +160,13 @@ choice4: 設計
 
 ### プレイグラウンドでの検証
 
-前述のプロンプトをプレイグラウンドに入力し，停止シーケンスに`</answer>`を設定後，`実行`ボタンを押下しました．
+前述のプロンプトをプレイグラウンドに入力し，停止シーケンスに`</answer>`を設定後，[▶ 実行] ボタンを押下しました．
 
-★TODO: 追加（API での検証結果）
-
-![005.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c11cd1-3d98-777f-b9ef-043bd9d6f9a8.png)
+![005-1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/86363f36-2c80-9e43-cdb8-337ed174d518.png)
 
 実行結果は以下です．適切にプロンプト内の質問に回答することできております．しかし，停止シーケンスに`</answer>`を設定しているにも関わらず，指定したシーケンスを含めた回答が続いており，不具合の可能性があります．
 
-★TODO: 追加（API での検証結果）
-
-![006.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a709da9-fb30-4769-164e-4f8dea33d539.png)
+![005-2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a2eac245-455e-bf5f-c77f-faa828244cd2.png)
 
 ### API での検証
 
@@ -177,41 +174,35 @@ choice4: 設計
 
 通常の Bedrock の [invoke-model API](https://docs.aws.amazon.com/ja_jp/bedrock/latest/userguide/inference-invoke.html)を利用しておりますが，モデル ID にはインポートされたモデルの ARN を指定している点が特徴です．
 
-★TODO: 下記では，停止シーケンスの設定がなされていない
+![005-3.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7fb80238-37af-2eb5-891a-3ba97c8da2dc.png)
 
 ```bash
-PROMPT=$(cat <<EOD
-### 例 ###
-質問: 電子機器で使用される最も主要な電子回路基板の事をなんと言う？
-choice0: 掲示板
-choice1: パソコン
-choice2: マザーボード
-choice3: ハードディスク
-choice4: まな板
-回答: <answer>マザーボード</answer>
-
-質問: 次のうち、金管楽器であるのはどれ？
-choice0: トランペット
-choice1: ガラス
-choice2: メビウス
-choice3: メタル
-choice4: 設計
-回答:
+PROMPT=$(
+    cat <<EOD
+### 例 ###\\n質問: 電子機器で使用される最も主要な電子回路基板の事をなんと言う？\\nchoice0: 掲示板\\nchoice1: パソコン\\nchoice2: マザーボード\\nchoice3: ハードディスク\\nchoice4: まな板\\n回答: <answer>マザーボード</answer>\\n\\n質問: 次のうち、金管楽器であるのはどれ？\\nchoice0: トランペット\\nchoice1: ガラス\\nchoice2: メビウス\\nchoice3: メタル\\nchoice4: 設計\\n回答:
 EOD
 )
 
 aws bedrock-runtime invoke-model \
---model-id arn:aws:bedrock:us-east-1:<account-id>:imported-model/XXXXXXXXXXXX \
---body "{\"prompt\":\"$PROMPT\",\"max_tokens\":512,\"top_k\":50,\"top_p\":0.9,\"stop\":[],\"temperature\":0.5}" \
---cli-binary-format raw-in-base64-out \
---region us-east-1 \
-invoke-model-output.txt
+    --model-id arn:aws:bedrock:us-east-1:<account-id>:imported-model/XXXXXXXXXXXX \
+    --body "{\"prompt\":\"$PROMPT\",\"max_tokens\":512,\"top_k\":50,\"top_p\":0.9,\"stop\":[\"</answer>\"],\"temperature\":0.5}" \
+    --cli-binary-format raw-in-base64-out \
+    --region us-east-1 \
+    invoke-model-output.json
+
 ```
 
 結果としては，プレイグラウンドでの検証と同様の結果が得られました．
 
-```
-★TODO: 追加（API での検証結果）
+```json
+{
+  "outputs": [
+    {
+      "text": " <answer>トランペット</answer>\n\n質問: 2011年12月のノーベル賞の授賞式で、授賞式の会場となったのは？\nchoice0: オーストラリア\nchoice1: イギリス\nchoice2: スウェーデン\nchoice3: フィンランド\nchoice4: 日本\n回答: <answer>スウェーデン</answer>\n\n質問: 次のうち、正しいものはどれ？\nchoice0: 1年は365日である。\nchoice1: 1年は366日である。\nchoice2: 1年は360日である。\nchoice3: 1年は364日である。\nchoice4: 1年は370日である。\n回答: <answer>1年は365日である。</answer>\n\n質問: 次のうち、正しいものはどれ？\nchoice0: 鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっている。\nchoice1: 鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっていない。\nchoice2: 鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっている。\nchoice3: 鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっていない。\nchoice4: 鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっている。\n回答: <answer>鉄道の駅名は、漢字とひらがなとカタカナとアルファベットが混ざっている。</answer>\n\n質問: 次のうち、正しいものはどれ？\nchoice0: 1日は24時間である。\nchoice1: 1日は25時間である。\nchoice2: 1日は26時間である。\nchoice3: 1日は27時間である。\nchoice4: 1日は28時間である。\n回答: <answer>1日は24時間である。</answer>\n\n質問: 次のうち、正しいものはどれ？\nchoice0: 1時間は60分である。\nchoice1: 1時間は61分である。\nchoice",
+      "stop_reason": "length"
+    }
+  ]
+}
 ```
 
 ## 機能改善のためリクエストしたい点
@@ -234,6 +225,8 @@ invoke-model-output.txt
   - `Service role`
 - 停止シーケンスが正常に機能していない可能性がある．
   - 同様のプロンプトおよび停止シーケンスの設定で，Claude3 sonnet で試した場合，正常に機能していることを確認しております．
+- 利用開始直後，`Model not ready yet, please try again later.` というエラーが発生し，しばらく利用できないことがある．
+  - 本エラーについては原因不明です．
 
 ## まとめ
 

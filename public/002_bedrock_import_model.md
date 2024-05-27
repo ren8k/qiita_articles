@@ -119,7 +119,7 @@ aws s3 cp llama-3-youko-8b/ s3://<your bucket>/llama-3-youko-8b --recursive
 
 - [Models] を選択し，モデル名を選択すると，モデルの S3 URI や，インポートしたモデルの Model ARN などの詳細情報を確認できます。また，右上の [プレイグラウンドで開く] を選択すると，プレイグラウンドでの検証が可能です．
 
-![004-1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3e090bf0-760b-0ef4-f3a7-c6a99f7cabc6.png)
+![004-1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1507d674-4769-2308-3088-7cc9040ad1c0.png)
 
 ![004-2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4faba070-214c-38a0-e91f-d48104e4f75a.png)
 

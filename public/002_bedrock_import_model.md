@@ -7,7 +7,7 @@ tags:
   - LLM
   - Llama3
 private: false
-updated_at: '2024-05-27T12:39:40+09:00'
+updated_at: '2024-05-29T14:39:37+09:00'
 id: 97022fa42dde9c8e8fd8
 organization_url_name: nttdata
 slide: false

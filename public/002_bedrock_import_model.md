@@ -20,7 +20,7 @@ ignorePublish: false
 
 そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を優先的に承認していただくことで，本機能を利用することができました．
 
-本記事では，Custom model import の利用手順および，機能検証した結果を共有いたします。
+本記事では，Custom model import の利用手順および，機能検証した結果を共有いたします．
 
 https://aws.amazon.com/jp/about-aws/whats-new/2024/04/custom-model-import-amazon-bedrock/
 

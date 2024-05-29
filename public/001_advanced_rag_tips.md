@@ -7,7 +7,7 @@ tags:
   - bedrock
   - KnowledgeBaseForAmazonBedrock
 private: false
-updated_at: '2024-05-26T16:37:36+09:00'
+updated_at: "2024-05-26T16:37:36+09:00"
 id: dcdb7f0c61fda384c478
 organization_url_name: nttdata
 slide: false
@@ -535,6 +535,20 @@ template: |
 
 :::note info
 詳細は，Anthropic の公式ドキュメントの「[Give Claude a role](https://docs.anthropic.com/en/docs/give-claude-a-role)」，「[Let Claude think](https://docs.anthropic.com/en/docs/let-claude-think)」および「[Use XML tags](https://docs.anthropic.com/en/docs/use-xml-tags)」をご参照下さい．
+:::
+
+:::note info
+例えば，`"What is Amazon doing in the field of generative AI?"`のようなクエリを入力とした場合，最終的に生成される回答（例）は以下のようになります．
+
+```
+<related>true</related>
+
+<answer>
+Amazonは、大規模言語モデル(LLM)とジェネレーティブAIに大きく投資しています。Amazonは自社のLLMを開発しており、それがあらゆる顧客体験を変革し改善すると考えています。また、AWSを通じてこの技術を民主化し、企業がジェネレーティブAIを活用できるようにしています。さらに、開発者の生産性を向上させるアプリケーションであるCodeWhispererなどを提供しています。
+</answer>
+```
+
+プロンプトで指示している通り，回答の冒頭で，検索した結果とクエリの関連性があることを`<related></related>`内で回答し，その後，`<answer>`タグ内で最終的な回答を記述しています．
 :::
 
 #### 2. システムプロンプトの工夫

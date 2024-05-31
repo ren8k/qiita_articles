@@ -3,12 +3,12 @@ title: Bedrock の Converse API で10分でチャットアプリを作成する
 tags:
   - Python
   - AWS
+  - streamlit
   - bedrock
-  - チャットアプリ
   - 生成AI
-private: true
-updated_at: '2024-05-31T17:24:57+09:00'
-id: 4648e6f3bbec54bf8792
+private: false
+updated_at: ""
+id: null
 organization_url_name: null
 slide: false
 ignorePublish: false
@@ -29,7 +29,7 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html
 
 Amazon Bedrock のモデルを利用して，チャットアプリケーションを容易に開発することが可能な API です．[InvokeModel API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html)との差分として，以下の特徴がございます．
 
-- Bedrock のモデルを統一的なインターフェースで利用することができるため，モデル固有の推論パラメータを気にせずモデルの切り替えが容易です．
+- Bedrock のモデルを統一的なインターフェースで利用することができ，モデル固有の推論パラメータを気にせずモデルの切り替えが可能です．
 - API リクエストの一部に，会話履歴（`role`と`content`の辞書）を含めることができ，マルチターンの対話が容易に行えます．
 - 一部のモデルでは function calling にも対応しております．本日（2024/05/31）時点では以下が対応モデルです．
   - Anthropic Claude 3

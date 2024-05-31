@@ -329,6 +329,12 @@ streamlit run app.py
 
 ![005.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2a3573e1-12d6-f3b2-a956-4c632c9842fd.png)
 
+### コードの簡易説明
+
+`st.chat_message`では，メッセージの話者（`user` or `assistant`）を渡すことで，メッセージ内容を ChatGPT ライクに表示することが可能です．
+
+また，チャット履歴は，`st.session_state`を用いて保持しており，`st.session_state.messages`に Converse API の`output`フィールドの中身を append しています．
+
 ## まとめ
 
 本記事では，Amazon Bedrock の新機能である Converse API の基本的な使い方と，Streamlit を用いてチャットアプリを作成する方法をご紹介いたしました．Converse API は，チャット用途に特化しており，会話履歴が扱いやすいため，Streamlit を利用することで非常に容易にチャットアプリを作成できるこを確認いたしました．Bedrock のアップデートは日々激しいので，今後もキャッチアップした内容をご共有いたします．
@@ -432,3 +438,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
 </div></details>
+```

@@ -29,7 +29,7 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html
 
 Amazon Bedrock のモデルを利用して，チャットアプリケーションを容易に開発することが可能な API です．[InvokeModel API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_InvokeModel.html)との差分として，以下の特徴がございます．
 
-- Bedrock のモデルを統一的なインターフェースで利用することができ，モデル固有の推論パラメータを気にせずモデルの切り替えが可能です．
+- Bedrock のモデルを統一的なインターフェースで利用することができ，モデル固有の推論パラメーターを気にせずモデルの切り替えが可能です．
 - API リクエストの一部に，会話履歴（`role`と`content`の辞書）を含めることができ，マルチターンの対話が容易に行えます．
 - 一部のモデルでは function calling にも対応しております．本日（2024/05/31）時点では以下が対応モデルです．
   - Anthropic Claude 3
@@ -157,9 +157,9 @@ messages = [message] # include chat history
 
 つまり，チャットアプリを作成する際には，レスポンスの`output`の要素をリスト`messages`に append することで，容易に会話履歴を API に送信できそうです．
 
-### 推論パラメータの設定
+### 推論パラメーターの設定
 
-コードの以下の部分では，推論パラメータを定義しております．
+コードの以下の部分では，推論パラメーターを定義しております．
 
 ```python
 # Inference parameters to use.
@@ -172,14 +172,14 @@ inference_config = {"temperature": temperature}
 additional_model_fields = {"top_k": top_k}
 ```
 
-Conversation API では，パラメータ`inference_config`に対し，辞書の形式で以下の推論パラメータを指定することが可能です．
+Conversation API では，パラメーター`inference_config`に対し，辞書の形式で以下の推論パラメーターを指定することが可能です．
 
 - maxTokens: 生成トークンの最大数
 - stopSequences: 停止シーケンスのリスト
-- temperature: 温度パラメータ
+- temperature: 温度パラメーター
 - topP: 予測トークンの予測確率の累積値
 
-`top_k`のようなモデル固有の推論パラメータを指定したい場合，引数`additionalModelRequestFields`に辞書形式で指定することが可能です．
+`top_k`のようなモデル固有の推論パラメーターを指定したい場合，引数`additionalModelRequestFields`に辞書形式で指定することが可能です．
 
 ### レスポンスについて
 

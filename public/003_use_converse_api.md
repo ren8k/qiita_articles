@@ -16,8 +16,8 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
-本日（2024/05/31）の深夜，Amazon Bedrock の新機能である [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) がリリースされました．本 API はチャット用途に特化しており，会話履歴が扱いやすい特徴がございます．加えて，本 API は [Streamlit の ChatUI 機能](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)との親和性が高く，非常に容易にチャットアプリを作成することが可能です．
+最近 SageMaker ではなく Bedrock で検証することが多くなった [@ren8k](https://qiita.com/ren8k) です。
+本日（2024/05/31）深夜，Amazon Bedrock の新機能である [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) がリリースされました．本 API はチャット用途に特化しており，会話履歴が扱いやすい特徴がございます．加えて，本 API は [Streamlit の ChatUI 機能](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)との親和性が高く，非常に容易にチャットアプリを作成することが可能です．
 
 本記事では，Converse API の基本的な機能と，実際に Streamlit を用いてチャットアプリを作成する場合の実装例をご紹介いたします．
 
@@ -232,6 +232,10 @@ for content in output_message['content']:
 
 Converse API を利用し，70 行未満の Python コードでチャットアプリを作成します．以下の手順でアプリケーションを作成してみましょう．
 
+:::note info
+簡単のため，コードでは最低限の機能飲みを実装しております．
+:::
+
 - 以下を実行し，必要なライブラリをインストールします．
 
 ```bash
@@ -323,7 +327,7 @@ streamlit run app.py
 
 ![003.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/829771b4-4402-4c4c-440b-d6dc6714a0b4.png)
 
-- 会話履歴も保持できていることも確認できます．
+- 会話履歴を保持できていることも確認できます．
 
 ![004.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/be4c1717-3b55-0ce3-69c9-07507c360c21.png)
 
@@ -331,13 +335,73 @@ streamlit run app.py
 
 ### コードの簡易説明
 
-`st.chat_message`では，メッセージの話者（`user` or `assistant`）を渡すことで，メッセージ内容を ChatGPT ライクに表示することが可能です．
+関数`display_msg_content`で利用している`st.chat_message`は，以下のようにメッセージの話者（`user` or `assistant`）を渡すことで，メッセージ内容を ChatGPT ライクに表示することが可能です．Converse API のレスポンスの`output`フィールドの`role`と`content`を引数に渡すだけで，メッセージ内容を容易に表示可能です．
+
+```python
+def display_msg_content(message):
+    with st.chat_message(message["role"]):
+        st.write(content["text"] for content in message["content"])
+```
 
 また，チャット履歴は，`st.session_state`を用いて保持しており，`st.session_state.messages`に Converse API の`output`フィールドの中身を append しています．
 
+```python
+input_msg = {"role": "user", "content": [{"text": prompt}]}
+display_msg_content(input_msg)
+st.session_state.messages.append(input_msg)
+
+response_msg = generate_response(st.session_state.messages)
+display_msg_content(response_msg)
+st.session_state.messages.append(response_msg)
+```
+
+参考に，会話履歴（`st.session_state.messages`）の中身の例を示します．
+
+```json
+[
+  {
+    "role": "user",
+    "content": [
+      { "text": "高インフレが国のGDPに与える影響について30文字で述べなさい。" }
+    ]
+  },
+  {
+    "role": "assistant",
+    "content": [
+      {
+        "text": "高インフレは消費と投資を抑制し、経済成長を阻害する。国のGDPは低下する。"
+      }
+    ]
+  },
+  { "role": "user", "content": [{ "text": "具体的には？" }] },
+  {
+    "role": "assistant",
+    "content": [
+      {
+        "text": "高インフレは以下のようにGDPに影響を与えます:\n\n- 消費者の購買力が低下し、個人消費が減少する\n- 企業の投資意欲が冷え込み、設備投資が抑制される\n- 輸出競争力が低下し、純輸出が減少する\n- 金融政策の引き締めにより、経済全体の活動が停滞する\n- 結果として、国内総生産(GDP)の伸びが鈍化または減少する\n\nつまり、高インフレは消費、投資、輸出などの需要を減退させ、経済成長の足かせとなるのです。"
+      }
+    ]
+  },
+  {
+    "role": "user",
+    "content": [{ "text": "冒頭で，私は何と質問しましたか？" }]
+  },
+  {
+    "role": "assistant",
+    "content": [
+      {
+        "text": "冒頭で、あなたは「高インフレが国のGDPに与える影響について30文字で述べなさい」と質問されました。"
+      }
+    ]
+  }
+]
+```
+
 ## まとめ
 
-本記事では，Amazon Bedrock の新機能である Converse API の基本的な使い方と，Streamlit を用いてチャットアプリを作成する方法をご紹介いたしました．Converse API は，チャット用途に特化しており，会話履歴が扱いやすいため，Streamlit を利用することで非常に容易にチャットアプリを作成できるこを確認いたしました．Bedrock のアップデートは日々激しいので，今後もキャッチアップした内容をご共有いたします．
+本記事では，Amazon Bedrock の新機能である Converse API の基本的な使い方と，Streamlit を用いたチャットアプリの実装例をご紹介いたしました．本チャットアプリで，モデルを切り替えたり，ストリーミング処理機能を追加すると，応用的な利用ができそうです．Bedrock のアップデートは日々激しいので，今後もキャッチアップした内容をご共有いたします．
+
+<!--
 
 ## 仲間募集
 
@@ -438,4 +502,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
 </div></details>
-```
+-->

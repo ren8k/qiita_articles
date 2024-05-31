@@ -84,9 +84,7 @@ print("=" * 30)
 output_message = response['output']['message']
 
 print(f"Role: {output_message['role']}")
-
-for content in output_message['content']:
-    print(f"Text: {content['text']}")
+print(f"Text: {output_message['content'][0]['text']}")
 
 token_usage = response['usage']
 print(f"Input tokens:  {token_usage['inputTokens']}")
@@ -286,7 +284,7 @@ def display_history(messages):
 
 def display_msg_content(message):
     with st.chat_message(message["role"]):
-        st.write(content["text"] for content in message["content"])
+        st.write(message["content"][0]["text"])
 
 
 def main():
@@ -306,9 +304,13 @@ def main():
         display_msg_content(response_msg)
         st.session_state.messages.append(response_msg)
 
+    print("#" * 50)
+    print(st.session_state.messages)
+
 
 if __name__ == "__main__":
     main()
+
 ```
 
 - 以下のコマンドを実行し，アプリケーションを起動します．
@@ -340,7 +342,7 @@ streamlit run app.py
 ```python
 def display_msg_content(message):
     with st.chat_message(message["role"]):
-        st.write(content["text"] for content in message["content"])
+        st.write(message["content"][0]["text"])
 ```
 
 また，チャット履歴は，`st.session_state`を用いて保持しており，`st.session_state.messages`に Converse API の`output`フィールドの中身を append しています．
@@ -355,7 +357,7 @@ display_msg_content(response_msg)
 st.session_state.messages.append(response_msg)
 ```
 
-参考に，会話履歴（`st.session_state.messages`）の中身の例を示します．
+参考に，会話履歴（`st.session_state.messages`）の中身（例）を示します．
 
 ```json
 [

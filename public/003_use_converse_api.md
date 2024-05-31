@@ -3,7 +3,7 @@ title: Bedrock の Converse API で10分でチャットアプリを作成する
 tags:
   - Python
   - AWS
-  - rag
+  - チャットアプリ
   - bedrock
   - 生成AI
 private: true

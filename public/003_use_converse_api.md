@@ -304,9 +304,6 @@ def main():
         display_msg_content(response_msg)
         st.session_state.messages.append(response_msg)
 
-    print("#" * 50)
-    print(st.session_state.messages)
-
 
 if __name__ == "__main__":
     main()

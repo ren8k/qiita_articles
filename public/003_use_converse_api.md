@@ -288,7 +288,7 @@ def display_msg_content(message):
 
 
 def main():
-    st.title("Bedrock Conversation API Chatbot")
+    st.title("Bedrock Converse API Chatbot")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []

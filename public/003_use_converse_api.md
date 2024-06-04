@@ -288,7 +288,7 @@ def display_msg_content(message):
 
 
 def main():
-    st.title("Bedrock Conversation API Chatbot")
+    st.title("Bedrock Converse API Chatbot")
 
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -303,9 +303,6 @@ def main():
         response_msg = generate_response(st.session_state.messages)
         display_msg_content(response_msg)
         st.session_state.messages.append(response_msg)
-
-    print("#" * 50)
-    print(st.session_state.messages)
 
 
 if __name__ == "__main__":

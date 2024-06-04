@@ -9,15 +9,15 @@ tags:
 private: false
 updated_at: ""
 id: null
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
 
 ## はじめに
 
-最近 SageMaker ではなく Bedrock で検証することが多くなった [@ren8k](https://qiita.com/ren8k) です。
-本日（2024/05/31）深夜，Amazon Bedrock の新機能である [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) がリリースされました．本 API はチャット用途に特化しており，会話履歴が扱いやすい特徴がございます．加えて，本 API は [Streamlit の ChatUI 機能](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)との親和性が高く，非常に容易にチャットアプリを作成することが可能です．
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
+2024/05/31 に，Amazon Bedrock の新機能である [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) がリリースされました．本 API はチャット用途に特化しており，会話履歴が扱いやすい特徴がございます．加えて，本 API は [Streamlit の ChatUI 機能](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)との親和性が高く，非常に容易にチャットアプリを作成することが可能です．
 
 本記事では，Converse API の基本的な機能と，実際に Streamlit を用いてチャットアプリを作成する場合の実装例をご紹介いたします．
 
@@ -398,9 +398,7 @@ st.session_state.messages.append(response_msg)
 
 ## まとめ
 
-本記事では，Amazon Bedrock の新機能である Converse API の基本的な使い方と，Streamlit を用いたチャットアプリの実装例をご紹介いたしました．本チャットアプリで，モデルを切り替えたり，ストリーミング処理機能を追加すると，応用的な利用ができそうです．Bedrock のアップデートは日々激しいので，今後もキャッチアップした内容をご共有いたします．
-
-<!--
+本記事では，Amazon Bedrock の新機能である Converse API の基本的な使い方と，Streamlit を用いたチャットアプリの実装例をご紹介いたしました．本チャットアプリで，モデルを切り替える機能やストリーミング処理機能，Tools を利用する機能を追加すると，応用的な利用ができそうです．Bedrock のアップデートは日々激しいので，今後もキャッチアップした内容をご共有いたします．
 
 ## 仲間募集
 
@@ -501,4 +499,3 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
 </div></details>
--->

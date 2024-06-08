@@ -16,7 +16,8 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。2024/04/23 に，Amazon Bedrock で [Custom model import](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請承認に時間がかかる or 用途によっては reject される模様です．）
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
+2024/04/23 に，Amazon Bedrock で [Custom model import](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html) の機能がリリースされました。しかし，本機能を利用するためには，Bedrock の Service Quotas にて複数項目の上限緩和申請が必要な上，通常の申請フローでは利用が困難のようです．（X を見ると，申請承認に時間がかかる or 用途によっては reject される模様です．）
 
 そこで，AWS Partner Solutions Architect(PSA)の方と連携し，Service Quotas の上限緩和申請を優先的に承認していただくことで，本機能を利用することができました．
 

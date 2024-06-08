@@ -1,5 +1,5 @@
 ---
-title: Bedrock の Converse API と Streamlit で10分でチャットアプリを作成する
+title: Amazon Bedrock の Converse API と Streamlit で10分でチャットアプリを作成する
 tags:
   - Python
   - AWS

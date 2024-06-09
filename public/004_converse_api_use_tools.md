@@ -76,6 +76,10 @@ class ToolsList:
       return result
 ```
 
+:::note info
+ToolsList クラスを作成している理由は，後続のステップにて `getattr()`関数を使用してツール名に対応する関数を動的に取得するためです．この点は後ほど説明します．
+:::
+
 次に，ツールの定義を行います．定義では，以下の項目を設定する必要があります．
 
 - ツール名: `get_weather`
@@ -164,6 +168,8 @@ Converse API で`toolConfig`を指定した場合，Claude3 は応答にツー�
 
 ### Step3: ユーザーがツールを実行
 
+Claude3 のレスポンス`response`から，`toolUse`キーの値を取得することで，実行すべきツールの名前（関数名）とその入力（引数）を取得します．そして，`getattr`関数を利用し，ツール名に対応する関数（`ToolsList`クラスで定義したメソッド）を動的に取得後，その関数を実行します．
+
 ```python
 def extract_tool_use(content):
     for item in content:
@@ -178,13 +184,21 @@ response_content = response["output"]["message"]["content"]
 tool_use = extract_tool_use(response_content)
 # tool_nameを使って対応する関数を取得し、実行する
 tool_func = getattr(ToolsList, tool_use["name"])
+# get_weather(prefecture="東京都", city="墨田区")を実行する
 tool_result = tool_func(**tool_use["input"])
 print(tool_result)
 ```
 
-:::note warn
+上記のコードを実行すると，以下のような出力が得られます．
 
-これは後述するが，レスポンスに text が含まれることがあるためである．
+```
+東京都, 墨田区 の天気は晴れで，最高気温は22度です．
+```
+
+:::note warn
+**Tool use 利用時における Converse API のレスポンスの不確定性について**
+
+上記のコードで関数`extract_tool_use`を定義している理由は，Claude3 で Tool use 利用時に，レスポンスに生成されたテキスト（`text`）が含まれることがあるためです．具体的には，以下のように，レスポンスの`output`キーの値にツールリクエストのための情報（`toolUse`）に加え，テキスト（`text`）が含まれることがあります．
 
 ```json
 {
@@ -206,12 +220,23 @@ print(tool_result)
 }
 ```
 
+なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，レスポンスにテキストが含まれることを示唆する記述があります．
+
+> Claude's response contains 2 blocks:
+>
+> TextBlock(text='Okay, let me use the available tool to try and find information on who won the 2024 Masters Tournament:', type='text')`
+>
+> ToolUseBlock(id='toolu_01MbstBxD654o9hE2RGNdtSr', input={'search_term': '2024 Masters Tournament'}, name='get_article', type='tool_use')
+
+Converse API, ConverseStream API のレスポンスにテキストが含まれるかは，会話内容や推論パラメーターに依存し不確定であるため，レスポンスの解析には注意が必要です．
 :::
 
 ### Step4: ツールの実行結果を Claude3 に送信
 
+ツールの実行結果を Claude3 に送信するために，`toolResult`キーを含むメッセージを作成します．`toolResult`キーには，ツールリクエストの識別を行うための ID（`toolUseId`）と，ツールの実行結果を含むコンテンツ（`content`）を指定します．
+
 ```python
-# 結果を Claude3 に送信
+# `toolResult`キーを含むメッセージを作成
 tool_result_message = {
     "role": "user",
     "content": [
@@ -224,6 +249,8 @@ tool_result_message = {
     ],
 }
 messages.append(tool_result_message)
+
+# 結果を Claude3 に送信
 response = client.converse(
     modelId=model_id,
     messages=messages,
@@ -232,9 +259,12 @@ response = client.converse(
     },
 )
 pprint(response)
+messages.append(response["output"]["message"])
 ```
 
 ### Step5: ツールの実行結果を基に Claude3 が回答を生成
+
+Claude3 は，ツールの実行結果を利用して，元のプロンプト`東京都墨田区の天気は？`に対する回答を生成します．以下に，Claude3 のレスポンスの例（`output`キーと`stopReason`キーの値のみ）を示します．
 
 ```json
 {
@@ -252,7 +282,57 @@ pprint(response)
 }
 ```
 
-## 作ったアプリはこんな感じです
+:::note info
+参考に，Use tools を利用した場合の会話履歴（`messages`）の例を以下に示します．以下を見ると，ユーザーが質問を行い，Claude3 がツール利用のリクエスト後，実際にツールを実行して天気情報を取得し，その結果を元に回答を生成していることがわかります．
+
+```python
+[
+    {
+        "role": "user",
+        "content": [{"text": "東京都墨田区の天気は？"}],
+    },
+    {
+        "role": "assistant",
+        "content": [
+            {
+                "toolUse": {
+                    "input": {"city": "墨田区", "prefecture": "東京都"},
+                    "name": "get_weather",
+                    "toolUseId": "tooluse_UwHeZGCnSQusfLrwCp9CcQ",
+                }
+            },
+        ],
+    },
+    {
+        "role": "user",
+        "content": [
+            {
+                "toolResult": {
+                    "content": [
+                        {
+                            "text": "東京都, 墨田区 "
+                            "の天気は晴れで，最高気温は22度です．"
+                        }
+                    ],
+                    "toolUseId": "tooluse_UwHeZGCnSQusfLrwCp9CcQ",
+                }
+            }
+        ],
+    },
+    {
+        "role": "assistant",
+        "content": [
+            {
+                "text": "分かりました。東京都墨田区の天気は晴れで、最高気温は22度だそうです。晴れの天気で気温も高めなので、過ごしやすい1日になりそうですね。外出する際は軽めの服装がおすすめです。"
+            }
+        ],
+    },
+]
+```
+
+:::
+
+## Tool use を利用したチャットアプリを作成する
 
 gif を見せる感じか？
 

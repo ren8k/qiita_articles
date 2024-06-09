@@ -1,10 +1,10 @@
 ---
-title: Amazon Bedrock の Converse API + Tool use でチャットアプリを実装する上でのTips
+title: Claude3 で Bedrock Converse API + Tool use を活用したチャットアプリを実装する上でのTips
 tags:
-  - Python
   - AWS
-  - rag
   - bedrock
+  - Python
+  - Claude
   - 生成AI
 private: true
 updated_at: ""
@@ -18,24 +18,239 @@ ignorePublish: false
 
 株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
 
+Converse API の使い方について説明し，応用的な活用方法についても紹介いたします．
+
 ## Converse API とは
 
-会話に特化した API
-何が嬉しい？
-何ができる？
+Converse API とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
 
-- 統一的なインターフェース
 - マルチターン対話が容易に可能
 - 画像の Base64 エンコードが不要
-- ツールの利用が可能
+- **Tool use (function calling) が可能** (以下のモデルが対応)
+  - Anthropic Claude3
+  - Mistral AI Large
+  - Cohere Command R and Command R+
+
+本記事では，3 つ目に挙げた Tool use の活用方法について説明し，Claude3 で実際にチャットアプリで活用する際の Tips を紹介します．
 
 ## Tool use とは
 
-### 仕組み
+Tool use (function calling) とは，外部ツールや関数（ツール）を定義・呼び出すことにより，Claude3 の能力を拡張する機能です．事前に定義されたツールに Claude3 がアクセスすることで，必要に応じていつでもツールを呼び出すことができ，Claude3 が通常できないような複雑なタスクを自動化できるようになります．
 
-Anthropic の良い図がある
+重要な点として，Claude3 が能動的にツールを実行するわけではなく，どのツールをどのような引数で呼ぶべきかをユーザーに依頼し，ユーザーがツールを実行します．その後，ツールの実行結果を Claude3 に伝え，ツールの実行結果を基に Claude3 が回答を生成します．具体的な仕組みについては次章で説明します．
 
-### 具体的な使い方
+![tool_use.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fe887858-0d9a-9350-06e7-7ee673ebe7e1.png)
+
+## Tool use の仕組み
+
+以下のようなステップで，Tool use を利用できます．
+
+- Step1: ツールの定義とプロンプトを Claude3 に送信
+- Step2: Claude3 からツール実行のリクエストを取得
+- Step3: ユーザーがツールを実行
+- Step4: ツールの実行結果を Claude3 に送信
+- Step5: ツールの実行結果を基に Claude3 が回答を生成
+
+![image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/258954f4-6ab2-9222-dd3b-19c9d09e110c.png)
+
+以降，天気予報検索ツールを利用する場合を例として，各ステップについて詳細に説明します．
+
+### Step1: ツールの定義とプロンプトを Claude3 に送信
+
+まず，`ToolsList`クラスを作成し，天気予報検索ツールをメソッドとして定義しておきます．なお，以下の関数は簡単のため，実際の天気予報を取得せず，特定の文字列を返す機能のみを実装しています．
+
+```python
+class ToolsList:
+  def get_weather(self, prefecture, city):
+      """
+      指定された都道府県と市の天気情報を取得する関数。
+
+      引数:
+      - prefecture (str): 都道府県名を表す文字列。
+      - city (str): 市区町村名を表す文字列。
+
+      返り値:
+      - result (str): 指定された都道府県と市の天気情報を含む文字列。
+      """
+      result = f"{prefecture}, {city} の天気は晴れで，最高気温は22度です．"
+      return result
+```
+
+次に，ツールの定義を行います．定義では，以下の項目を設定する必要があります．
+
+- ツール名: `get_weather`
+- ツールの説明: `指定された場所の天気を取得します。`
+- 入力スキーマ: `prefecture` と `city` の 2 つの引数の型と説明，必須かどうかを定義
+
+```python
+tool_definition = {
+    "toolSpec": {
+      "name": "get_weather",
+      "description": "指定された場所の天気を取得します。",
+      "inputSchema": {
+        "json": {
+          "type": "object",
+          "properties": {
+            "prefecture": {
+              "type": "string",
+              "description": "指定された場所の都道府県"
+            },
+            "city": {
+              "type": "string",
+              "description": "指定された場所の市区町村"
+            }
+          },
+          "required": ["prefecture", "city"]
+        }
+      }
+    }
+  }
+```
+
+その後，ツールの定義とプロンプトを Claude3 に送信します．以下では，ツールの定義を Converse API の引数`toolConfig` にて指定しており，プロンプトとして`東京都墨田区の天気は？`という質問を送信しております．
+
+```python
+from pprint import pprint
+
+import boto3
+
+client = boto3.client("bedrock-runtime", region_name="us-east-1")
+model_id = "anthropic.claude-3-haiku-20240307-v1:0"
+prompt = "東京都墨田区の天気は？"
+messages = [
+    {
+        "role": "user",
+        "content": [{"text": prompt}],
+    }
+]
+
+# Send the message to the model, using a basic inference configuration.
+response = client.converse(
+    modelId=model_id,
+    messages=messages,
+    toolConfig={
+        "tools": [tool_definition],
+    },
+)
+pprint(response)
+messages.append(response["output"]["message"])
+```
+
+### Step2: Claude3 からツール実行のリクエストを取得
+
+Converse API で`toolConfig`を指定した場合，Claude3 は応答にツールが必要かどうかを判断し，ツールが必要な場合はレスポンスにツール実行のための情報を返します．以下に，レスポンスの例（`output`キーと`stopReason`キーの値のみ）を示します．
+
+```json
+{
+  "output": {
+    "message": {
+      "role": "assistant",
+      "content": [
+        {
+          "toolUse": {
+            "toolUseId": "tooluse_pc4dkiZmR3u1jF4KORkPmA",
+            "name": "get_weather",
+            "input": { "prefecture": "東京都", "city": "墨田区" }
+          }
+        }
+      ]
+    }
+  },
+  "stopReason": "tool_use"
+}
+```
+
+ツール実行のリクエスト情報はレスポンスの`output`キーの値の中の`toolUse`キーにあり，実行すべきツール（関数）名や，関数の引数，ツールリクエストの識別を行うための ID が含まれています．また，レスポンスの`stopReason`キーの値は`tool_use`となり，Claude3 のレスポンスがツールリクエストかどうかを判断できます．
+
+### Step3: ユーザーがツールを実行
+
+```python
+def extract_tool_use(content):
+    for item in content:
+        if "toolUse" in item:
+            return item["toolUse"]
+    return None
+
+
+response_content = response["output"]["message"]["content"]
+
+# toolUseを抽出
+tool_use = extract_tool_use(response_content)
+# tool_nameを使って対応する関数を取得し、実行する
+tool_func = getattr(ToolsList, tool_use["name"])
+tool_result = tool_func(**tool_use["input"])
+print(tool_result)
+```
+
+:::note warn
+
+これは後述するが，レスポンスに text が含まれることがあるためである．
+
+```json
+{
+  "output": {
+    "message": {
+      "content": [
+        { "text": "はい、それでは" },
+        {
+          "toolUse": {
+            "input": { "city": "墨田区", "prefecture": "東京都" },
+            "name": "get_weather",
+            "toolUseId": "tooluse_80TuoZSWQAWGHrRy9zbmgg"
+          }
+        }
+      ],
+      "role": "assistant"
+    }
+  }
+}
+```
+
+:::
+
+### Step4: ツールの実行結果を Claude3 に送信
+
+```python
+# 結果を Claude3 に送信
+tool_result_message = {
+    "role": "user",
+    "content": [
+        {
+            "toolResult": {
+                "toolUseId": tool_use["toolUseId"],
+                "content": [{"text": tool_result}],
+            }
+        }
+    ],
+}
+messages.append(tool_result_message)
+response = client.converse(
+    modelId=model_id,
+    messages=messages,
+    toolConfig={
+        "tools": [tool_definition],
+    },
+)
+pprint(response)
+```
+
+### Step5: ツールの実行結果を基に Claude3 が回答を生成
+
+```json
+{
+  "output": {
+    "message": {
+      "content": [
+        {
+          "text": "東京都墨田区の天気は晴れで、最高気温は22度だと分かりました。墨田区は東京都の中心に位置する地域で、錦糸町や押上など有名な観光地も近くにあります。晴れの天気で気温も過ごしやすい22度ということで、今日は墨田区を散歩したり、観光を楽しむのにぴったりの良い天気だと言えますね。"
+        }
+      ],
+      "role": "assistant"
+    }
+  },
+  "stopReason": "end_turn"
+}
+```
 
 ## 作ったアプリはこんな感じです
 

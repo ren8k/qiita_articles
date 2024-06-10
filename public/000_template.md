@@ -1,10 +1,10 @@
 ---
 title: Template
 tags:
-  - Python
   - AWS
-  - rag
   - bedrock
+  - Python
+  - rag
   - 生成AI
 private: true
 updated_at: ""
@@ -16,7 +16,7 @@ ignorePublish: true
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の@ren8k です。
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
 
 ## コードの書き方
 

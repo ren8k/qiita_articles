@@ -1,5 +1,5 @@
 ---
-title: Bedrock の Converse API と Streamlit で10分でチャットアプリを作成する
+title: Amazon Bedrock の Converse API と Streamlit で10分でチャットアプリを作成する
 tags:
   - Python
   - AWS
@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です。
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
 2024/05/31 に，Amazon Bedrock の新機能である [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) がリリースされました．本 API はチャット用途に特化しており，会話履歴が扱いやすい特徴がございます．加えて，本 API は [Streamlit の ChatUI 機能](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)との親和性が高く，非常に容易にチャットアプリを作成することが可能です．
 
 本記事では，Converse API の基本的な機能と，実際に Streamlit を用いてチャットアプリを作成する場合の実装例をご紹介いたします．

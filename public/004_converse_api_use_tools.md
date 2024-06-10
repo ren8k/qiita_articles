@@ -386,44 +386,70 @@ bash run_app.sh
 
 ## 実装における工夫点
 
-ConverseStream API と Tool use を組み合わせる際の工夫と，不必要にツールを利用しないための工夫について説明します．
+ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が不必要にツールを利用しないための工夫について説明します．
 
-### ConverseStream API と Tool use を組み合わせる際の工夫
+### ConverseStream API で Tool use を利用する場合の工夫
 
 ストリーミング処理が可能な ConverseStream API で，Tool use を利用する際には，以下の点に注意する必要が有ります．
 
-- ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点
+- ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する可能性がある
 - ツールリクエストの情報の整理
 
-まず，ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点について説明します．ConverseStream API で Tool use を利用する際には，以下のようなメッセージがストリーミング出力されます．
+### ConverseStream API について
 
-```json
-{
-  "role": "assistant",
-  "content": [
-    {
-      "text": "はい、それでは"
-    }
-  ]
-}
-{
-  "role": "assistant",
-  "content": [
-    {
-      "toolUse": {
-        "input": {
-          "city": "墨田区",
-          "prefecture": "東京都"
-        },
-        "name": "get_weather",
-        "toolUseId": "tooluse_80TuoZSWQAWGHrRy9zbmgg"
-      }
-    }
-  ]
-}
+ConverseStream API は，Converse API と同様に Amazon Bedrock のモデルを呼び出すことが可能な API ですが，リクエストとレスポンスをストリーミングで取得できる点が異なります．Converse API と同じ引数で呼び出すことが可能です．
+
+まず，ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点について説明します．ConverseStream API で Tool use を利用する際，以下のようなレスポンスをストリーミングで取得できます．
+
+```python
+{'messageStart': {'role': 'assistant'}}
+{'contentBlockDelta': {'delta': {'text': '分'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'か'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'り'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'ました'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '。'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '東'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '京'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '都'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '目'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '黒'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '区'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'の'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '天'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '気'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'を'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '確'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '認'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': 'します'}, 'contentBlockIndex': 0}}
+{'contentBlockDelta': {'delta': {'text': '。'}, 'contentBlockIndex': 0}}
+{'contentBlockStop': {'contentBlockIndex': 0}}
+{'contentBlockStart': {'start': {'toolUse': {'toolUseId': 'tooluse_6L46H7bYQhiZxqbtCzQCrg', 'name': 'get_weather'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': ''}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '{"pref'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': 'ect'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': 'ure": '}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '"\\u677'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '1\\'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': 'u4eac"'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': ', "city": '}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '"\\u76ee\\u9e'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': 'd2\\u5'}}, 'contentBlockIndex': 1}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '33a"}'}}, 'contentBlockIndex': 1}}
+{'contentBlockStop': {'contentBlockIndex': 1}}
+{'messageStop': {'stopReason': 'tool_use'}}
+{'metadata': {'usage': {'inputTokens': 1023, 'outputTokens': 79, 'totalTokens': 1102}, 'metrics': {'latencyMs': 890}}}
 ```
 
-### 不必要にツールを利用しないための工夫
+ストリーミングレスポンスにおいて，Tool use に必要なデータは以下に格納されている
+
+| レスポンスのキー                                 | 内容                         | 説明                                                    |
+| ------------------------------------------------ | ---------------------------- | ------------------------------------------------------- |
+| `event["contentBlockDelta"]["delta"]["text"]`    | LLM の生成した日本語テキスト | LLM が生成した日本語の文章が含まれる                    |
+| `event["contentBlockStart"]["start"]["toolUse"]` | Tool use の開始情報          | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
+| `event["contentBlockDelta"]["delta"]["toolUse"]` | Tool に渡す入力データ        | Tool に渡すための JSON 形式の入力データが含まれる       |
+| `event["messageStop"]["stopReason"]`             | メッセージの停止理由         | Tool use の場合，`"tool_use"`が含まれる                 |
+
+### Claude3 が不必要にツールを利用しないための工夫
 
 ## DeepDive 系の話
 

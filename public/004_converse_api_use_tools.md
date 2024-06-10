@@ -6,7 +6,7 @@ tags:
   - Python
   - Claude
   - 生成AI
-private: true
+private: false
 updated_at: ""
 id: null
 organization_url_name: null
@@ -52,7 +52,7 @@ Tool use (function calling) とは，外部ツールや関数 (API) を定義・
 
 ![tool_use.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fe887858-0d9a-9350-06e7-7ee673ebe7e1.png)
 
-> [Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/01_tool_use_overview.ipynb)から引用
+> 上図は，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/01_tool_use_overview.ipynb)から引用しております．
 
 ## Tool use の仕組み
 

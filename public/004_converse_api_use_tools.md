@@ -20,6 +20,8 @@ ignorePublish: false
 
 Converse API の使い方について説明し，応用的な活用方法についても紹介いたします．
 
+https://github.com/ren8k/aws-bedrock-converse-app-use-tools
+
 ## Converse API とは
 
 Converse API とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
@@ -39,6 +41,8 @@ Tool use (function calling) とは，外部ツールや関数（ツール）を�
 
 重要な点として，Claude3 が能動的にツールを実行するわけではなく，どのツールをどのような引数で呼ぶべきかをユーザーに依頼し，ユーザーがツールを実行します．その後，ツールの実行結果を Claude3 に伝え，ツールの実行結果に基づいて Claude3 が回答を生成します．具体的な仕組みについては次章で説明します．
 
+TODO：修正
+
 ![tool_use.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fe887858-0d9a-9350-06e7-7ee673ebe7e1.png)
 
 ## Tool use の仕組み
@@ -51,6 +55,8 @@ Tool use (function calling) とは，外部ツールや関数（ツール）を�
 - Step4: ツールの実行結果を Claude3 に送信
 - Step5: ツールの実行結果に Claude3 が回答を生成
 
+TODO：修正
+
 ![image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/258954f4-6ab2-9222-dd3b-19c9d09e110c.png)
 
 以降，天気予報検索ツールを利用する場合を例として，各ステップについて詳細に説明します．
@@ -59,7 +65,7 @@ Tool use (function calling) とは，外部ツールや関数（ツール）を�
 
 まず，`ToolsList`クラスを作成し，天気予報検索ツールをメソッドとして定義しておきます．なお，以下の関数は簡単のため，実際の天気予報を取得せず，特定の文字列を返す機能のみを実装しています．
 
-```python
+```python:tool_use_tutorial.py
 class ToolsList:
   def get_weather(self, prefecture, city):
       """
@@ -113,7 +119,7 @@ tool_definition = {
 
 その後，ツールの定義とプロンプトを Claude3 に送信します．以下では，ツールの定義を Converse API の引数`toolConfig` にて指定しており，プロンプトとして`東京都墨田区の天気は？`という質問を送信しております．
 
-```python
+```python:tool_use_tutorial.py
 from pprint import pprint
 
 import boto3
@@ -170,7 +176,7 @@ Converse API で`toolConfig`を指定した場合，Claude3 は応答にツー�
 
 Claude3 のレスポンス`response`から，`toolUse`キーの値を取得することで，実行すべきツールの名前（関数名）とその入力（引数）を取得します．そして，`getattr`関数を利用し，ツール名に対応する関数（`ToolsList`クラスで定義したメソッド）を動的に取得後，その関数を実行します．
 
-```python
+```python:tool_use_tutorial.py
 def extract_tool_use(content):
     for item in content:
         if "toolUse" in item:
@@ -334,13 +340,90 @@ Claude3 は，ツールの実行結果を利用して，元のプロンプト`�
 
 ## Tool use を利用したチャットアプリを作成する
 
-gif を見せる感じか？
+実際に，Converse API で Tool use を利用したチャットアプリ（デモ）を作成しました．Python 実装は以下のリポジトリにて公開しております．本アプリの特徴は以下です．
 
-## 工夫点
+- ConverseStreamAPI と Tool use を組合せた実装
+- 会話中に以下の設定を自由に変更可能
+  - リージョンと利用するモデル
+  - 推論パラメーター
+  - Converse API と Converse Stream API，Tool use の利用
+- Streamlit の ChatUI 機能を利用したチャットアプリケーション
 
-### ConverseStream API の利用
+https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
-### Tool use の活用
+TODO：修正
+
+![demo.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cf43ee2a-3fd6-7d3b-2011-dad1ce35a1b8.gif)
+
+詳細な機能は，上記リポジトリの README.md をご参照下さい．以下に，アプリの利用手順を示します．
+
+- 本リポジトリをクローン
+
+```bash
+git clone https://github.com/ren8k/aws-bedrock-converse-app-use-tools.git
+cd aws-bedrock-chat-app-with-use-tools
+```
+
+- 仮想環境の作成および有効化（任意）
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+```
+
+- 必要なライブラリをインストール
+
+```bash
+pip install -r requirements.txt
+```
+
+- 下記コマンドを実行し，ターミナルに表示された URL 経由でアプリを起動
+
+```bash
+cd src/app
+bash run_app.sh
+```
+
+## 実装における工夫点
+
+ConverseStream API と Tool use を組み合わせる際の工夫と，不必要にツールを利用しないための工夫について説明します．
+
+### ConverseStream API と Tool use を組み合わせる際の工夫
+
+ストリーミング処理が可能な ConverseStream API で，Tool use を利用する際には，以下の点に注意する必要が有ります．
+
+- ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点
+- ツールリクエストの情報の整理
+
+まず，ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点について説明します．ConverseStream API で Tool use を利用する際には，以下のようなメッセージがストリーミング出力されます．
+
+```json
+{
+  "role": "assistant",
+  "content": [
+    {
+      "text": "はい、それでは"
+    }
+  ]
+}
+{
+  "role": "assistant",
+  "content": [
+    {
+      "toolUse": {
+        "input": {
+          "city": "墨田区",
+          "prefecture": "東京都"
+        },
+        "name": "get_weather",
+        "toolUseId": "tooluse_80TuoZSWQAWGHrRy9zbmgg"
+      }
+    }
+  ]
+}
+```
+
+### 不必要にツールを利用しないための工夫
 
 ## DeepDive 系の話
 

@@ -1,5 +1,5 @@
 ---
-title: Claude3 で Bedrock Converse API + Tool use を活用したチャットアプリを実装する上でのTips
+title: Amazon Bedrock Converse API の Tool use を知識ゼロから学び，発展的なチャットアプリを実装する
 tags:
   - Python
   - AWS
@@ -16,15 +16,15 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
+最近 Converse API を叩きすぎて，毎日 Rate Limiting Error を出している[@ren8k](https://qiita.com/ren8k) です．
 
-Converse API の使い方について説明し，応用的な活用方法についても紹介いたします．
+[Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) の使い方について説明し，応用的な活用方法についても紹介いたします．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
 ## Converse API とは
 
-Converse API とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
+[Converse API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html) とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
 
 - マルチターン対話が容易に可能
 - 画像の Base64 エンコードが不要
@@ -33,7 +33,7 @@ Converse API とは，統一的なインターフェースで Amazon Bedrock の
   - Mistral AI Large
   - Cohere Command R and Command R+
 
-本記事では，3 つ目に挙げた Tool use の活用方法について説明し，Claude3 で実際にチャットアプリで活用する際の Tips を紹介します．
+本記事では，3 つ目に挙げた [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) の活用方法について説明し，Claude3 で実際にチャットアプリで活用する際の Tips を紹介します．
 
 ## Tool use とは
 
@@ -226,7 +226,7 @@ print(tool_result)
 }
 ```
 
-なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，レスポンスにテキストが含まれることを示唆する記述があります．
+なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，以下のように，レスポンスにテキストが含まれることを示唆する記述があります．
 
 > Claude's response contains 2 blocks:
 >
@@ -384,22 +384,22 @@ cd src/app
 bash run_app.sh
 ```
 
-## 実装における工夫点
+## Tool use を利用したチャットアプリ実装時における工夫
 
 ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が不必要にツールを利用しないための工夫について説明します．
 
+:::note info
+[ConverseStream API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html) は，Converse API と同様に Amazon Bedrock のモデルを容易に呼び出すことが可能な API ですが，レスポンスをストリーミングで取得できる点が異なります．Converse API と同一の引数で呼び出すことが可能です．
+:::
+
 ### ConverseStream API で Tool use を利用する場合の工夫
 
-ストリーミング処理が可能な ConverseStream API で，Tool use を利用する際には，以下の点に注意する必要が有ります．
+ストリーミング処理が可能な ConverseStream API で Tool use を利用する際には，以下の点に注意する必要が有ります．
 
-- ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する可能性がある
-- ツールリクエストの情報の整理
+- ストリーミングで LLM の生成文およびツールリクエスト情報を取得する必要がある点
+- ツールリクエストのフォーマット
 
-### ConverseStream API について
-
-ConverseStream API は，Converse API と同様に Amazon Bedrock のモデルを呼び出すことが可能な API ですが，リクエストとレスポンスをストリーミングで取得できる点が異なります．Converse API と同じ引数で呼び出すことが可能です．
-
-まず，ストリーミング出力されるメッセージ中に，LLM の生成文とツールリクエストの情報が混在する点について説明します．ConverseStream API で Tool use を利用する際，以下のようなレスポンスをストリーミングで取得できます．
+まず，ストリーミングで LLM の生成文およびツールリクエスト情報を取得する必要がある点について説明します．ConverseStream API で Tool use を利用する際，以下のようなレスポンスを取得できます．なお，以下ではレスポンスの`stream`キーの要素のみを示しており，プロンプトとして`東京都目黒区の天気は？`という質問を送信しています．
 
 ```python
 {'messageStart': {'role': 'assistant'}}
@@ -440,24 +440,205 @@ ConverseStream API は，Converse API と同様に Amazon Bedrock のモデル�
 {'metadata': {'usage': {'inputTokens': 1023, 'outputTokens': 79, 'totalTokens': 1102}, 'metrics': {'latencyMs': 890}}}
 ```
 
-ストリーミングレスポンスにおいて，Tool use に必要なデータは以下に格納されている
+ストリーミングレスポンスの各キーの内容を整理した表を以下に示します．なお，以下の表では，レスポンスの`stream`キーの要素を`event`として表現している点にご留意下さい．
 
-| レスポンスのキー                                 | 内容                         | 説明                                                    |
-| ------------------------------------------------ | ---------------------------- | ------------------------------------------------------- |
-| `event["contentBlockDelta"]["delta"]["text"]`    | LLM の生成した日本語テキスト | LLM が生成した日本語の文章が含まれる                    |
-| `event["contentBlockStart"]["start"]["toolUse"]` | Tool use の開始情報          | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
-| `event["contentBlockDelta"]["delta"]["toolUse"]` | Tool に渡す入力データ        | Tool に渡すための JSON 形式の入力データが含まれる       |
-| `event["messageStop"]["stopReason"]`             | メッセージの停止理由         | Tool use の場合，`"tool_use"`が含まれる                 |
+| レスポンスのキー                                          | 内容                         | 説明                                                    |
+| --------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- |
+| `event["contentBlockDelta"]["delta"]["text"]`             | LLM の生成した日本語テキスト | 本項目は含まれないことがある                            |
+| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報          | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
+| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ        | Tool に渡すための JSON 形式の入力データが含まれる       |
+| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由         | Tool use の場合，`"tool_use"`が含まれる                 |
+
+:::note warn
+Converse API と同様，ConverseStream API においても，Use tool 利用時にレスポンスに生成されたテキストが含まれることがあります．具体的には，`event["contentBlockDelta"]["delta"]["text"]`の有無は不確定であるため，注意が必要です．
+:::
+
+上記のレスポンスを整理すると，以下のようになります．（なお，Tool の引数の日本語は Unicode エスケープシーケンスになっており，下記では日本語に変換しています．）
+
+```python
+{'messageStart': {'role': 'assistant'}}
+{'contentBlockDelta': {'delta': {'text': '分かりました。東京都目黒区の天気を確認します。'}}}
+{'contentBlockStart': {'start': {'toolUse': {'toolUseId': 'tooluse_6L46H7bYQhiZxqbtCzQCrg', 'name': 'get_weather'}}}}
+{'contentBlockDelta': {'delta': {'toolUse': {'input': '{ "prefecture": "東京", "city": "目黒区" }'}}}}
+{'messageStop': {'stopReason': 'tool_use'}}
+```
+
+また，上記の情報を，以下のフォーマットに整形した上で，ConverseStream API の引数 messages に渡す必要があります．
+
+```json
+{
+  "content": [
+    { "text": "分かりました。東京都目黒区の天気を確認します。" },
+    {
+      "toolUse": {
+        "toolUseId": "tooluse_6L46H7bYQhiZxqbtCzQCrg",
+        "name": "get_weather",
+        "input": { "prefecture": "東京", "city": "目黒区" }
+      }
+    }
+  ],
+  "role": "assistant"
+}
+```
 
 ### Claude3 が不必要にツールを利用しないための工夫
 
-## DeepDive 系の話
+結論から述べると，Claude3 Sonnet を利用したプロンプトエンジニアリングが特に有効です．
 
-色々自分だけが気づいた点があるはず
+Tool use 利用時，モデルが不必要にツールを利用してしまうことがあります．例えば，モデルの知識で十分回答できる質問に対しても，Web 検索ツールを利用して回答する傾向が高いです．個人的な印象としては，Claude3 Haiku や Opus はツールを利用することが非常に多く，プロンプトでの制御も難しいです．一方，Claude3 Sonnet もツールを利用する傾向はありますが，プロンプトでの制御がある程度効きやすいです．
+
+:::note info
+[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，プロンプトエンジニアリング時に **Claude3 Sonnet** を利用しております．
+:::
+
+以下に，各モデルにおけるツールの利用傾向を示します．（下記は個人環境での実験結果に基づく主観的な印象である点にご留意下さい．）
+
+| モデル         | ツールの利用傾向                                         |
+| -------------- | -------------------------------------------------------- |
+| Claude3 Haiku  | 問答無用でツールを利用                                   |
+| Claude3 Sonnet | ツールを積極的に利用する傾向が強いがプロンプトで制御可能 |
+| Claude3 Opus   | CoT の過程でどのツールを利用すべきかを思考して利用       |
+
+[Anthropic の公式ドキュメント](https://docs.anthropic.com/en/docs/tool-use-examples#chain-of-thought-tool-use)や[Anthropic の学習コンテンツのコード](https://github.com/anthropics/courses/blob/master/ToolUse/02_your_first_simple_tool.ipynb)を参考に，下記のようなシステムプロンプトを作成することで，Claude3 Sonnet ではツールの利用を抑制することができました．下記プロンプトの特徴としては，「必要な場合のみツールを利用する」ように強調して指示している点です．
+
+```
+あなたは日本人のAIアシスタントです。必ず日本語で回答する必要があります。
+以下の<rule>タグ内には厳守すべきルールが記載されています。以下のルールを絶対に守り、ツールを不必要に使用しないで下さい。
+<rule>
+- あなたはツールにアクセスできますが、必要な場合にのみそれらを使用してください。
+- 自身の知識で回答できない場合のみ、関連するツールを使用してユーザーの要求に答えてください。
+</rule>
+
+まず、提供されたツールのうち、ユーザーの要求に答えるのに関連するツールはどれかを考えてください。次に、関連するツールの必須パラメータを1つずつ確認し、ユーザーが直接提供したか、値を推測するのに十分な情報を与えているかを判断します。
+
+パラメータを推測できるかどうかを決める際は、特定の値をサポートするかどうかを慎重に検討してください。ただし、必須パラメータの値の1つが欠落している場合は、関数を呼び出さず(欠落しているパラメータに値を入れても呼び出さない)、代わりにユーザーに欠落しているパラメータの提供を求めてください。提供されていないオプションのパラメータについては、追加情報を求めないでください。
+```
+
+上記のシステムプロンプトを利用した場合の応答例を以下に示します．以下では，富士山に関する質問には自身の知識で回答しており，Amazon Bedrock に関する質問には知識が無いため，Web 検索ツールを利用して回答していることがわかります．
+
+![sonnet_use_tools.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c570b64d-7332-35bc-d953-8e38979a3abd.png)
+
+レスポンスの速度や，ツールの利用制御の観点から，Claude3 Sonnet は有力なモデルの選択肢であると考えられます．
+
+:::note warn
+Claude3 Sonnet の場合，上記のようなシステムプロンプトでうまく制御できましたが，Mistral AI Large の場合は，ツールの利用傾向が著しく低くなるように観察されました．モデルの特性を踏まえ，モデルに適したシステムプロンプトを設計することが重要です．
+:::
+
+## Converse API + Tool use Deep Dive
+
+本章では，公式ドキュメントには記載されていない，Converse API でツールを利用する際の注意点や Tips について解説します．特に，Claude 3 のモデル毎のツールの利用傾向やツールの利用を制御するためのプロンプトエンジニアリング，Claude3 Opus のレスポンスに含まれる CoT の内容，ツールの引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げます．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明します．
+
+### Claude3 Opus で Tool use 利用時のレスポンスについて
+
+Claude3 Opus で Tool use を利用する設定で Converse API を利用すると，レスポンスに必ず Chain of thought (CoT) の内容が含まれます．具体的には，Converse API で引数`toolConfig`を指定すると，以下のように，`<thinking>`タグ内でどの tools を利用すべきかを思考した内容が出力されます．
+
+![opus_cot.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fd6b2ab9-54f1-74b3-f1bc-75869e105319.png)
+
+本現象は，[Anthropic の公式学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/06_chatbot_with_multiple_tools.ipynb)でも下記のように言及されております．
+
+> An Opus-specific problem
+> When working with Opus and tools, the model often outputs its thoughts in <thinking> or <reflection> tags before actually responding to a user. You can see an example of this in the screenshot below:
+
+CoT によって，ツール選定の精度が向上する可能性はありますが，ユーザーエクスペリエンス向上のために，CoT の内容は出力しないように工夫することが望ましいです．
+
+:::note info
+上記を実現するために，ユーザー向けの最終的な回答部分を特定のタグで囲い，その部分のみをチャット UI 上に表示することが考えられます．例えば，CoT する前提でシステムプロンプトを記述し，出力として<thinking>タグ内には CoT の内容を，<answer>タグ内には最終的な回答を記述することで，<answer>タグ内のみを表示するようにすることが有効です．本アイデアの実装例を，下記リポジトリの`feature_use_cot`ブランチにて公開しておりますので，是非ご参照下さい．
+
+https://github.com/ren8k/aws-bedrock-converse-app-use-tools
+:::
+
+### ツール実行のための引数生成が必ずしも成功するとは限らない
+
+Tool use 利用時，LLM がツールの引数を生成しますが，必ずしもツールの引数生成が成功するとは限りません．Claude3 を利用する場合はほぼ成功しますが，Command R+ などのモデルを利用する場合，ツールの引数生成に失敗（引数が不足するなど）することが度々あります．
+
+よって，ツールの引数生成失敗に伴うツールの実行失敗を回避するためのリトライの仕組みを実装することが望ましいです．（本実装では取り入れておりませんが，ツールの実行に失敗した場合，[エラーの内容を含めて LLM に情報を送信](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html)し，それを踏まえて再度引数を生成させることは可能です．）
+
+:::note info
+ツールの引数生成の精度的にも，Claude3 は非常に有力な選択肢であると考えられます．
+:::
+
+### 会話履歴にツールの利用履歴がある場合、引数 `toolConfig` の指定が必要
+
+会話履歴（Converse API の引数`messages`）にツールの利用履歴（`toolUse` や `toolResult`）が含まれる場合，Converse API の引数 `toolConfig` に対応するツールの定義を必ず指定しなければなりません．引数 `toolConfig` を指定しない場合，以下のようなエラーが発生します．
+
+```
+botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: The toolConfig field must be defined when using toolUse and toolResult content blocks.
+```
+
+本アプリでは，ツールの利用有無をいつでも切り替えることができますが，ツールを利用した後，ツール有りからツール無しに切り替えてチャットを行う場合，上記のエラーが発生する点にご留意下さい．
+
+### モデル毎の Tool use 利用時における Converse API のレスポンスの差異
+
+Converse API を使用して AI モデルに Tool use を利用させる際，モデルによってレスポンス (`response["output"]["message"]`) の構造に差異があります．具体的には，生成されたテキストがレスポンスに含まれるかどうかが異なります．
+
+以下に，ツールの利用がサポートされているモデル毎の， Converse API のレスポンスの差分を示します．
+
+| モデル           | Converse API のレスポンスにテキストが含まれるか |
+| ---------------- | ----------------------------------------------- |
+| Claude3          | テキストが含まれる場合がある（不確定）          |
+| Command R+       | テキストが含まれる                              |
+| Mistral AI Large | テキストが含まれない                            |
+
+Claude3 は，前述の通り，レスポンスに生成されたテキストが含まれるかどうかは不確定です．
+
+Command R+ で Tool use を利用する場合，Converse API におけるレスポンス `response["output"]["message"]`には必ず生成されたテキストが含まれます．以下に，Command R+ に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示します．
+
+```json
+{
+  "content": [
+    { "text": "京都府京都市の天気を検索して、ユーザーに知らせます。" },
+    {
+      "toolUse": {
+        "input": { "city": "京都市", "prefecture": "京都府" },
+        "name": "get_weather",
+        "toolUseId": "tooluse_WMqogtHhTgOUcjGpRxTrKQ"
+      }
+    }
+  ],
+  "role": "assistant"
+}
+```
+
+一方，Mistral AI Large で Tool use を利用する場合， Converse API におけるレスポンス `response["output"]["message"]`にはテキストは含まれません．以下に Mistral AI Large に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示します．
+
+```json
+{
+  "content": [
+    {
+      "toolUse": {
+        "input": { "city": "京都市", "prefecture": "京都府" },
+        "name": "get_weather",
+        "toolUseId": "tooluse_v2wRuKgLRPaQxJJBna0cyw"
+      }
+    }
+  ],
+  "role": "assistant"
+}
+```
+
+### Amazon Titan で Converse API を利用する際の引数`stop sequence`について
+
+Amazon Titan で Converse API を利用する場合，引数`stop sequence`の指定の仕方が他のモデルと異なります．具体的には，引数`stop sequence`には，正規表現パターン「`^(|+|User:)$`」にマッチするような文字列しか指定できません．例えば，Amazon Titan で 引数`stop sequence=["</stop>"]`を指定して Converse API を利用すると以下のエラーが出ます．
+
+```
+ValidationException: An error occurred (ValidationException) when calling the Converse operation: The model returned the following errors: Malformed input request: string [</stop>] does not match pattern ^(\|+|User:)$, please reformat your input and try again.
+```
+
+本アプリでは，Amazon Titan を選択した場合，`stop sequence`のデフォルト値として`User:`を指定するようにしております．
+
+### AI21 Lab で Converse API を利用する際の引数`messages`について
+
+AI21 Labs Jurassic-2 で Converse API を利用する場合，引数`messages`に会話履歴を含めることはできません．例えば，引数`messages`に`assistant`の応答内容を含めると以下のエラーが出ます．
+
+```
+botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: This model doesn't support conversation history. Try again with input that only includes one user message.
+```
+
+本アプリで AI21 Labs Jurassic-2 を利用する場合，一度会話履歴のキャッシュをクリアしてから利用するようにご留意下さい．
 
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点（プロンプトエンジニアリングなど），Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリケーションの実装を行うために，本記事が一助となれば幸いです．
 
 <!-- ## 仲間募集
 

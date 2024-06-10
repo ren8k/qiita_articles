@@ -18,13 +18,13 @@ ignorePublish: false
 
 株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
 
-Converse API の使い方について説明し，応用的な活用方法についても紹介いたします．
+[Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) の使い方について説明し，応用的な活用方法についても紹介いたします．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
 ## Converse API とは
 
-[Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
+[Converse API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html) とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
 
 - マルチターン対話が容易に可能
 - 画像の Base64 エンコードが不要
@@ -226,7 +226,7 @@ print(tool_result)
 }
 ```
 
-なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，レスポンスにテキストが含まれることを示唆する記述があります．
+なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，以下のようなレスポンスにテキストが含まれることを示唆する記述があります．
 
 > Claude's response contains 2 blocks:
 >
@@ -389,7 +389,7 @@ bash run_app.sh
 ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が不必要にツールを利用しないための工夫について説明します．
 
 :::note info
-ConverseStream API は，Converse API と同様に Amazon Bedrock のモデルを容易に呼び出すことが可能な API ですが，レスポンスをストリーミングで取得できる点が異なります．Converse API と同一の引数で呼び出すことが可能です．
+[ConverseStream API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html) は，Converse API と同様に Amazon Bedrock のモデルを容易に呼び出すことが可能な API ですが，レスポンスをストリーミングで取得できる点が異なります．Converse API と同一の引数で呼び出すことが可能です．
 :::
 
 ### ConverseStream API で Tool use を利用する場合の工夫
@@ -526,19 +526,34 @@ Claude3 Sonnet の場合，上記のようなシステムプロンプトでう�
 
 ## Converse API Deep Dive
 
-本章では，Converse API でツールを利用する際の注意点について解説する．特に，Claude 3 のモデル毎のツールの利用傾向やプロンプトによるツール利用の制御方法，Claude3 Opus のレスポンスに含まれる CoT の内容，ツール実行時の引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げる．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明する．
+本章では，公式ドキュメントには記載されていない，Converse API でツールを利用する際の注意点や Tips について解説します．特に，Claude 3 のモデル毎のツールの利用傾向やツールの利用を制御するためのプロンプトエンジニアリング，Claude3 Opus のレスポンスに含まれる CoT の内容，ツールの引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げます．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明します．
 
-### Tool use で Claude3 Opus を利用したの場合のレスポンスについて
+### Claude3 Opus で Tool use 利用時のレスポンスについて
 
-Tool use の設定を行った上で，Claude3 Opus で Converse API を利用すると，レスポンスに必ず CoT の内容が含まれる．具体的には，Converse API で引数`toolConfig`を指定すると，以下のように，`<thinking>`タグ内でどの tools を利用すべきかを思考する．本現象は仕様なのかは不明であるが，もし仕様であれば，CoT の内容は出力しないように工夫すると良いかもしれない．
+Claude3 Opus で Tool use を利用する設定で Converse API を利用すると，レスポンスに必ず Chain of thought (CoT) の内容が含まれます．具体的には，Converse API で引数`toolConfig`を指定すると，以下のように，`<thinking>`タグ内でどの tools を利用すべきかを思考した内容が出力されます．
 
 ![opus_cot.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fd6b2ab9-54f1-74b3-f1bc-75869e105319.png)
 
+本現象は，[Anthropic の公式学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/06_chatbot_with_multiple_tools.ipynb)でも下記のように言及されております．
+
+> An Opus-specific problem
+> When working with Opus and tools, the model often outputs its thoughts in <thinking> or <reflection> tags before actually responding to a user. You can see an example of this in the screenshot below:
+
+CoT によって，ツール選定の精度が向上する可能性はありますが，ユーザーエクスペリエンス向上のために，CoT の内容は出力しないように工夫することが望ましいです．
+
+:::note info
+上記を実現するために，ユーザー向けの最終的な回答部分を特定のタグで囲い，その部分のみをチャット UI 上に表示することが考えられます．例えば，CoT する前提でシステムプロンプトを記述し，出力として<thinking>タグ内には CoT の内容を，<answer>タグ内には最終的な回答を記述することで，<answer>タグ内のみを表示するようにすることが有効です．本アイデアの実装例を，下記リポジトリの`feature_use_cot`ブランチにて公開しておりますので，是非ご参照下さい．
+
+https://github.com/ren8k/aws-bedrock-converse-app-use-tools
+:::
+
 ### ツール実行のための引数生成が必ずしも成功するとは限らない
 
-Tool use では，LLM がツールの引数を生成し，ユーザーがツールの実行を行うが，必ずしもツールの引数生成が成功するとは限らない．Claude3 を利用する場合はほぼ失敗はしないが，Command R+ などのモデルを利用する場合，ツールの引数生成に失敗（引数が不足するなど）することが度々ある．
+Tool use 利用時，LLM がツールの引数を生成しますが，必ずしもツールの引数生成が成功するとは限りません．Claude3 を利用する場合はほぼ失敗することはありませんが，Command R+ などのモデルを利用する場合，ツールの引数生成に失敗（引数が不足するなど）することが度々あります．
 
-ツールの引数生成失敗に伴うツールの実行失敗を回避するためのリトライの仕組みを実装することが望ましい．（本実装では取り入れていないが，ツールの実行に失敗した場合，エラーの内容を含めて LLM に情報を送信し，それを踏まえて再度引数を生成させることは可能である．[^6-3]）
+よって，ツールの引数生成失敗に伴うツールの実行失敗を回避するためのリトライの仕組みを実装することが望ましいです．（本実装では取り入れておりませんが，ツールの実行に失敗した場合，[エラーの内容を含めて LLM に情報を送信](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html)し，それを踏まえて再度引数を生成させることは可能です．）
+
+TODO：ここから
 
 ### 会話履歴にツールの利用履歴がある場合，引数 toolConfig 無しで会話できない
 

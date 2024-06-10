@@ -30,7 +30,7 @@ https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 - 画像の Base64 エンコードが不要
 - **Tool use (function calling) が可能**
 
-本記事では，4 つ目に挙げた [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) について，実際にチャットアプリで活用する際の Tips を紹介します．
+本記事では，4 つ目に挙げた [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) について，その仕組みを解説し，実際にチャットアプリで活用する際の Tips を紹介します．
 
 :::note info
 Converse API で Tool use をサポートしているモデルは，執筆時点（2024/06/09）では以下の 3 種類のみです．本記事では，Claude3 で Tool use を利用する前提で解説いたします．
@@ -62,7 +62,7 @@ TODO：修正
 - Step2: Claude3 からツール実行のリクエストを取得
 - Step3: ユーザーがツールを実行
 - Step4: ツールの実行結果を Claude3 に送信
-- Step5: ツールの実行結果に Claude3 が回答を生成
+- Step5: ツールの実行結果に基づき Claude3 が回答を生成
 
 TODO：修正
 
@@ -92,14 +92,14 @@ class ToolsList:
 ```
 
 :::note info
-ToolsList クラスを作成している理由は，後続のステップにて `getattr()`関数を使用してツール名に対応する関数を動的に取得するためです．この点は後ほど説明します．
+ToolsList クラスを作成している理由は，後続のステップにて `getattr()`関数を使用して，ツール名に対応する関数を動的に取得するためです．この点は後ほど説明します．
 :::
 
 次に，ツールの定義を行います．定義では，以下の項目を設定する必要があります．
 
-- ツール名: `get_weather`
-- ツールの説明: `指定された場所の天気を取得します。`
-- 入力スキーマ: `prefecture` と `city` の 2 つの引数の型と説明，必須かどうかを定義
+- ツール名 (`name`): `get_weather`
+- ツールの説明 (`description`): `指定された場所の天気を取得します。`
+- 入力スキーマ (`inputSchema`): `prefecture` と `city` の 2 つの引数の型と説明，必須かどうかを定義
 
 ```python
 tool_definition = {
@@ -157,7 +157,7 @@ messages.append(response["output"]["message"])
 
 ### Step2: Claude3 からツール実行のリクエストを取得
 
-Converse API で`toolConfig`を指定した場合，Claude3 は応答にツールが必要かどうかを判断し，ツールが必要な場合はレスポンスにツール実行のための情報を返します．以下に，レスポンスの例（`output`キーと`stopReason`キーの値のみ）を示します．
+Converse API で`toolConfig`を指定した場合，Claude3 は回答生成にツールが必要かどうかを判断し，ツールが必要な場合はレスポンスにツール実行のためのリクエスト情報を返します．以下に，レスポンス`response`の例（`output`キーと`stopReason`キーの値のみ）を示します．
 
 ```json
 {
@@ -277,7 +277,7 @@ pprint(response)
 messages.append(response["output"]["message"])
 ```
 
-### Step5: ツールの実行結果に基づいて Claude3 が回答を生成
+### Step5: ツールの実行結果に基づき Claude3 が回答を生成
 
 Claude3 は，ツールの実行結果を利用して，元のプロンプト`東京都墨田区の天気は？`に対する回答を生成します．以下に，Claude3 のレスポンスの例（`output`キーと`stopReason`キーの値のみ）を示します．
 
@@ -323,12 +323,7 @@ Claude3 は，ツールの実行結果を利用して，元のプロンプト`�
         "content": [
             {
                 "toolResult": {
-                    "content": [
-                        {
-                            "text": "東京都, 墨田区 "
-                            "の天気は晴れで，最高気温は22度です．"
-                        }
-                    ],
+                    "content": [{"text": "東京都, 墨田区 の天気は晴れで，最高気温は22度です．"}]
                     "toolUseId": "tooluse_UwHeZGCnSQusfLrwCp9CcQ",
                 }
             }
@@ -398,7 +393,7 @@ bash run_app.sh
 ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が不必要にツールを利用しないための工夫について説明します．
 
 :::note info
-[ConverseStream API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html) は，Converse API と同様に Amazon Bedrock のモデルを容易に呼び出すことが可能な API ですが，レスポンスをストリーミングで取得できる点が異なります．Converse API と同一の引数で呼び出すことが可能です．
+[ConverseStream API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html) は，Converse API と同様に Amazon Bedrock のモデルを容易に呼び出すことが可能な API ですが，レスポンスをストリーミングで取得できる点が異なります．また，Converse API と同一の引数でモデルを呼び出すことが可能です．
 :::
 
 ### ConverseStream API で Tool use を利用する場合の工夫
@@ -451,12 +446,12 @@ ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が�
 
 ストリーミングレスポンスの各キーの内容を整理した表を以下に示します．なお，以下の表では，レスポンスの`stream`キーの要素を`event`として表現している点にご留意下さい．
 
-| レスポンスのキー                                          | 内容                         | 説明                                                    |
-| --------------------------------------------------------- | ---------------------------- | ------------------------------------------------------- |
-| `event["contentBlockDelta"]["delta"]["text"]`             | LLM の生成した日本語テキスト | 本項目は含まれないことがある                            |
-| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報          | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
-| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ        | Tool に渡すための JSON 形式の入力データが含まれる       |
-| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由         | Tool use の場合，`"tool_use"`が含まれる                 |
+| レスポンスのキー                                          | 内容                             | 説明                                                    |
+| --------------------------------------------------------- | -------------------------------- | ------------------------------------------------------- |
+| `event["contentBlockDelta"]["delta"]["text"]`             | Claude3 が生成した日本語テキスト | 本項目は含まれないことがある                            |
+| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報              | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
+| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ            | Tool に渡すための JSON 形式の入力データが含まれる       |
+| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由             | Tool use の場合，`"tool_use"`が含まれる                 |
 
 :::note warn
 Converse API と同様，ConverseStream API においても，Use tool 利用時にレスポンスに生成されたテキストが含まれることがあります．具体的には，`event["contentBlockDelta"]["delta"]["text"]`の有無は不確定であるため，注意が必要です．
@@ -548,7 +543,7 @@ def display_streaming_msg_content(response_stream):
 
 結論から述べると，Claude3 Sonnet を利用したプロンプトエンジニアリングが特に有効です．
 
-Tool use 利用時，モデルが不必要にツールを利用してしまうことがあります．例えば，モデルの知識で十分回答できる質問に対しても，Web 検索ツールを利用して回答する傾向が高いです．個人的な印象としては，Claude3 Haiku や Opus はツールを利用することが非常に多く，プロンプトでの制御も難しいです．一方，Claude3 Sonnet もツールを利用する傾向はありますが，プロンプトでの制御がある程度効きやすいです．
+Tool use を利用する際，モデルが不必要にツールを利用してしまうことがあります．例えば，ツールに「Web 検索ツール」がある場合，モデル自身の知識で十分回答できる質問に対しても，Web 検索ツールを利用して回答する傾向が高いです．個人的な印象としては，Claude3 Haiku や Opus はツールを利用することが非常に多く，プロンプトでの制御も難しいです．一方，Claude3 Sonnet もツールを利用する傾向はありますが，プロンプトでの制御がある程度効きやすいです．
 
 :::note info
 [Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，プロンプトエンジニアリング時に **Claude3 Sonnet** を利用しております．
@@ -589,7 +584,7 @@ Claude3 Sonnet の場合，上記のようなシステムプロンプトでう�
 
 ## Converse API + Tool use Deep Dive
 
-本章では，公式ドキュメントには記載されていない，Converse API でツールを利用する際の注意点や Tips について解説します．特に，Claude 3 のモデル毎のツールの利用傾向やツールの利用を制御するためのプロンプトエンジニアリング，Claude3 Opus のレスポンスに含まれる CoT の内容，ツールの引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げます．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明します．
+本章では，公式ドキュメントには記載されていない，Converse API でツールを利用する際の注意点や Tips について解説します．特に，Claude3 Opus のレスポンスに含まれる CoT の内容，ツールの引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げます．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明します．
 
 ### Claude3 Opus で Tool use 利用時のレスポンスについて
 
@@ -600,12 +595,12 @@ Claude3 Opus で Tool use を利用する設定で Converse API を利用する�
 本現象は，[Anthropic の公式学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/06_chatbot_with_multiple_tools.ipynb)でも下記のように言及されております．
 
 > An Opus-specific problem
-> When working with Opus and tools, the model often outputs its thoughts in <thinking> or <reflection> tags before actually responding to a user. You can see an example of this in the screenshot below:
+> When working with Opus and tools, the model often outputs its thoughts in `<thinking>` or `<reflection>` tags before actually responding to a user. You can see an example of this in the screenshot below:
 
 CoT によって，ツール選定の精度が向上する可能性はありますが，ユーザーエクスペリエンス向上のために，CoT の内容は出力しないように工夫することが望ましいです．
 
 :::note info
-上記を実現するために，ユーザー向けの最終的な回答部分を特定のタグで囲い，その部分のみをチャット UI 上に表示することが考えられます．例えば，CoT する前提でシステムプロンプトを記述し，出力として<thinking>タグ内には CoT の内容を，<answer>タグ内には最終的な回答を記述することで，<answer>タグ内のみを表示するようにすることが有効です．本アイデアの実装例を，下記リポジトリの`feature_use_cot`ブランチにて公開しておりますので，是非ご参照下さい．
+上記を実現するために，ユーザー向けの最終的な回答部分を特定のタグで囲い，その部分のみをチャット UI 上に表示することが考えられます．例えば，CoT を前提としたシステムプロンプトを記述し，出力として`<thinking>`タグ内には CoT の内容を，`<answer>`タグ内には最終的な回答を記述し，`<answer>`タグ内のみを表示するようにすることが有効です．本アイデアの実装例を，下記リポジトリの`feature_use_cot`ブランチにて公開しておりますので，是非ご参照下さい．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 :::
@@ -622,7 +617,7 @@ Tool use 利用時，LLM がツールの引数を生成しますが，必ずし�
 
 ### 会話履歴にツールの利用履歴がある場合、引数 `toolConfig` の指定が必要
 
-会話履歴（Converse API の引数`messages`）にツールの利用履歴（`toolUse` や `toolResult`）が含まれる場合，Converse API の引数 `toolConfig` に対応するツールの定義を必ず指定しなければなりません．引数 `toolConfig` を指定しない場合，以下のようなエラーが発生します．
+会話履歴（Converse API の引数`messages`）にツールの利用履歴（`toolUse` や `toolResult`）が含まれる場合，Converse API の引数 `toolConfig` に，対応するツールの定義を必ず指定しなければなりません．引数 `toolConfig` を指定しない場合，以下のようなエラーが発生します．
 
 ```
 botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: The toolConfig field must be defined when using toolUse and toolResult content blocks.

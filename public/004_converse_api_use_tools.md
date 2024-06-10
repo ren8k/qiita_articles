@@ -1,14 +1,14 @@
 ---
 title: Amazon Bedrock Converse API と Tool use を知識ゼロから学び，発展的なチャットアプリを実装する
 tags:
+  - Python
   - AWS
   - bedrock
-  - Python
-  - Claude
   - 生成AI
+  - claude
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-06-11T07:16:22+09:00'
+id: 64c4a3de56b886942251
 organization_url_name: null
 slide: false
 ignorePublish: false

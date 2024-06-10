@@ -4,11 +4,11 @@ tags:
   - AWS
   - bedrock
   - 生成AI
-  - llama3
   - LLM
+  - Llama3
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-06-10T11:02:12+09:00'
+id: 97022fa42dde9c8e8fd8
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

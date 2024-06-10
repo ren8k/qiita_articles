@@ -3,12 +3,12 @@ title: Amazon Bedrock の Converse API と Streamlit で10分でチャットア�
 tags:
   - Python
   - AWS
-  - streamlit
   - bedrock
+  - Streamlit
   - 生成AI
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-06-10T11:02:12+09:00'
+id: 0191f5e3f02b5b824df0
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

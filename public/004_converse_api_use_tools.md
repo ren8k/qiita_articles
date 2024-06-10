@@ -1,5 +1,5 @@
 ---
-title: Amazon Bedrock Converse API の Tool use を知識ゼロから学び，発展的なチャットアプリを実装する
+title: Amazon Bedrock Converse API と Tool use を知識ゼロから学び，発展的なチャットアプリを実装する
 tags:
   - AWS
   - bedrock
@@ -16,9 +16,8 @@ ignorePublish: false
 
 ## はじめに
 
-最近 Converse API を叩きすぎて，毎日 Rate Limiting Error を出している[@ren8k](https://qiita.com/ren8k) です．
-
-[Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) の使い方について説明し，応用的な活用方法についても紹介いたします．
+最近 Converse API を叩きすぎて，毎日`throttlingException`を出している[@ren8k](https://qiita.com/ren8k) です．
+先日，Amazon Bedrock の [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) と [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) (function calling) を利用した Streamlit チャットアプリを作成し，以下のリポジトリに公開しました．本記事では，初学者から上級者までを対象とし，Tool use の仕組みやその利用方法，チャットアプリ開発の過程で得た知見や発展的な活用方法を共有いたします．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
@@ -27,13 +26,23 @@ https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 [Converse API](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_Converse.html) とは，統一的なインターフェースで Amazon Bedrock のモデルを容易に呼び出すことが可能な，チャット用途に特化した API です．推論パラメーターなどのモデル毎の固有の差分を意識せず，モデル ID のみを変更することで，異なるモデルを呼び出すことが可能です．本 API のその他の特徴は以下の通りです．
 
 - マルチターン対話が容易に可能
+- ストリーミング処理が可能（ConverseStream API を利用）
 - 画像の Base64 エンコードが不要
-- **Tool use (function calling) が可能** (以下のモデルが対応)
-  - Anthropic Claude3
-  - Mistral AI Large
-  - Cohere Command R and Command R+
+- **Tool use (function calling) が可能**
 
-本記事では，3 つ目に挙げた [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) の活用方法について説明し，Claude3 で実際にチャットアプリで活用する際の Tips を紹介します．
+本記事では，4 つ目に挙げた [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) について，実際にチャットアプリで活用する際の Tips を紹介します．
+
+:::note info
+Converse API で Tool use をサポートしているモデルは，執筆時点（2024/06/09）では以下の 3 種類のみです．本記事では，Claude3 で Tool use を利用する前提で解説いたします．
+
+- Anthropic Claude3
+- Mistral AI Large
+- Cohere Command R and Command R+
+
+なお，Converse API で利用可能な機能はモデルにより異なります．以下に，Converse API で利用可能なモデルと，サポートされている機能を示します．なお，以下の表は，執筆時点（2024/06/09）の [AWS 公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html#conversation-inference-supported-models-features)から引用したものです．
+
+![supported_model_table.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1cd4218f-0d6c-2d15-66b9-4d4e41bad9a0.png)
+:::
 
 ## Tool use とは
 
@@ -347,7 +356,7 @@ Claude3 は，ツールの実行結果を利用して，元のプロンプト`�
   - リージョンと利用するモデル
   - 推論パラメーター
   - Converse API と Converse Stream API，Tool use の利用
-- Streamlit の ChatUI 機能を利用したチャットアプリケーション
+- Streamlit の ChatUI 機能を利用したチャットアプリ
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
@@ -480,6 +489,60 @@ Converse API と同様，ConverseStream API においても，Use tool 利用時
   "role": "assistant"
 }
 ```
+
+<details open><summary>上記を実現するための実装例</summary>
+
+以下に，アプリの実装で，ストリーミングで LLM の生成文およびツールリクエスト情報を取得している部分のコードを示します．（説明上，github 上のコードを微量変更しております．）関数`display_streaming_msg_content`の引数`response_stream`には，ConverseStream API のレスポンスの`stream`キーの要素が渡されます．
+
+```python
+tool_use_args = {
+            "input": {},
+            "name": "",
+            "toolUseId": "",
+        }
+tool_use_mode = False
+
+def parse_stream(response_stream):
+    #  extract the LLM's output and tool's input from the streaming response.
+    tool_use_input = ""
+    for event in response_stream:
+        if "contentBlockDelta" in event:
+            delta = event["contentBlockDelta"]["delta"]
+            if "text" in delta:
+                yield delta["text"]
+            if "toolUse" in delta:
+                tool_use_input += delta["toolUse"]["input"]
+
+        if "contentBlockStart" in event:
+            tool_use_args.update(
+                event["contentBlockStart"]["start"]["toolUse"]
+            )
+
+        if "messageStop" in event:
+            stop_reason = event["messageStop"]["stopReason"]
+            if stop_reason == "tool_use":
+                tool_use_args["input"] = json.loads(tool_use_input)
+                tool_use_mode = True
+            else:
+                # if stop_reason == 'end_turn'|'max_tokens'|'stop_sequence'|'content_filtered'
+                tool_use_mode = False
+
+def tinking_stream():
+    message = "Using Tools..."
+    for word in message.split():
+        yield word + " "
+
+def display_streaming_msg_content(response_stream):
+    if response_stream:
+        with st.chat_message("assistant"):
+            generated_text = st.write_stream(self.parse_stream(response_stream))
+            if not generated_text: # if generated_text is empty because of tool_use
+                generated_text = st.write_stream(self.tinking_stream())
+    return generated_text
+
+```
+
+</details>
 
 ### Claude3 が不必要にツールを利用しないための工夫
 
@@ -638,7 +701,7 @@ botocore.errorfactory.ValidationException: An error occurred (ValidationExceptio
 
 ## まとめ
 
-本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点（プロンプトエンジニアリングなど），Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリケーションの実装を行うために，本記事が一助となれば幸いです．
+本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点（プロンプトエンジニアリングなど），Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリの実装を行うために，本記事が一助となれば幸いです．
 
 <!-- ## 仲間募集
 

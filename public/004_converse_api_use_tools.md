@@ -226,7 +226,7 @@ print(tool_result)
 }
 ```
 
-なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，以下のようなレスポンスにテキストが含まれることを示唆する記述があります．
+なお，上記の事象は，ConverseStream API でも同様に発生することを確認しており，Claude3 特有の事象である可能性があります．（2024/06/09 時点）．また，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/04_complete_workflow.ipynb)においても，以下のように，レスポンスにテキストが含まれることを示唆する記述があります．
 
 > Claude's response contains 2 blocks:
 >
@@ -638,7 +638,7 @@ botocore.errorfactory.ValidationException: An error occurred (ValidationExceptio
 
 ## まとめ
 
-本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行結果を Claude3 に送信する方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点，Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリケーションの実装を行うために，本記事が一助となれば幸いです．
+本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点（プロンプトエンジニアリングなど），Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリケーションの実装を行うために，本記事が一助となれば幸いです．
 
 <!-- ## 仲間募集
 

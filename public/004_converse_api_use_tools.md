@@ -6,7 +6,7 @@ tags:
   - bedrock
   - 生成AI
   - claude
-private: true
+private: false
 updated_at: '2024-06-11T07:11:59+09:00'
 id: 64c4a3de56b886942251
 organization_url_name: null

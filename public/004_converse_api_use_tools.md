@@ -50,9 +50,9 @@ Tool use (function calling) とは，外部ツールや関数 (API) を定義・
 
 重要な点として，Claude3 が能動的にツールを実行するわけではなく，どのツールをどのような引数で呼ぶべきかをユーザーに依頼し，ユーザーがツールを実行します．その後，ツールの実行結果を Claude3 に伝え，ツールの実行結果に基づいて Claude3 が回答を生成します．具体的な仕組みについては次章で説明します．
 
-TODO：修正
-
 ![tool_use.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/fe887858-0d9a-9350-06e7-7ee673ebe7e1.png)
+
+> [Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/01_tool_use_overview.ipynb)から引用
 
 ## Tool use の仕組み
 
@@ -64,9 +64,7 @@ TODO：修正
 - Step4: ツールの実行結果を Claude3 に送信
 - Step5: ツールの実行結果に基づき Claude3 が回答を生成
 
-TODO：修正
-
-![image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/258954f4-6ab2-9222-dd3b-19c9d09e110c.png)
+![tool_use_flow.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4a3602d5-eafc-161c-5ff8-4446ac13ae3b.png)
 
 以降，天気予報検索ツールを利用する場合を例として，各ステップについて詳細に説明します．
 

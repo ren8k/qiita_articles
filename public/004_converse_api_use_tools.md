@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
+最近 Converse API を叩きすぎて，毎日 Rate Limiting Error を出している[@ren8k](https://qiita.com/ren8k) です．
 
 [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) の使い方について説明し，応用的な活用方法についても紹介いたします．
 
@@ -524,7 +524,7 @@ Tool use 利用時，モデルが不必要にツールを利用してしまう�
 Claude3 Sonnet の場合，上記のようなシステムプロンプトでうまく制御できましたが，Mistral AI Large の場合は，ツールの利用傾向が著しく低くなるように観察されました．モデルの特性を踏まえ，モデルに適したシステムプロンプトを設計することが重要です．
 :::
 
-## Converse API Deep Dive
+## Converse API + Tool use Deep Dive
 
 本章では，公式ドキュメントには記載されていない，Converse API でツールを利用する際の注意点や Tips について解説します．特に，Claude 3 のモデル毎のツールの利用傾向やツールの利用を制御するためのプロンプトエンジニアリング，Claude3 Opus のレスポンスに含まれる CoT の内容，ツールの引数生成の失敗ケースなど，Tool use を利用する上で知っておくべき留意点を幅広く取り上げます．また，Converse API がサポートするモデルの一部の引数には制限がある点についても説明します．
 
@@ -549,42 +549,39 @@ https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
 ### ツール実行のための引数生成が必ずしも成功するとは限らない
 
-Tool use 利用時，LLM がツールの引数を生成しますが，必ずしもツールの引数生成が成功するとは限りません．Claude3 を利用する場合はほぼ失敗することはありませんが，Command R+ などのモデルを利用する場合，ツールの引数生成に失敗（引数が不足するなど）することが度々あります．
+Tool use 利用時，LLM がツールの引数を生成しますが，必ずしもツールの引数生成が成功するとは限りません．Claude3 を利用する場合はほぼ成功しますが，Command R+ などのモデルを利用する場合，ツールの引数生成に失敗（引数が不足するなど）することが度々あります．
 
 よって，ツールの引数生成失敗に伴うツールの実行失敗を回避するためのリトライの仕組みを実装することが望ましいです．（本実装では取り入れておりませんが，ツールの実行に失敗した場合，[エラーの内容を含めて LLM に情報を送信](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html)し，それを踏まえて再度引数を生成させることは可能です．）
 
-TODO：ここから
+:::note info
+ツールの引数生成の精度的にも，Claude3 は非常に有力な選択肢であると考えられます．
+:::
 
-### 会話履歴にツールの利用履歴がある場合，引数 toolConfig 無しで会話できない
+### 会話履歴にツールの利用履歴がある場合、引数 `toolConfig` の指定が必要
 
-Converse API の引数`messages`に，ツールの利用履歴である`toolUse`や`toolResult`を含む場合，Converse API の引数`toolConfig`を指定する必要がある．例えば，ツールの利用後，会話の途中で引数`toolConfig`を指定せずに Converse API を利用すると，以下のエラーが出る．
+会話履歴（Converse API の引数`messages`）にツールの利用履歴（`toolUse` や `toolResult`）が含まれる場合，Converse API の引数 `toolConfig` に対応するツールの定義を必ず指定しなければなりません．引数 `toolConfig` を指定しない場合，以下のようなエラーが発生します．
 
 ```
 botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: The toolConfig field must be defined when using toolUse and toolResult content blocks.
 ```
 
-本アプリでは，ツールの利用有無をいつでも切り替えることができるが，ツール有り-> ツール無しに切り替える場合，エラーが発生し得る点に注意されたい．
+本アプリでは，ツールの利用有無をいつでも切り替えることができますが，ツールを利用した後，ツール有りからツール無しに切り替えてチャットを行う場合，上記のエラーが発生する点にご留意下さい．
 
-### モデル毎の Tool use 利用時における Converse API のレスポンスの差分
+### モデル毎の Tool use 利用時における Converse API のレスポンスの差異
 
-Mistral AI Large で Tool use を利用する場合， Converse API におけるレスポンス `response["output"]["message"]`にはテキストは含まれない．以下に Mistral AI Large に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示す．
+Converse API を使用して AI モデルに Tool use を利用させる際，モデルによってレスポンス (`response["output"]["message"]`) の構造に差異があります．具体的には，生成されたテキストがレスポンスに含まれるかどうかが異なります．
 
-```json
-{
-  "content": [
-    {
-      "toolUse": {
-        "input": { "city": "京都市", "prefecture": "京都府" },
-        "name": "get_weather",
-        "toolUseId": "tooluse_v2wRuKgLRPaQxJJBna0cyw"
-      }
-    }
-  ],
-  "role": "assistant"
-}
-```
+以下に，ツールの利用がサポートされているモデル毎の， Converse API のレスポンスの差分を示します．
 
-一方，Command R+ で Tool use を利用する場合，Converse API におけるレスポンス `response["output"]["message"]`には必ず生成されたテキストが含まれる．以下に，Command R+ に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示す．
+| モデル           | Converse API のレスポンスにテキストが含まれるか |
+| ---------------- | ----------------------------------------------- |
+| Claude3          | テキストが含まれる場合がある（不確定）          |
+| Command R+       | テキストが含まれる                              |
+| Mistral AI Large | テキストが含まれない                            |
+
+Claude3 は，前述の通り，レスポンスに生成されたテキストが含まれるかどうかは不確定です．
+
+Command R+ で Tool use を利用する場合，Converse API におけるレスポンス `response["output"]["message"]`には必ず生成されたテキストが含まれます．以下に，Command R+ に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示します．
 
 ```json
 {
@@ -602,29 +599,46 @@ Mistral AI Large で Tool use を利用する場合， Converse API における
 }
 ```
 
+一方，Mistral AI Large で Tool use を利用する場合， Converse API におけるレスポンス `response["output"]["message"]`にはテキストは含まれません．以下に Mistral AI Large に「京都府京都市の天気を教えて」と指示した際の Converse API のレスポンス`response["output"]["message"]`を示します．
+
+```json
+{
+  "content": [
+    {
+      "toolUse": {
+        "input": { "city": "京都市", "prefecture": "京都府" },
+        "name": "get_weather",
+        "toolUseId": "tooluse_v2wRuKgLRPaQxJJBna0cyw"
+      }
+    }
+  ],
+  "role": "assistant"
+}
+```
+
 ### Amazon Titan で Converse API を利用する際の引数`stop sequence`について
 
-Amazon Titan で Converse API を利用する場合，引数`stop sequence`の指定の仕方が他のモデルと異なる．具体的には，引数`stop sequence`には，正規表現パターン「`^(|+|User:)$`」にマッチするような文字列しか指定できない．例えば，Amazon Titan で 引数`stop sequence=["</stop>"]`を指定して Converse API を利用すると以下のエラーが出る．
+Amazon Titan で Converse API を利用する場合，引数`stop sequence`の指定の仕方が他のモデルと異なります．具体的には，引数`stop sequence`には，正規表現パターン「`^(|+|User:)$`」にマッチするような文字列しか指定できません．例えば，Amazon Titan で 引数`stop sequence=["</stop>"]`を指定して Converse API を利用すると以下のエラーが出ます．
 
 ```
 ValidationException: An error occurred (ValidationException) when calling the Converse operation: The model returned the following errors: Malformed input request: string [</stop>] does not match pattern ^(\|+|User:)$, please reformat your input and try again.
 ```
 
-本アプリでは，Amazon Titan を選択した場合，`stop sequence`のデフォルト値として`User:`を指定するようにしている．
+本アプリでは，Amazon Titan を選択した場合，`stop sequence`のデフォルト値として`User:`を指定するようにしております．
 
 ### AI21 Lab で Converse API を利用する際の引数`messages`について
 
-AI21 Labs Jurassic-2 で Converse API を利用する場合，引数`messages`に会話履歴を含めることはできない．例えば，引数`messages`に`assistant`の応答内容を含めると以下のエラーが出る．
+AI21 Labs Jurassic-2 で Converse API を利用する場合，引数`messages`に会話履歴を含めることはできません．例えば，引数`messages`に`assistant`の応答内容を含めると以下のエラーが出ます．
 
 ```
 botocore.errorfactory.ValidationException: An error occurred (ValidationException) when calling the Converse operation: This model doesn't support conversation history. Try again with input that only includes one user message.
 ```
 
-本アプリで AI21 Labs Jurassic-2 を利用する場合，一度会話履歴のキャッシュをクリアしてから利用するように注意されたい．
+本アプリで AI21 Labs Jurassic-2 を利用する場合，一度会話履歴のキャッシュをクリアしてから利用するようにご留意下さい．
 
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行結果を Claude3 に送信する方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点，Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリケーションの実装を行うために，本記事が一助となれば幸いです．
 
 <!-- ## 仲間募集
 

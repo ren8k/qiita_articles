@@ -1,14 +1,14 @@
 ---
 title: Claude3 で Bedrock Converse API + Tool use を活用したチャットアプリを実装する上でのTips
 tags:
+  - Python
   - AWS
   - bedrock
-  - Python
-  - Claude
   - 生成AI
+  - claude
 private: true
-updated_at: ""
-id: null
+updated_at: '2024-06-10T11:02:13+09:00'
+id: 64c4a3de56b886942251
 organization_url_name: null
 slide: false
 ignorePublish: false

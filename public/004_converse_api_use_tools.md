@@ -344,7 +344,9 @@ Claude3 は，ツールの実行結果を利用して，元のプロンプト`�
 
 実際に，Converse API で Tool use を利用したチャットアプリ（デモ）を作成しました．Python 実装は以下のリポジトリにて公開しております．本アプリの特徴は以下です．
 
-- ConverseStreamAPI と Tool use を組合せた実装
+- ConverseStreamAPI と Tool use を組合せた実装（以下のツールを利用可能）
+  - 天気予報取得ツール
+  - Web 検索ツール
 - 会話中に以下の設定を自由に変更可能
   - リージョンと利用するモデル
   - 推論パラメーター
@@ -353,9 +355,7 @@ Claude3 は，ツールの実行結果を利用して，元のプロンプト`�
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 
-TODO：修正
-
-![demo.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cf43ee2a-3fd6-7d3b-2011-dad1ce35a1b8.gif)
+![demo_v2.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/11fc15ea-dfe2-dbb2-4d43-6867116ff437.gif)
 
 詳細な機能は，上記リポジトリの README.md をご参照下さい．以下に，アプリの利用手順を示します．
 

@@ -1,5 +1,7 @@
 ---
-title: Amazon Bedrock Converse API と Tool use (function calling) を知識ゼロから学び，発展的なチャットアプリを実装する
+title: >-
+  Amazon Bedrock Converse API と Tool use (function calling)
+  を知識ゼロから学び，発展的なチャットアプリを実装する
 tags:
   - Python
   - AWS
@@ -7,8 +9,8 @@ tags:
   - 生成AI
   - claude
 private: true
-updated_at: ""
-id: null
+updated_at: '2024-06-11T09:09:57+09:00'
+id: 44ee713aeeda3bc57d95
 organization_url_name: null
 slide: false
 ignorePublish: false

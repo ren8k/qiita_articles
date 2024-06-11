@@ -211,7 +211,7 @@ print(tool_result)
 :::note warn
 **Tool use 利用時における Converse API のレスポンスの不確定性について**
 
-上記のコードで関数`extract_tool_use`を定義している理由は，Claude3 で Tool use 利用時に，レスポンスに生成されたテキスト（`text`）が含まれることがあるためです．具体的には，以下のように，レスポンスの`output`キーの値にツールリクエストのための情報（`toolUse`）に加え，テキスト（`text`）が含まれることがあります．
+上記のコードで関数`extract_tool_use`を定義している理由は，Claude3 で Tool use 利用時に，レスポンスに生成されたテキスト（`text`）が含まれることがあるためです．具体的には，以下のように，レスポンス`response["output"]["message"]["content"]`の値にツールリクエストのための情報（`toolUse`）に加え，テキスト（`text`）が含まれることがあります．
 
 ```json
 {

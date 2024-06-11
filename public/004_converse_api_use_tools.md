@@ -7,7 +7,7 @@ tags:
   - 生成AI
   - claude
 private: false
-updated_at: '2024-06-11T07:16:22+09:00'
+updated_at: "2024-06-11T07:16:22+09:00"
 id: 64c4a3de56b886942251
 organization_url_name: null
 slide: false
@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 最近 Converse API を叩きすぎて，毎日`throttlingException`を出している[@ren8k](https://qiita.com/ren8k) です．
-先日，Amazon Bedrock の [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) と [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) (function calling) を利用した Streamlit チャットアプリを作成し，以下のリポジトリに公開しました．本記事では，初学者から上級者までを対象とし，Tool use の仕組みやその利用方法，チャットアプリ開発の過程で得た知見や発展的な活用方法を共有いたします．
+先日，Amazon Bedrock の [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) と [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) (function calling) を利用した Streamlit チャットアプリ（デモ）を作成し，以下のリポジトリに公開しました．本記事では，チャットアプリ開発の過程で得た知見を基に，初学者から上級者までを対象として，Tool use の仕組みやその利用方法，発展的な活用方法を共有いたします．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
 

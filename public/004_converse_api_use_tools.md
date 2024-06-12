@@ -444,12 +444,13 @@ ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が�
 
 ストリーミングレスポンスの各キーの内容を整理した表を以下に示します．なお，以下の表では，レスポンスの`stream`キーの要素を`event`として表現している点にご留意下さい．
 
-| レスポンスのキー                                          | 内容                             | 説明                                                    |
-| --------------------------------------------------------- | -------------------------------- | ------------------------------------------------------- |
-| `event["contentBlockDelta"]["delta"]["text"]`             | Claude3 が生成した日本語テキスト | 本項目は含まれないことがある                            |
-| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報              | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
-| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ            | Tool に渡すための JSON 形式の入力データが含まれる       |
-| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由             | Tool use の場合，`"tool_use"`が含まれる                 |
+| レスポンスのキー                                          | 内容                             | 説明                                            |
+| --------------------------------------------------------- | -------------------------------- | ----------------------------------------------- |
+| `event["contentBlockDelta"]["delta"]["text"]`             | Claude3 が生成した日本語テキスト | 本項目は含まれないことがある                    |
+| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報              | `toolUseId` と `name` が含まれる                |
+| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ            | JSON 形式の Tool の入力データ（引数）が含まれる |
+|                                                           |
+| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由             | Tool use の場合，`"tool_use"`が含まれる         |
 
 :::note warn
 Converse API と同様，ConverseStream API においても，Use tool 利用時にレスポンスに生成されたテキストが含まれることがあります．具体的には，`event["contentBlockDelta"]["delta"]["text"]`の有無は不確定であるため，注意が必要です．

@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-最近 Converse API を叩きすぎて，毎日`throttlingException`を出している[@ren8k](https://qiita.com/ren8k) です．
+株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．
 先日，Amazon Bedrock の [Converse API](https://docs.aws.amazon.com/bedrock/latest/userguide/conversation-inference.html) と [Tool use](https://docs.aws.amazon.com/bedrock/latest/userguide/tool-use.html) (function calling) を利用した Streamlit チャットアプリ（デモ）を作成し，以下のリポジトリに公開しました．本記事では，チャットアプリ開発の過程で得た知見を基に，初学者から上級者までを対象として，Tool use の仕組みやその利用方法，発展的な活用方法を共有いたします．
 
 https://github.com/ren8k/aws-bedrock-converse-app-use-tools
@@ -444,12 +444,13 @@ ConverseStream API で Tool use を利用する場合の工夫と，Claude3 が�
 
 ストリーミングレスポンスの各キーの内容を整理した表を以下に示します．なお，以下の表では，レスポンスの`stream`キーの要素を`event`として表現している点にご留意下さい．
 
-| レスポンスのキー                                          | 内容                             | 説明                                                    |
-| --------------------------------------------------------- | -------------------------------- | ------------------------------------------------------- |
-| `event["contentBlockDelta"]["delta"]["text"]`             | Claude3 が生成した日本語テキスト | 本項目は含まれないことがある                            |
-| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報              | Tool use の開始を示し、`toolUseId` と `name` が含まれる |
-| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ            | Tool に渡すための JSON 形式の入力データが含まれる       |
-| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由             | Tool use の場合，`"tool_use"`が含まれる                 |
+| レスポンスのキー                                          | 内容                       | 説明                                            |
+| --------------------------------------------------------- | -------------------------- | ----------------------------------------------- |
+| `event["contentBlockDelta"]["delta"]["text"]`             | Claude3 が生成したテキスト | 本項目は含まれないことがある                    |
+| `event["contentBlockStart"]["start"]["toolUse"]`          | Tool use の開始情報        | `toolUseId` と `name` が含まれる                |
+| `event["contentBlockDelta"]["delta"]["toolUse"]["input"]` | Tool に渡す入力データ      | JSON 形式の Tool の入力データ（引数）が含まれる |
+|                                                           |
+| `event["messageStop"]["stopReason"]`                      | メッセージの停止理由       | Tool use の場合，`"tool_use"`が含まれる         |
 
 :::note warn
 Converse API と同様，ConverseStream API においても，Use tool 利用時にレスポンスに生成されたテキストが含まれることがあります．具体的には，`event["contentBlockDelta"]["delta"]["text"]`の有無は不確定であるため，注意が必要です．
@@ -696,7 +697,7 @@ botocore.errorfactory.ValidationException: An error occurred (ValidationExceptio
 
 本記事では，Amazon Bedrock の Converse API における Tool use の基本的な仕組みから，実践的な活用方法までを幅広く解説しました．Tool use を利用することで，Claude3 の能力を拡張し，複雑なタスクを自動化できることを説明し，ツールの定義方法やツールの実行方法などを，コード例を交えて紹介しました．また，実際に ConverseStream API + Tool use を利用したチャットアプリの実装例を提示し，その特徴や工夫点（プロンプトエンジニアリングなど），Deep Dive な内容についても解説しました．Claude3 on Amazon Bedrock で Tool use を利用した発展的なチャットアプリの実装を行うために，本記事が一助となれば幸いです．
 
-<!-- ## 仲間募集
+## 仲間募集
 
 NTT データ デザイン＆テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
@@ -794,4 +795,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
-</div></details> -->
+</div></details>

@@ -1,0 +1,16 @@
+model, date, chatbot arena elo score
+
+Claude3.5 Sonnet, 2024/6/20, 1290
+GPT-4o,2024/5/13, 1287
+GPT-3.5-Turbo-0613, 2023/6/13, 1117
+Gemini-1.5-pro,2024/5/14, 1265
+Claude3 Opus, 2024/3/4, 1249
+Claude3 Sonnet, 2024/3/4, 1201
+Claude3 Haiku,2024/3/14, 1179
+Command R+,2024/4/4,1148
+Mistral-Large, 2024/2/26, 1157
+Mistral-8x22b, 2024/4/10, 1146
+Nemotron-4-340B-Instruct, 2024/6/14, 1208
+Llama3 70B, 2024/4/18,1207
+Llama3 8B, 2024/4/18,1153
+Qwen2-72B-Instruct, 2024/6/6, 1187

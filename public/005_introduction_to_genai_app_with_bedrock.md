@@ -6,8 +6,8 @@ tags:
   - bedrock
   - 生成AI
   - LLM
-private: true
-updated_at: '2024-06-23T00:20:06+09:00'
+private: false
+updated_at: "2024-06-23T00:20:06+09:00"
 id: 6134d2457211e5a285c4
 organization_url_name: null
 slide: false
@@ -47,11 +47,11 @@ https://amzn.asia/d/03xAyTFd
 
 本書では，Bedrock を選定する理由として，複数の会社が提供する最先端モデルを幅広く利用可能である点や，アプリケーション開発との親和性，本番利用に耐えうる高いセキュリティ・ガバナンスを挙げております．
 
-以下に，[Chatbot Arena Leaderboard](https://huggingface.co/spaces/lmsys/chatbot-arena-leaderboard) のデータを基にした，直近リリースされた代表的な LLM のリリース日と性能を示します．縦軸が Chatbot Arena の Elo Rate (人間による評価)，横軸がリリース日です．また，赤色のプロットは，Amazon Bedrock で利用可能なモデルです．
+以下に，[Chatbot Arena Leaderboard](https://huggingface.co/spaces/lmsys/chatbot-arena-leaderboard) のデータを基にした，直近リリースされた代表的な LLM の性能とリリース日を示します．縦軸が Chatbot Arena の Elo Rate (人間による相対的な評価)，横軸がリリース日です．また，赤色のプロットは，Amazon Bedrock で利用可能なモデルです．
 
 ![chatbot_arena_elo_scores.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f42500a1-a1b5-106c-87d1-747db073a1e8.png)
 
-図から，昨今，様々な企業から，GPT-3.5 を凌駕するモデルが短スパンでリリースされていることがわかります．Amazon Bedrock は提携社数が多く，様々な最先端の LLM を利用可能であり，ユースケースに応じて柔軟にモデルを使い分けることができます．加え，文章生成以外にも，画像生成やベクトル変換用のモデルも提供されております．また，Bedrock ではモデルのデプロイが不要のため，各社の多様な LLM をクイックかつ手軽に導入することが可能です．
+図から，昨今，様々な企業から GPT-3.5 を凌駕するモデルが短スパンでリリースされていることがわかります．Amazon Bedrock は提携社数が多く，様々な最先端の LLM を利用可能であり，ユースケースに応じて柔軟にモデルを使い分けることができます．加え，文章生成以外にも，画像生成やベクトル変換用のモデルも提供されております．また，Bedrock ではモデルのデプロイが不要のため，各社の多様な LLM をクイックかつ手軽に導入することが可能です．
 
 GPT-4 などの特定の LLM に依存した生成 AI のサービス運用は，少なからずリスクが伴います．その他，AWS 外への接続が制限されており，AWS 環境外にデータを出せない場合，GPT-4 などのモデルは利用できません．これらの点も考慮すると，Amazon Bedrock を利用するメリットは大きいのではないでしょうか．
 
@@ -65,9 +65,9 @@ GPT-4 などの特定の LLM に依存した生成 AI のサービス運用は�
 
 ## 先進的で実践的な内容
 
-RAG アプリの実装方法や RAG の精度改善方法なども解説されており，これ 1 冊で基礎〜最新情報をキャッチアップできる内容となっております．また，Agents for Amazon Bedrock も丁寧に解説されており，Column には最近のアップデートに関する情報もまとめられております．
+RAG アプリの実装方法や RAG の精度改善方法/評価などが解説されており，これ 1 冊で基礎〜最新情報をキャッチアップできる内容となっております．また，Agents for Amazon Bedrock も丁寧に解説されており，Column には最近のアップデートに関する情報もまとめられております．
 
-その他には，DynamoDB による会話履歴の永続化，Lambda によるサーバーレス化という内容や，CloudWatch，CloudTrail，PrivateLink，CloudFormation との連携，Step Functions を利用したローコード開発など，実践的な内容が多く含まれています．（アーキテクチャー図やスクリーンショットが豊富で非常にわかりやすいです．）
+その他には，DynamoDB による会話履歴の永続化，Lambda によるサーバーレス化という内容や，CloudWatch，CloudTrail，PrivateLink，他の AWS サービスと Bedrock との連携，Step Functions を利用したローコード開発など，実践的な内容が多く含まれています．（アーキテクチャー図やスクリーンショットが豊富で非常にわかりやすいです．）
 
 :::note
 初学者でも PoC などでそのまま流用できそうな内容が多く含まれております！
@@ -76,11 +76,10 @@ RAG アプリの実装方法や RAG の精度改善方法なども解説され�
 ## その他特徴
 
 - **サンプルコードが Github 上で公開**
-  - 初学者にもわかりやすいように，コード中に丁寧なコメントがあります．
+  - 初学者にもわかりやすいように，コード中に丁寧なコメントがあります．また，LangChain を学ぶのに最適な教材でもあります．
   - https://github.com/minorun365/bedrock-book
 - **情報の鮮度**
-  - Converse API や Tool Use にも触れており，2024/5/31 までの情報は網羅されてそうです．
-  - 著者陣の熱量が凄まじいですね．．！
+  - Converse API や Tool Use にも触れており，2024/5/31 までの情報は網羅されてそうです．（著者陣の熱量が凄まじいですね．．！）
 - **Bedrock 以外の AWS サービスや生成 AI ツールの紹介**
   - Amazon Q Business や Dify などの最新ツールのキャッチアップも可能です．
 - **お勧めの最新情報のキャッチアップ方法の紹介**

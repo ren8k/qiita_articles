@@ -7,7 +7,7 @@ tags:
   - 生成AI
   - LLM
 private: false
-updated_at: '2024-06-26T17:55:38+09:00'
+updated_at: '2024-06-26T18:22:13+09:00'
 id: 6134d2457211e5a285c4
 organization_url_name: null
 slide: false

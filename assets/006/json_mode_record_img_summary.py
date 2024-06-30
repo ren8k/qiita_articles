@@ -56,7 +56,7 @@ tool_definition = {
                     "tags": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": 'トピックの配列。例えば ["building-name", "region"] など。。できるだけ具体的であるべきで、重複しても構いません。',
+                        "description": 'トピックの配列。例えば ["building-name", "region"] など。できるだけ具体的であるべきで、重複しても構いません。',
                     },
                 },
                 "required": ["key_colors", "description", "tags"],

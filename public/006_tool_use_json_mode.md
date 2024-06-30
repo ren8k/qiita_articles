@@ -4,7 +4,7 @@ tags:
   - AWS
   - bedrock
   - Python
-  - rag
+  - LLM
   - 生成AI
 private: true
 updated_at: ""
@@ -22,22 +22,35 @@ ignorePublish: false
 前から気になっていたので，今回は JSON モードについて調べ，実際に利用してみました．
 実際に Converse API を利用した例などが見当たらなかったので，今回はその辺りをまとめてみました．
 
+また，Claude3.5 Sonnet を利用して検証してみました．
+
 - Converse API を利用し，Claude3 の JSON モードを利用することができるのか
 - どのような利用が可能なのかを検証してみました．
+
+:::note
+Converse API や，Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
+:::
+
+https://qiita.com/ren8k/items/64c4a3de56b886942251
 
 ## JSON モードとは
 
 [JSON モード](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)は，Claude3 に JSON 形式で回答させる方法です．ただし，実態としては，Tool use 利用時，Claude3 がツールへの入力を JSON 形式でレスポンスする性質を利用しているだけです．
 
-具体的に説明すると，ユーザー側で，実際には存在しない「架空のツール」を定義しておき，このツールの入力スキーマとして，欲しい出力の構造を指定します．この「架空のツール」を Claude3 に送信することで，Claude3 はこのツールが実在すると思い込み，指定されたスキーマに従って JSON 形式の入力を生成します．この生成された JSON 形式のツールの入力が，ユーザーが求める出力そのものとなります．
+JSON モードは，以下のステップで利用することができます．
+
+- Step1. ツールの定義とプロンプトを Claude3 に送信
+- Step2. Claude3 からツール実行のリクエストを取得し，JSON 部を抽出
 
 ![json_mode.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c8159e84-fbeb-3ba1-dd7b-732f10fb8bc1.png)
 
-実際にコードを見たほうがイメージが湧くと思いますので，以降では，具体的な利用例を示します．
+具体的に説明すると，ユーザー側で，実際には存在しない「架空のツール」を定義しておき，このツールの入力スキーマとして，求める出力の構造を指定します．この「架空のツール」を Claude3 に送信することで，Claude3 はこのツールが実在すると思い込み，指定されたスキーマに従って JSON 形式の入力を生成します．この生成された JSON 形式のツールの入力が，ユーザーが求める出力そのものとなります．
+
+実際にコードを見た方がイメージが湧くと思いますので，以降では，具体的な利用例を示します．
 
 ## 利用例 1（感情分析）
 
-テキストの感情分析を行い、その結果を構造化された JSON 形式で得るタスクを考えます．例えば，「私はとても幸せです．」という入力に対し，期待する JSON 出力は以下とします．
+テキストの感情分析を行い、その結果を構造化された JSON 形式で得るタスクを考えます．例えば，`「私はとても幸せです．」`という入力に対し，期待する JSON 出力は以下とします．
 
 ```json
 {
@@ -47,11 +60,11 @@ ignorePublish: false
 }
 ```
 
-### step1. ツールの定義
+### Step1. ツールの定義とプロンプトを Claude3 に送信
 
-必要なのは、JSON Schema を使用してこの形式を捉えるツールを定義することだけです。以下は可能な実装です：
+まず，架空のツールを定義します．ポイントとして，取得したい出力の構造を，`inputSchema` 中に記述します．以下では，`positive_score`，`negative_score`，`neutral_score` の 3 つのフィールドを入力とする架空のツール`print_sentiment_scores`を定義しております．なお，実際にツールを実行するわけではないので，ツールの実装は不要です．
 
-```python
+```python:json_mode_tutorial.py
 tool_name = "print_sentiment_scores"
 description = "与えられたテキストの感情スコアを出力します。"
 
@@ -81,13 +94,120 @@ tool_definition = {
         },
     }
 }
+```
 
-tool_choice = {
-    "tool": {
-        "name": "print_sentiment_scores",
+続いて，ツールの定義とプロンプトを Claude3 に送信します．プロンプトでは，`target_text` にて定義した `私はとても幸せです。` という文章に対し，架空のツール`print_sentiment_scores`を利用するように指示しております．
+
+```python:json_mode_tutorial.py
+import json
+from pprint import pprint
+
+import boto3
+
+client = boto3.client("bedrock-runtime", region_name="us-east-1")
+model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+target_text = "私はとても幸せです。"
+
+prompt = f"""
+<text>
+{target_text}
+</text>
+
+{tool_name} ツールのみを利用すること。各感情スコアは，数値で表現しなさい。
+"""
+
+messages = [
+    {
+        "role": "user",
+        "content": [{"text": prompt}],
+    }
+]
+
+# Send the message to the model, using a basic inference configuration.
+response = client.converse(
+    modelId=model_id,
+    messages=messages,
+    toolConfig={
+        "tools": [tool_definition],
+        "toolChoice": {
+            "tool": {
+                "name": tool_name,
+            },
+        },
     },
+)
+pprint(response)
+```
+
+:::note
+
+Converse API の引数 `toolConfig` にて，`toolChoice` を指定することで，Claude3 に対してツールを使用するよう強制することができます．特に， `tool` というフィールドにツール名を指定することで，Claude3 は指定されたツールを必ず使用するようになります．詳細については，[AWS 公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolChoice.html)や，[Anthropic 公式の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)をご参照下さい．
+:::
+
+:::note
+`toolChoice` でツールの利用を強制していますが，プロンプトでも，`{tool_name} ツールのみを利用すること。` という指示を行っております．これは，[Anthropic 公式の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)のプロンプト例に倣ったものです．
+:::
+
+### Step2. Claude3 からツール実行のリクエストを取得し，JSON 部を抽出
+
+Converse API の引数 `toolConfig` にて，`toolChoice` を指定しているため，レスポンスには必ずツール実行のリクエストが含まれます．以下に，レスポンスの一部（`output` キーと `stopReason` キーの値のみ）を示します．
+
+```json
+{
+  "output": {
+    "message": {
+      "content": [
+        {
+          "toolUse": {
+            "input": {
+              "negative_score": 0.1,
+              "neutral_score": 0.0,
+              "positive_score": 0.9
+            },
+            "name": "print_sentiment_scores",
+            "toolUseId": "tooluse_Ij0M6aAWQjK2JMO8XZqJrw"
+          }
+        }
+      ],
+      "role": "assistant"
+    }
+  },
+  "stopReason": "tool_use"
 }
 ```
+
+上記より，`toolUse` キーの `input` キーに，ツールの入力（引数）が JSON 形式で格納されていることがわかります．Claude3 は，このツールの入力を利用して感情分析ツール `print_sentiment_scores` を実行することをリクエストしていますが，この JSON 部を抽出することで求める出力を得ることができます．
+
+以下のコードでは，この JSON 部を抽出し，出力しています．
+
+```python:json_mode_tutorial.py
+def extract_tool_use_args(content):
+    for item in content:
+        if "toolUse" in item:
+            return item["toolUse"]["input"]
+    return None
+
+response_content = response["output"]["message"]["content"]
+
+# json部を抽出
+tool_use_args = extract_tool_use_args(response_content)
+print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
+```
+
+上記の実行結果は以下です．
+
+```json
+{
+  "positive_score": 0.9,
+  "negative_score": 0.0,
+  "neutral_score": 0.1
+}
+```
+
+適切に JSON 形式で出力されていることが確認できます．
+
+### Step N
 
 ## 利用例（マルチクエリ）
 
@@ -107,7 +227,7 @@ https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_s
 
 本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
 
-## 仲間募集
+<!-- ## 仲間募集
 
 NTT データ デジタルサクセスコンサルティング事業部 では、以下の職種を募集しています。
 
@@ -205,4 +325,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
-</div></details>
+</div></details> -->

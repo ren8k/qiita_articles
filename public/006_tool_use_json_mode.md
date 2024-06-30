@@ -1,5 +1,5 @@
 ---
-title: Amazon Bedrock Converse APIで Claude3 の JSON モードを利用する
+title: Amazon Bedrock Converse API で Claude3 の JSON モードを利用する
 tags:
   - AWS
   - bedrock

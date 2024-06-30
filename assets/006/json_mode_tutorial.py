@@ -28,11 +28,11 @@ tool_definition = {
     }
 }
 
-tool_choice = {
-    "tool": {
-        "name": "print_sentiment_scores",
-    },
-}
+# tool_choice = {
+#     "tool": {
+#         "name": "print_sentiment_scores",
+#     },
+# }
 
 
 def main():
@@ -44,16 +44,16 @@ def main():
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
     model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
-    text = "私はとても幸せです．"
+    target_text = "私はとても幸せです。"
 
     prompt = f"""
     <text>
-    {text}
+    {target_text}
     </text>
 
-    {tool_name} ツールのみを利用すること．各感情スコアは，数値で表現すること．
+    {tool_name} ツールのみを利用すること。各感情スコアは，数値で表現しなさい。
     """
-    print(prompt)
+
     messages = [
         {
             "role": "user",
@@ -67,7 +67,11 @@ def main():
         messages=messages,
         toolConfig={
             "tools": [tool_definition],
-            "toolChoice": tool_choice,
+            "toolChoice": {
+                "tool": {
+                    "name": tool_name,
+                },
+            },
         },
     )
     pprint(response)

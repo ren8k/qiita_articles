@@ -19,13 +19,13 @@ ignorePublish: false
 <!-- 株式会社 NTT データ デジタルサクセスコンサルティング事業部の  -->
 
 最近 Bedrock の Converse API にハマっている [@ren8k](https://qiita.com/ren8k) です．
-前から気になっていたので，今回は JSON モードについて調べ，実際に利用してみました．
-実際に Converse API を利用した例などが見当たらなかったので，今回はその辺りをまとめてみました．
+Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)にはこの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たらりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
 
-また，Claude3.5 Sonnet を利用して検証してみました．
+JSON モードを検証するにあたり，2024/6/20 にリリースされた Claude3.5 Sonnet を使用し，以下の 3 つのユースケースを題材として検証しました．
 
-- Converse API を利用し，Claude3 の JSON モードを利用することができるのか
-- どのような利用が可能なのかを検証してみました．
+- 感情分析
+- クエリ拡張
+- 画像分析
 
 :::note
 Converse API や，Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
@@ -35,7 +35,7 @@ https://qiita.com/ren8k/items/64c4a3de56b886942251
 
 ## JSON モードとは
 
-[JSON モード](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)は，Claude3 に JSON 形式で回答させる方法です．ただし，実態としては，Tool use 利用時，Claude3 がツールへの入力を JSON 形式でレスポンスする性質を利用しているだけです．
+[JSON モード](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)は，Claude3 に JSON 形式で回答させる手法です．ただし，実態としては，Tool use 利用時，Claude3 がツールへの入力を JSON 形式でレスポンスする性質を利用しているだけです．
 
 JSON モードは，以下のステップで利用することができます．
 
@@ -44,13 +44,15 @@ JSON モードは，以下のステップで利用することができます．
 
 ![json_mode.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c8159e84-fbeb-3ba1-dd7b-732f10fb8bc1.png)
 
-具体的に説明すると，ユーザー側で，実際には存在しない「架空のツール」を定義しておき，このツールの入力スキーマとして，求める出力の構造を指定します．この「架空のツール」を Claude3 に送信することで，Claude3 はこのツールが実在すると思い込み，指定されたスキーマに従って JSON 形式の入力を生成します．この生成された JSON 形式のツールの入力が，ユーザーが求める出力そのものとなります．
+> 上図は，[Anthropic 公式の Tool use の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)から引用しております．
+
+具体的に説明すると，ユーザー側で実際には存在しない「架空のツール」を定義しておき，このツールの入力スキーマとして，求める出力の構造を指定します．この「架空のツール」を Claude3 に送信することで，Claude3 はこのツールが実在すると思い込み，指定されたスキーマに従って JSON 形式の入力を生成します．この生成された JSON 形式のツールの入力が，ユーザーが求める出力そのものとなります．
 
 実際にコードを見た方がイメージが湧くと思いますので，以降では，具体的な利用例を示します．
 
 ## 利用例 1（感情分析）
 
-テキストの感情分析を行い、その結果を構造化された JSON 形式で得るタスクを考えます．例えば，`「私はとても幸せです．」`という入力に対し，期待する JSON 出力は以下とします．
+テキストの感情分析を題材として JSON モードを利用してみます．ここで，入力されたテキストに対し，positive, negative, neutral のスコアを JSON 形式で得るタスクを考えます．例えば，`「私はとても幸せです．」`という入力に対し，期待する JSON 出力は以下とします．
 
 ```json
 {
@@ -207,7 +209,7 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 
 `「私はとても幸せです．」` という入力文に対し，`positive_score` が 0.9，`negative_score` が 0.0，`neutral_score` が 0.1 というスコアで JSON 形式で出力されており，期待通りの結果であることが確認できます．
 
-## 利用例 2（マルチクエリ）
+## 利用例 2（クエリ拡張）
 
 Advanced RAG における「クエリ拡張」を題材として JSON モードを利用してみます．ここで，ユーザーからの質問文から，多様な観点で検索に適した複数のクエリを JSON 形式で得るタスクを考えます．例えば，`「Amazon Kendra がサポートしているユーザーアクセス制御の方法は？」`という入力に対し，期待する JSON 出力は以下とします．
 
@@ -225,7 +227,7 @@ Advanced RAG における「クエリ拡張」を題材として JSON モード�
 
 ### ツールの定義
 
-まず，架空のツール `multi_query_generator` を定義します．以下では，与えられた質問文に基づいて，3 つの検索用クエリを生成する架空のツール `multi_query_generator` を定義しております．また，変数 `description` にて，ツールの説明と例を詳細に記述することで，ユーザーがどのような JSON 出力（ツールの入力）を求めているのかを明確にしております．
+以下では，与えられた質問文に基づいて，3 つの検索用クエリを生成する架空のツール `multi_query_generator` を定義しております．また，変数 `description` にて，ツールの説明と例を詳細に記述することで，ユーザーがどのような JSON 出力（ツールの入力）を求めているのかを明確にしております．
 
 ```python:json_mode_multi_query.py
 description = """
@@ -362,7 +364,16 @@ https://qiita.com/ren8k/items/dcdb7f0c61fda384c478
 
 ## 利用例 3（画像分析）
 
+最後に，画像を分析を題材として JSON モードを利用してみます．ここで，与えられた画像を分析し，画像の特徴や要約を記録するタスクを考えます．例えば，以下の東京スカイツリーの画像に対し，以下のような情報を記録することを考えます．
+
+- `key_colors`: 画像で利用されている代表的な rgb 値と色の名前のリスト (3~4 色程度)
+- `description`: 画像の説明
+- `estimated_year`: 撮影された年の推定値
+- `tags`: 画像のトピックのリスト (3~5 個程度)
+
 <img width="350" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8647c9c7-816b-5366-d1cb-3e7368eeafbd.jpeg">
+
+上記のスカイツリーの画像に期待する JSON 出力は以下とします．
 
 ```json
 {
@@ -405,6 +416,8 @@ https://qiita.com/ren8k/items/dcdb7f0c61fda384c478
 ```
 
 ### ツールの定義
+
+以下では，与えられた画像を分析し，要約を記録する架空のツール `record_image_summary` を定義しております．利用例 2 と同様，変数 `description` にて，ツールの説明を詳細に記述しております．また，`inputSchema`中の`description`でも，各フィールドの説明と例をなるべく詳細に記述しております．
 
 ```python:json_mode_record_img_summary.py
 tool_name = "record_image_summary"
@@ -465,7 +478,7 @@ tool_definition = {
                     "tags": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": 'トピックの配列。例えば ["building-name", "region"] など。。できるだけ具体的であるべきで、重複しても構いません。',
+                        "description": 'トピックの配列。例えば ["building-name", "region"] など。できるだけ具体的であるべきで、重複しても構いません。',
                     },
                 },
                 "required": ["key_colors", "description", "tags"],
@@ -476,6 +489,8 @@ tool_definition = {
 ```
 
 ### Claude3 からツール実行のリクエストを取得し JSON 部を抽出
+
+続いて，ツールの定義とプロンプトを Claude3 に送信します．スカイツリーの画像を `./skytree.jpeg` に保存しておき，それをバイナリで読み込み，Converse API に送信しております．Converse API を利用する場合，画像は base64 エンコードする必要はありません．
 
 ```python:json_mode_record_img_summary.py
 import json
@@ -539,15 +554,59 @@ tool_use_args = extract_tool_use_args(response_content)
 print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 ```
 
-## 参考
+上記のコードで得られる最終的な結果（JSON）は以下です．
 
-https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb
+```json
+{
+  "key_colors": [
+    {
+      "r": 13,
+      "g": 20,
+      "b": 41,
+      "name": "navy_blue"
+    },
+    {
+      "r": 104,
+      "g": 205,
+      "b": 193,
+      "name": "turquoise"
+    },
+    {
+      "r": 255,
+      "g": 223,
+      "b": 128,
+      "name": "golden_yellow"
+    },
+    {
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "name": "white"
+    }
+  ],
+  "description": "東京スカイツリーの夜景。イルミネーションで彩られた建物と周辺の木々が印象的。",
+  "estimated_year": 2022,
+  "tags": [
+    "Tokyo-Skytree",
+    "night-view",
+    "illumination",
+    "cityscape",
+    "architecture"
+  ]
+}
+```
 
-https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_structured_json.ipynb
+入力画像がスカイツリーの画像であることを認識しており，その画像の要約や特徴を JSON 形式で適切に出力していることを確認できます．
 
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+本記事では，Amazon Bedrock の Converse API を利用して，Claude3 の JSON モード (Tool use) を利用する方法の紹介と検証を行いました．JSON モードではレスポンスが必ず JSON 形式で帰ってくるため，ユースケース次第では非常に便利な機能であることがわかりました．また，実際に具体的なユースケースで JSON モードを利用した結果，期待通りの出力が得られ，十分実用的であることも確認できました．
+
+Anthropic の公式リポジトリでは，Anthropic API を利用した場合の JSON モードの様々な実装例が公開されています．ツールの定義方法などは参考になりそうですので，興味のある方は以下のリンクを参照してみてください．
+
+https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_structured_json.ipynb
+
+https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb
 
 <!-- ## 仲間募集
 

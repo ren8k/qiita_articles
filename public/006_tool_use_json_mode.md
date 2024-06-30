@@ -6,8 +6,8 @@ tags:
   - bedrock
   - 生成AI
   - LLM
-private: true
-updated_at: '2024-07-01T00:47:52+09:00'
+private: false
+updated_at: "2024-07-01T00:47:52+09:00"
 id: 3d5f66df251703b8407e
 organization_url_name: null
 slide: false
@@ -19,7 +19,7 @@ ignorePublish: false
 <!-- 株式会社 NTT データ デジタルサクセスコンサルティング事業部の  -->
 
 最近 Bedrock の Converse API にハマっている [@ren8k](https://qiita.com/ren8k) です．
-Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)にはこの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たらりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
+Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)には JSON モードの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
 
 JSON モードを検証するにあたり，2024/6/20 にリリースされた Claude3.5 Sonnet を使用し，以下の 3 つのユースケースを題材として検証しました．
 
@@ -28,7 +28,7 @@ JSON モードを検証するにあたり，2024/6/20 にリリースされた C
 - 画像分析
 
 :::note
-Converse API や，Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
+Converse API や Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
 :::
 
 https://qiita.com/ren8k/items/64c4a3de56b886942251
@@ -98,7 +98,7 @@ tool_definition = {
 }
 ```
 
-続いて，ツールの定義とプロンプトを Claude3 に送信します．プロンプトでは，`target_text` にて定義した `私はとても幸せです。` という文章に対し，架空のツール`print_sentiment_scores`を利用するように指示しております．
+続いて，ツールの定義とプロンプトを Claude3 に送信します．プロンプトは変数 `prompt`で定義しており，変数 `target_text` にて定義した `私はとても幸せです。` という文章に対し，架空のツール`print_sentiment_scores`を利用するように指示しております．
 
 ```python:json_mode_tutorial.py
 import json
@@ -289,7 +289,7 @@ tool_definition = {
 
 ### Claude3 からツール実行のリクエストを取得し JSON 部を抽出
 
-続いて，ツールの定義とプロンプトを Claude3 に送信します．ユーザーからの質問文として，`Amazon Kendra がサポートしているユーザーアクセス制御の方法は` という文章を変数 `target_text` に指定しております．なお，先程の利用例 1 でのコードとの差分は，変数`target_text`の値のみです．
+続いて，ツールの定義とプロンプトを Claude3 に送信します．ユーザーからの質問文として，`Amazon Kendra がサポートしているユーザーアクセス制御の方法は` という文章を変数 `target_text` に格納しております．なお，先程の利用例 1 でのコードとの差分は，変数`target_text`の値のみです．
 
 ```python:json_mode_multi_query.py
 import json
@@ -596,13 +596,13 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 }
 ```
 
-入力画像がスカイツリーの画像であることを認識しており，その画像の要約や特徴を JSON 形式で適切に出力していることを確認できます．
+入力画像がスカイツリーの画像であることを認識しており，その画像の要約や特徴が JSON 形式で適切に出力されていることを確認できます．
 
 ## まとめ
 
 本記事では，Amazon Bedrock の Converse API を利用して，Claude3 の JSON モード (Tool use) を利用する方法の紹介と検証を行いました．JSON モードではレスポンスが必ず JSON 形式で帰ってくるため，ユースケース次第では非常に便利な機能であることがわかりました．また，実際に具体的なユースケースで JSON モードを利用した結果，期待通りの出力が得られ，十分実用的であることも確認できました．
 
-Anthropic の公式リポジトリでは，Anthropic API を利用した場合の JSON モードの様々な実装例が公開されています．ツールの定義方法などは参考になりそうですので，興味のある方は以下のリンクを参照してみてください．
+Anthropic の公式リポジトリでは，Anthropic API を利用した場合の JSON モードの様々な実装例が公開されています．ツールの定義方法などは参考になりそうなので，興味のある方は以下のリンクも参照してみてください．
 
 https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_structured_json.ipynb
 

@@ -98,7 +98,7 @@ tool_definition = {
 }
 ```
 
-続いて，ツールの定義とプロンプトを Claude3 に送信します．プロンプトでは，`target_text` にて定義した `私はとても幸せです。` という文章に対し，架空のツール`print_sentiment_scores`を利用するように指示しております．
+続いて，ツールの定義とプロンプトを Claude3 に送信します．プロンプトは変数 `prompt`で定義しており，変数 `target_text` にて定義した `私はとても幸せです。` という文章に対し，架空のツール`print_sentiment_scores`を利用するように指示しております．
 
 ```python:json_mode_tutorial.py
 import json
@@ -289,7 +289,7 @@ tool_definition = {
 
 ### Claude3 からツール実行のリクエストを取得し JSON 部を抽出
 
-続いて，ツールの定義とプロンプトを Claude3 に送信します．ユーザーからの質問文として，`Amazon Kendra がサポートしているユーザーアクセス制御の方法は` という文章を変数 `target_text` に指定しております．なお，先程の利用例 1 でのコードとの差分は，変数`target_text`の値のみです．
+続いて，ツールの定義とプロンプトを Claude3 に送信します．ユーザーからの質問文として，`Amazon Kendra がサポートしているユーザーアクセス制御の方法は` という文章を変数 `target_text` に格納しております．なお，先程の利用例 1 でのコードとの差分は，変数`target_text`の値のみです．
 
 ```python:json_mode_multi_query.py
 import json
@@ -602,7 +602,7 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 
 本記事では，Amazon Bedrock の Converse API を利用して，Claude3 の JSON モード (Tool use) を利用する方法の紹介と検証を行いました．JSON モードではレスポンスが必ず JSON 形式で帰ってくるため，ユースケース次第では非常に便利な機能であることがわかりました．また，実際に具体的なユースケースで JSON モードを利用した結果，期待通りの出力が得られ，十分実用的であることも確認できました．
 
-Anthropic の公式リポジトリでは，Anthropic API を利用した場合の JSON モードの様々な実装例が公開されています．ツールの定義方法などは参考になりそうですので，興味のある方は以下のリンクを参照してみてください．
+Anthropic の公式リポジトリでは，Anthropic API を利用した場合の JSON モードの様々な実装例が公開されています．ツールの定義方法などは参考になりそうなので，興味のある方は以下のリンクも参照してみてください．
 
 https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_structured_json.ipynb
 

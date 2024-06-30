@@ -19,7 +19,7 @@ ignorePublish: false
 <!-- 株式会社 NTT データ デジタルサクセスコンサルティング事業部の  -->
 
 最近 Bedrock の Converse API にハマっている [@ren8k](https://qiita.com/ren8k) です．
-Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)にはこの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たらりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
+Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)には JSON モードの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
 
 JSON モードを検証するにあたり，2024/6/20 にリリースされた Claude3.5 Sonnet を使用し，以下の 3 つのユースケースを題材として検証しました．
 
@@ -28,7 +28,7 @@ JSON モードを検証するにあたり，2024/6/20 にリリースされた C
 - 画像分析
 
 :::note
-Converse API や，Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
+Converse API や Tool use については，以下の記事にて詳細に解説しております．是非ご覧ください．
 :::
 
 https://qiita.com/ren8k/items/64c4a3de56b886942251
@@ -596,7 +596,7 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 }
 ```
 
-入力画像がスカイツリーの画像であることを認識しており，その画像の要約や特徴を JSON 形式で適切に出力していることを確認できます．
+入力画像がスカイツリーの画像であることを認識しており，その画像の要約や特徴が JSON 形式で適切に出力されていることを確認できます．
 
 ## まとめ
 

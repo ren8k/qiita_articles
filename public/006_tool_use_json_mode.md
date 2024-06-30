@@ -40,7 +40,7 @@ https://qiita.com/ren8k/items/64c4a3de56b886942251
 JSON モードは，以下のステップで利用することができます．
 
 - Step1. ツールの定義とプロンプトを Claude3 に送信
-- Step2. Claude3 からツール実行のリクエストを取得し，JSON 部を抽出
+- Step2. Claude3 からツール実行のリクエストを取得し JSON 部を抽出
 
 ![json_mode.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c8159e84-fbeb-3ba1-dd7b-732f10fb8bc1.png)
 
@@ -114,7 +114,7 @@ prompt = f"""
 {target_text}
 </text>
 
-{tool_name} ツールのみを利用すること。各感情スコアは，数値で表現しなさい。
+{tool_name} ツールのみを利用すること。
 """
 
 messages = [
@@ -124,7 +124,7 @@ messages = [
     }
 ]
 
-# Send the message to the model, using a basic inference configuration.
+# Send the message to the model
 response = client.converse(
     modelId=model_id,
     messages=messages,
@@ -142,14 +142,14 @@ pprint(response)
 
 :::note
 
-Converse API の引数 `toolConfig` にて，`toolChoice` を指定することで，Claude3 に対してツールを使用するよう強制することができます．特に， `tool` というフィールドにツール名を指定することで，Claude3 は指定されたツールを必ず使用するようになります．詳細については，[AWS 公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolChoice.html)や，[Anthropic 公式の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)をご参照下さい．
+Converse API の引数 `toolConfig` にて，`toolChoice` を指定することで，Claude3 に対してツールを使用するよう強制することができます．特に， `tool` というフィールドにツール名を指定することで，Claude3 は指定されたツールを必ず使用するようになります．詳細については，[AWS 公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ToolChoice.html)や，[Anthropic 公式の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)，[Anthropic 公式ユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#forcing-tool-use)をご参照下さい．
 :::
 
 :::note
 `toolChoice` でツールの利用を強制していますが，プロンプトでも，`{tool_name} ツールのみを利用すること。` という指示を行っております．これは，[Anthropic 公式の学習コンテンツ](https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb)のプロンプト例に倣ったものです．
 :::
 
-### Step2. Claude3 からツール実行のリクエストを取得し，JSON 部を抽出
+### Step2. Claude3 からツール実行のリクエストを取得し JSON 部を抽出
 
 Converse API の引数 `toolConfig` にて，`toolChoice` を指定しているため，レスポンスには必ずツール実行のリクエストが含まれます．以下に，レスポンスの一部（`output` キーと `stopReason` キーの値のみ）を示します．
 
@@ -209,11 +209,158 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 
 ## 利用例 2（マルチクエリ）
 
-公式でも description を詳細に書くと良い，と書かれている．
+Advanced RAG における「クエリ拡張」を題材として JSON モードを利用してみます．ここで，ユーザーからの質問文から，多様な観点で検索に適した複数のクエリを JSON 形式で得るタスクを考えます．例えば，`「Amazon Kendra がサポートしているユーザーアクセス制御の方法は？」`という入力に対し，期待する JSON 出力は以下とします．
 
-https://docs.anthropic.com/en/docs/tool-use-examples
+```json
+{
+  "query_1": "amazon kendra user access control",
+  "query_2": "Amazon Kendra ユーザーアクセス制御 権限設定",
+  "query_3": "Amazon Kendra ユーザー認証 ユーザー権限管理 セキュリティ"
+}
+```
 
-## 利用例（画像解析）
+:::note warn
+本検証では，AWS 公式ブログ「[Amazon Kendra と Amazon Bedrock で構成した RAG システムに対する Advanced RAG 手法の精度寄与検証](https://aws.amazon.com/jp/blogs/news/verifying-the-accuracy-contribution-of-advanced-rag-methods-on-rag-systems-built-with-amazon-kendra-and-amazon-bedrock/)」にて紹介されているプロンプトを参考に，改変させていただいております．
+:::
+
+### ツールの定義
+
+まず，架空のツール `multi_query_generator` を定義します．以下では，与えられた質問文に基づいて，3 つの検索用クエリを生成する架空のツール `multi_query_generator` を定義しております．また，変数 `description` にて，ツールの説明と例を詳細に記述することで，ユーザーがどのような JSON 出力（ツールの入力）を求めているのかを明確にしております．
+
+```python:json_mode_multi_query.py
+description = """
+与えられる質問文に基づいて、類義語や日本語と英語の表記揺れを考慮し、多角的な視点からクエリを生成します。
+検索エンジンに入力するクエリを最適化し、様々な角度から検索を行うことで、より適切で幅広い検索結果が得られるようにします。
+
+<example>
+question: Knowledge Bases for Amazon Bedrock ではどのベクトルデータベースを使えますか？
+query_1: Knowledge Bases for Amazon Bedrock vector databases engine DB
+query_2: Amazon Bedrock ナレッジベース ベクトルエンジン vector databases DB
+query_3: Amazon Bedrock RAG 検索拡張生成 埋め込みベクトル データベース エンジン
+</example>
+
+<rule>
+- 与えられた質問文に基づいて、3個の検索用クエリを生成してください。
+- 各クエリは30トークン以内とし、日本語と英語を適切に混ぜて使用すること。
+- 広範囲の文書が取得できるよう、多様な単語をクエリに含むこと。
+</rule>
+"""
+tool_name = "multi_query_generator"
+
+tool_definition = {
+    "toolSpec": {
+        "name": tool_name,
+        "description": description,
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "query_1": {
+                        "type": "string",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
+                    },
+                    "query_2": {
+                        "type": "string",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
+                    },
+                    "query_3": {
+                        "type": "string",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
+                    },
+                },
+                "required": ["query_1", "query_2", "query_3"],
+            }
+        },
+    }
+}
+```
+
+:::note
+
+[Anthropic 公式ユーザーガイド](https://docs.anthropic.com/en/docs/tool-use-examples)では，ツール定義のベストプラクティスとして以下を挙げております，
+
+- 非常に詳細な説明を提供する
+- 例よりも説明を優先する
+
+ツールのパフォーマンスにおいて，ツールの詳細な説明（ツールの機能，利用すべきタイミング，各パラメーターの意味）が重要な要素であると解説されています．また，詳細な説明に加え，ツールの使用例を与えることも有効であることも述べられています．
+:::
+
+### Claude3 からツール実行のリクエストを取得し JSON 部を抽出
+
+続いて，ツールの定義とプロンプトを Claude3 に送信します．ユーザーからの質問文として，`Amazon Kendra がサポートしているユーザーアクセス制御の方法は` という文章を変数 `target_text` に指定しております．なお，先程の利用例 1 でのコードとの差分は，変数`target_text`の値のみです．
+
+```python:json_mode_multi_query.py
+import json
+from pprint import pprint
+
+import boto3
+
+client = boto3.client("bedrock-runtime", region_name="us-east-1")
+model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+
+target_text = "Amazon Kendra がサポートしているユーザーアクセス制御の方法は"
+prompt = f"""
+<text>
+{target_text}
+</text>
+
+{tool_name} ツールのみを利用すること。
+"""
+print(prompt)
+messages = [
+    {
+        "role": "user",
+        "content": [{"text": prompt}],
+    }
+]
+
+# Send the message to the model
+response = client.converse(
+    modelId=model_id,
+    messages=messages,
+    toolConfig={
+        "tools": [tool_definition],
+        "toolChoice": {
+            "tool": {
+                "name": tool_name,
+            },
+        },
+    },
+)
+pprint(response)
+
+def extract_tool_use_args(content):
+    for item in content:
+        if "toolUse" in item:
+            return item["toolUse"]["input"]
+    return None
+
+response_content = response["output"]["message"]["content"]
+
+# json部を抽出
+tool_use_args = extract_tool_use_args(response_content)
+print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
+```
+
+上記のコードで得られる最終的な結果（JSON）は以下です．
+
+```json
+{
+  "query_1": "Amazon Kendra user access control methods サポート",
+  "query_2": "Kendra ユーザーアクセス制御 認証 承認 セキュリティ",
+  "query_3": "Amazon Kendra アクセス管理 IAM ABAC 統合認証"
+}
+```
+
+ユーザーからの質問文に対し，拡張された検索用クエリが 3 つ JSON 形式で出力されており，期待通りの結果であることが確認できます．
+
+:::note
+過去の私の記事では，拡張クエリを実現するために，Claude3 に対してプロンプトで JSON 形式で回答するように指示し，生成結果が JSON 形式かどうかをコード上で検証していました．JSON モードを利用すると，生成結果が JSON であることが保証されるため，便利ですね．
+:::
+
+https://qiita.com/ren8k/items/dcdb7f0c61fda384c478
+
+## 利用例 3（画像解析）
 
 ## 参考
 

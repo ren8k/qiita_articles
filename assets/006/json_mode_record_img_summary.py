@@ -1,7 +1,14 @@
 tool_name = "record_image_summary"
-
 description = """
-整形式JSONを使用して画像の要約を記録する。
+与えられた画像を分析し、要約を記録します。
+具体的には、以下の要素を含む要約をJSON形式で出力します。
+
+<summary>
+- key_colors: 画像で利用されている代表的なrgb値と色の名前のリスト。3~4色程度。
+- description: 画像の説明。1~2文程度。
+- estimated_year: 撮影された年の推定値
+- tags: 画像のトピックのリスト。3~5個程度。
+</summary>
 """
 
 tool_definition = {
@@ -19,24 +26,24 @@ tool_definition = {
                             "properties": {
                                 "r": {
                                     "type": "number",
-                                    "description": "赤の値 [0.0, 1.0]",
+                                    "description": "赤の値。値の範囲: [0.0, 255.0]",
                                 },
                                 "g": {
                                     "type": "number",
-                                    "description": "緑の値 [0.0, 1.0]",
+                                    "description": "緑の値。値の範囲: [0.0, 255.0]",
                                 },
                                 "b": {
                                     "type": "number",
-                                    "description": "青の値 [0.0, 1.0]",
+                                    "description": "青の値。値の範囲: [0.0, 255.0]",
                                 },
                                 "name": {
                                     "type": "string",
-                                    "description": 'スネークケースの人間が読める色の名前、例: "olive_green" や "turquoise"',
+                                    "description": 'スネークケースの人間が読める色の名前。例: "olive_green" や "turquoise" など。',
                                 },
                             },
                             "required": ["r", "g", "b", "name"],
                         },
-                        "description": "画像の主要な色。4色未満に制限してください。",
+                        "description": "画像の主要な色。4色未満に制限すること。",
                     },
                     "description": {
                         "type": "string",
@@ -44,12 +51,12 @@ tool_definition = {
                     },
                     "estimated_year": {
                         "type": "integer",
-                        "description": "写真の場合、撮影された年の推定値。画像がフィクションではないと思われる場合にのみ設定してください。おおよその推定で構いません!",
+                        "description": "写真の場合、撮影された年の推定値。画像がフィクションではないと思われる場合にのみ設定してください。おおよその推定で構いません。",
                     },
                     "tags": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": 'Array of topics, e.g. ["building-name", "region"]. Should be as specific as possible, and can overlap.',
+                        "description": 'トピックの配列。例えば ["building-name", "region"] など。。できるだけ具体的であるべきで、重複しても構いません。',
                     },
                 },
                 "required": ["key_colors", "description", "tags"],
@@ -58,14 +65,15 @@ tool_definition = {
     }
 }
 
-tool_choice = {
-    "tool": {
-        "name": tool_name,
-    },
-}
+# tool_choice = {
+#     "tool": {
+#         "name": tool_name,
+#     },
+# }
 
 
 def main():
+    import json
     from pprint import pprint
 
     import boto3
@@ -75,9 +83,9 @@ def main():
 
     image_path = "./skytree.jpeg"
     prompt = f"""
-    {tool_name} ツールのみを利用すること．
+    {tool_name} ツールのみを利用すること。
     """
-    print(prompt)
+
     with open(image_path, "rb") as f:
         image = f.read()
 
@@ -98,17 +106,20 @@ def main():
         }
     ]
 
-    # Send the message to the model, using a basic inference configuration.
+    # Send the message to the model
     response = client.converse(
         modelId=model_id,
         messages=messages,
         toolConfig={
             "tools": [tool_definition],
-            "toolChoice": tool_choice,
+            "toolChoice": {
+                "tool": {
+                    "name": tool_name,
+                },
+            },
         },
     )
     pprint(response)
-    messages.append(response["output"]["message"])
 
     def extract_tool_use_args(content):
         for item in content:
@@ -118,12 +129,9 @@ def main():
 
     response_content = response["output"]["message"]["content"]
 
-    # toolUseを抽出
+    # json部を抽出
     tool_use_args = extract_tool_use_args(response_content)
-    pprint(tool_use_args)
-    # for key, value in tool_use_args.items():
-    #     print(f"{key}: {value}")
-    #     print(f"{key}: {type(value)}")
+    print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

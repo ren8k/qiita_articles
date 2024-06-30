@@ -205,11 +205,9 @@ print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 }
 ```
 
-適切に JSON 形式で出力されていることが確認できます．
+`「私はとても幸せです．」` という入力文に対し，`positive_score` が 0.9，`negative_score` が 0.0，`neutral_score` が 0.1 というスコアで JSON 形式で出力されており，期待通りの結果であることが確認できます．
 
-### Step N
-
-## 利用例（マルチクエリ）
+## 利用例 2（マルチクエリ）
 
 公式でも description を詳細に書くと良い，と書かれている．
 

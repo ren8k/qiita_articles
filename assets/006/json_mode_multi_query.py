@@ -27,45 +27,46 @@ tool_definition = {
                 "properties": {
                     "query_1": {
                         "type": "string",
-                        "description": "検索用クエリ．空白で区切られる",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
                     },
                     "query_2": {
                         "type": "string",
-                        "description": "検索用クエリ．空白で区切られる",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
                     },
                     "query_3": {
                         "type": "string",
-                        "description": "検索用クエリ．空白で区切られる",
+                        "description": "検索用クエリ。多様な単語を空白で区切って記述される。",
                     },
                 },
-                "required": ["positive_score", "negative_score", "neutral_score"],
+                "required": ["query_1", "query_2", "query_3"],
             }
         },
     }
 }
 
-tool_choice = {
-    "tool": {
-        "name": tool_name,
-    },
-}
+# tool_choice = {
+#     "tool": {
+#         "name": tool_name,
+#     },
+# }
 
 
 def main():
+    import json
     from pprint import pprint
 
     import boto3
 
     client = boto3.client("bedrock-runtime", region_name="us-east-1")
-    model_id = "anthropic.claude-3-haiku-20240307-v1:0"
+    model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
 
-    tweet = "Amazon Kendra がサポートしているユーザーアクセス制御の方法は"
+    target_text = "Amazon Kendra がサポートしているユーザーアクセス制御の方法は"
     prompt = f"""
-    <tweet>
-    {tweet}
-    </tweet>
+    <text>
+    {target_text}
+    </text>
 
-    {tool_name} ツールのみを利用すること．
+    {tool_name} ツールのみを利用すること。
     """
     print(prompt)
     messages = [
@@ -81,11 +82,14 @@ def main():
         messages=messages,
         toolConfig={
             "tools": [tool_definition],
-            "toolChoice": tool_choice,
+            "toolChoice": {
+                "tool": {
+                    "name": tool_name,
+                },
+            },
         },
     )
     pprint(response)
-    messages.append(response["output"]["message"])
 
     def extract_tool_use_args(content):
         for item in content:
@@ -95,12 +99,9 @@ def main():
 
     response_content = response["output"]["message"]["content"]
 
-    # toolUseを抽出
+    # json部を抽出
     tool_use_args = extract_tool_use_args(response_content)
-    pprint(tool_use_args)
-    # for key, value in tool_use_args.items():
-    #     print(f"{key}: {value}")
-    #     print(f"{key}: {type(value)}")
+    print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 
 
 if __name__ == "__main__":

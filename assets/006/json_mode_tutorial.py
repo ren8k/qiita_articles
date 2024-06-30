@@ -51,7 +51,7 @@ def main():
     {target_text}
     </text>
 
-    {tool_name} ツールのみを利用すること。各感情スコアは，数値で表現しなさい。
+    {tool_name} ツールのみを利用すること。
     """
 
     messages = [
@@ -84,7 +84,7 @@ def main():
 
     response_content = response["output"]["message"]["content"]
 
-    # toolUseを抽出
+    # json部を抽出
     tool_use_args = extract_tool_use_args(response_content)
     print(json.dumps(tool_use_args, indent=2, ensure_ascii=False))
 

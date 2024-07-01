@@ -7,7 +7,7 @@ tags:
   - 生成AI
   - LLM
 private: false
-updated_at: "2024-07-01T10:44:09+09:00"
+updated_at: '2024-07-01T10:46:27+09:00'
 id: 3d5f66df251703b8407e
 organization_url_name: nttdata
 slide: false

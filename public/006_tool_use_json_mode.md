@@ -16,9 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-<!-- 株式会社 NTT データ デジタルサクセスコンサルティング事業部の  -->
-
-最近 Bedrock の Converse API にハマっている [@ren8k](https://qiita.com/ren8k) です．
+株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 Claude3 では，Tool use を利用することで，JSON モード (JSON 形式のレスポンスを取得する手法) が利用可能です．[Anthropic のユーザーガイド](https://docs.anthropic.com/en/docs/build-with-claude/tool-use#json-mode)には JSON モードの説明があるのですが，AWS の公式ドキュメントには記載がなく，JSON モードを試した記事や実装例なども見当たりませんでした．そこで本記事では，Claude3 の JSON モードについて調査し，Converse API で実際に検証した結果をまとめます．
 
 JSON モードを検証するにあたり，2024/6/20 にリリースされた Claude3.5 Sonnet を使用し，以下の 3 つのユースケースを題材として検証しました．
@@ -608,7 +606,7 @@ https://github.com/anthropics/anthropic-cookbook/blob/main/tool_use/extracting_s
 
 https://github.com/anthropics/courses/blob/master/ToolUse/03_structured_outputs.ipynb
 
-<!-- ## 仲間募集
+## 仲間募集
 
 NTT データ デジタルサクセスコンサルティング事業部 では、以下の職種を募集しています。
 
@@ -706,4 +704,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
-</div></details> -->
+</div></details>

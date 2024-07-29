@@ -22,16 +22,20 @@ ignorePublish: false
 
 Claude3 の FT をやってみたので，その内容を共有します．
 
-## 目次
+本検証で利用したコードは以下のリポジトリで公開しています．
 
-- 利用手順
+https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
+
+## 利用手順
+
+- 利用申請
 - データセットの作成
 - S3 へのアップロード
 - fine-tuning Job の実行
 - プロビジョンスループットの購入
 - 実際にモデルを実行してみる
 
-## 利用手順
+## 利用申請
 
 執筆時点（2024/07/27）では，Amazon Bedrock で Claude3 Haiku を fine-tuning するには，[AWS サポートに申請が必要](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)です．サポートチケット作成時，サービスとして「Bedrock」を選択し，カテゴリとして「Models」を選択して下さい．
 
@@ -43,7 +47,7 @@ Claude3 の FT をやってみたので，その内容を共有します．
 
 そこで，本検証では，Claude3 Haiku に出力形式を学習させるのではなく，ドメイン知識を獲得させることを目的としました．具体的には，Claude3 Haiku の事前学習データに含まれていないと考えられる「Amazon Bedrock」の知識を学習させるためのデータセットを準備することにしました．
 
-また，以下の AWS 公式ブログでは fine-tuning のパフォーマンスを最適化するために，まずは小規模かつ高品質の学習データセット（50-100 件）で試すことを推奨しています．この推奨に基づき，本検証でも 100 件未満のデータセットで fine-tuning を行うことにしました．
+また，以下の AWS 公式ブログでは fine-tuning のパフォーマンスを最適化するために，まずは小規模かつ高品質のデータセット（50-100 件）で試すことを推奨しています．この推奨に基づき，本検証でも 100 件未満のデータセットで fine-tuning を行うことにしました．
 
 https://aws.amazon.com/jp/blogs/machine-learning/fine-tune-anthropics-claude-3-haiku-in-amazon-bedrock-to-boost-model-accuracy-and-quality/
 
@@ -51,9 +55,9 @@ https://aws.amazon.com/jp/blogs/machine-learning/fine-tune-anthropics-claude-3-h
 [databricks-dolly-15k](https://huggingface.co/datasets/databricks/databricks-dolly-15k) は，Databricks が公開した 15,000 の指示-応答ペアを含むデータセットです．[databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) は，databricks-dolly-15k を日本語訳したデータセットである [databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) の応答の語尾を「ござる」に置換したデータセットであり，LLM の fine-tuning の検証によく利用されております．
 :::
 
-### 利用するデータセット
+### 利用する訓練データ
 
-本検証では，AWS Machine Learning Blog の記事 “[Improve RAG accuracy with fine-tuned embedding models on Amazon SageMaker](https://aws.amazon.com/jp/blogs/machine-learning/improve-rag-accuracy-with-fine-tuned-embedding-models-on-amazon-sagemaker/)” で利用されている [Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/) のデータセットを fine-tuning 用の学習データとして利用しました．データセットは以下のリポジトリで公開されています．
+本検証では，AWS Machine Learning Blog の記事 “[Improve RAG accuracy with fine-tuned embedding models on Amazon SageMaker](https://aws.amazon.com/jp/blogs/machine-learning/improve-rag-accuracy-with-fine-tuned-embedding-models-on-amazon-sagemaker/)” で利用されている [Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/) のデータセットを fine-tuning 用の訓練データとして利用しました．データセットは以下のリポジトリで公開されています．
 
 https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main/sentence-transformer/multiple-negatives-ranking-loss/training.json
 
@@ -72,17 +76,204 @@ https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main
 ]
 ```
 
+ただし，本データセットは 85 件と多くはないため，本データを訓練データと検証データに分割するのではなく，検証データは別途作成することにしました．
+
 :::note
-本検証で上記のデータセットを選んだ理由としては，Claude3 Haiku の学習データには無いであろう Amazon Bedrock という特定ドメインの知識を学習させるという題材としては適切であると考えたためです．加えて，データの品質が高く，ライセンス的にも問題ないことも選定の理由の一つです．
+本検証で上記のデータセットを選んだ理由としては，データの品質が高く，ライセンス的にも問題ないためです．また，Claude3 Haiku の事前学習データには含まれてないと考えられる Amazon Bedrock という特定ドメインの知識を学習させるための題材としては適切であると考えたためです．
 :::
 
 ### 検証データの作成
 
-Claude3 Opus で，Converse API のドキュメントチャットと JSON モードを組合せてデータセットを作成しました．以下がコード全文です．
+以下の AWS 公式ドキュメントを基に，Claude3 Opus で検証データを作成しました．その際，Amazon Bedrock の Converse API の **Document chat** と **Json mode** を組合せることで，比較的容易に JSON 形式でかつ 品質の高い QA 形式のデータセットを作成することができました．
 
-```py
+https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
+
+以下に示すコードを利用し，計 32 個の質問と回答のペアを生成しました．
+
+<details open><summary>Python実装</summary>
+
+以下に，Tool use の設定を行うための `tool_config.py` と，検証データを作成する `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` の Json を Array 型で取得するように設定しており，プロンプトで 32 個生成するように指示しています．．
+
+```python:tool_conifg.py
+class ToolConfig:
+    tool_name = "QA_dataset_generator"
+    no_of_dataset = 32
+
+    description = f"""
+    与えられるドキュメントに基づいて、LLMのFine-Tuning用のValidationデータセットを作成します。
+    具体的には、ドキュメントの内容を利用し、Amazon Bedrockに関する質問文と回答文のペアを生成します。
+
+    <example>
+    question: What is Amazon Bedrock and its key features?
+    answer: Amazon Bedrock is a fully managed service that offers a choice of high-performing foundation models along with a broad set of capabilities for building generative AI applications, simplifying development with security, privacy, and responsible AI features.
+    </example>
+
+    <rules>
+    - 必ず{no_of_dataset}個の質問文と回答文のペアを生成すること。
+    - 英語で回答すること。
+    - JSON形式で回答すること。
+    - Amazon Bedrockについて、多様な質問と回答を作成すること。
+    </rules>
+    """
+
+    tool_definition = {
+        "toolSpec": {
+            "name": tool_name,
+            "description": description,
+            "inputSchema": {
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "dataset": {
+                            "description": f"Validationデータ用の質問文と回答文のセット。必ず{no_of_dataset}個生成すること。",
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "question": {
+                                        "type": "string",
+                                        "description": "Validationデータ用の質問文。",
+                                    },
+                                    "answer": {
+                                        "type": "string",
+                                        "description": "Validationデータ用の回答文。",
+                                    },
+                                },
+                                "required": ["question", "answer"],
+                            },
+                        },
+                    },
+                    "required": ["dataset"],
+                }
+            },
+        }
+    }
 
 ```
+
+```python:create_val_dataset.py
+import argparse
+import json
+from pprint import pprint
+
+import boto3
+from botocore.config import Config
+from tool_config import ToolConfig
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--region",
+        type=str,
+        default="us-west-2",
+    )
+    parser.add_argument(
+        "--model-id",
+        type=str,
+        default="anthropic.claude-3-opus-20240229-v1:0",
+    )
+    parser.add_argument(
+        "--order",
+        type=str,
+        default="LLM の Fine Tuning 用のデータセットを作成しなさい。",
+    )
+    parser.add_argument(
+        "--input-doc-path",
+        type=str,
+        default="./amazon_bedrock_user_docs.pdf",
+    )
+    parser.add_argument(
+        "--output-path",
+        type=str,
+        default="../../dataset/rawdata/validation.json",
+    )
+
+    return parser.parse_args()
+
+
+def document_chat(region: str, model_id: str, prompt: str, doc_bytes: bytes) -> dict:
+    retry_config = Config(
+        region_name=region,
+        connect_timeout=300,
+        read_timeout=300,
+        retries={
+            "max_attempts": 10,
+            "mode": "standard",
+        },
+    )
+    client = boto3.client("bedrock-runtime", config=retry_config, region_name=region)
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {
+                    "document": {
+                        "name": "Document",
+                        "format": "pdf",
+                        "source": {"bytes": doc_bytes},
+                    }
+                },
+                {"text": prompt},
+            ],
+        }
+    ]
+
+    # Send the message to the model
+    response = client.converse(
+        modelId=model_id,
+        messages=messages,
+        inferenceConfig={
+            "maxTokens": 3000,
+        },
+        toolConfig={
+            "tools": [ToolConfig.tool_definition],
+            "toolChoice": {
+                "tool": {
+                    "name": ToolConfig.tool_name,
+                },
+            },
+        },
+    )
+    pprint(response)
+    return response
+
+
+def extract_tool_use_args(content: list) -> dict:
+    for item in content:
+        if "toolUse" in item:
+            return item["toolUse"]["input"]
+    raise ValueError("toolUse not found in response content")
+
+
+def main(args: argparse.Namespace) -> None:
+    prompt = f"""
+    {args.order}
+    {ToolConfig.tool_name} ツールのみを利用すること。
+    """
+    print(prompt)
+
+    with open(args.input_doc_path, "rb") as f:
+        doc_bytes = f.read()
+
+    # call converse API
+    response: dict = document_chat(args.region, args.model_id, prompt, doc_bytes)
+    response_content: list = response["output"]["message"]["content"]
+
+    # extract json
+    tool_use_args = extract_tool_use_args(response_content)
+
+    # write to file
+    with open(args.output_path, "w") as f:
+        json.dump(tool_use_args["dataset"], f, indent=2, ensure_ascii=False)
+
+
+if __name__ == "__main__":
+    args = get_args()
+    main(args)
+```
+
+</details>
 
 ### データセットのフォーマット
 

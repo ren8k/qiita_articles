@@ -43,7 +43,7 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
 ### 方針
 
-オープンソースで公開されている日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
+オープンソースで公開されている日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
 
 そこで，本検証では，Claude3 Haiku に出力形式を学習させるのではなく，ドメイン知識を獲得させることを目的としました．具体的には，Claude3 Haiku の事前学習データに含まれていないと考えられる「Amazon Bedrock」の知識を学習させるためのデータセットを準備することにしました．
 
@@ -84,15 +84,15 @@ https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main
 
 ### 検証データの作成
 
-以下の AWS 公式ドキュメントを基に，Claude3 Opus で検証データを作成しました．その際，Amazon Bedrock の Converse API の **Document chat** と **Json mode** を組合せることで，比較的容易に JSON 形式でかつ 品質の高い QA 形式のデータセットを作成することができました．
+以下の AWS 公式ドキュメントを基に，Claude3 Opus で検証データを作成しました．その際，下記のドキュメントを PDF 化しておき，Amazon Bedrock の Converse API の **Document chat** と **Json mode** を利用することで，比較的容易に json 形式でかつ 品質の高い QA 形式のデータセットを作成することができました．
 
 https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
 
 以下に示すコードを利用し，計 32 個の質問と回答のペアを生成しました．
 
-<details open><summary>Python実装</summary>
+<details open><summary>Python実装（折り畳めます）</summary>
 
-以下に，Tool use の設定を行うための `tool_config.py` と，検証データを作成する `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` の Json を Array 型で取得するように設定しており，プロンプトで 32 個生成するように指示しています．
+Tool use の設定を行うためのコード `tool_config.py` と，検証データを作成するためのコード `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` を要素とする json を Array 型で生成するように設定しており，プロンプトで 32 個生成するように指示しています．なお，Json mode で利用するため，ツール自体の定義は行っておりません．
 
 ```python:tool_conifg.py
 class ToolConfig:
@@ -151,7 +151,7 @@ class ToolConfig:
 
 ```
 
-★ ここから！！！！
+`create_val_dataset.py` では，AWS 公式ドキュメントの PDF ファイルをバイナリ形式で読み込み，Converse API の Document chat で直接入力入力しています．加えて，Converse API の Tool use の設定値で `toolChoice` を指定することで，ツールの呼び出しを強制しています．これにより，Converse API のレスポンスに json 形式のツール呼び出しのリクエスト（生成された QA 形式の検証データセット）が確実に含まれるようになります．
 
 ```python:create_val_dataset.py
 import argparse
@@ -277,7 +277,7 @@ if __name__ == "__main__":
 
 </details>
 
-以下に，実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
+上記のコードでは，外部の json ファイルに 32 個の QA 形式の検証データを保存しています．実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
 
 ```json
 [

@@ -92,7 +92,7 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
 
 <details open><summary>Python実装</summary>
 
-以下に，Tool use の設定を行うための `tool_config.py` と，検証データを作成する `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` の Json を Array 型で取得するように設定しており，プロンプトで 32 個生成するように指示しています．．
+以下に，Tool use の設定を行うための `tool_config.py` と，検証データを作成する `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` の Json を Array 型で取得するように設定しており，プロンプトで 32 個生成するように指示しています．
 
 ```python:tool_conifg.py
 class ToolConfig:
@@ -150,6 +150,8 @@ class ToolConfig:
     }
 
 ```
+
+★ ここから！！！！
 
 ```python:create_val_dataset.py
 import argparse
@@ -275,7 +277,24 @@ if __name__ == "__main__":
 
 </details>
 
-### データセットのフォーマット
+以下に，実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
+
+```json
+[
+  {
+    "question": "What is Amazon Bedrock?",
+    "answer": "Amazon Bedrock is a fully managed service that offers a choice of high-performing foundation models along with capabilities for building generative AI applications, simplifying development with security, privacy, and responsible AI features."
+  },
+  {
+    "question": "What can you do with Amazon Bedrock?",
+    "answer": "With Amazon Bedrock, you can experiment with and evaluate top foundation models for your use cases, privately customize them with your own data using techniques like fine-tuning and retrieval augmented generation, and build agents that execute tasks using your enterprise systems and data sources."
+  }
+]
+```
+
+### データセットのフォーマット（前処理）
+
+Claude3 Haiku で fine-tuning を行うためには，以下のフォーマットに変換する必要があります．
 
 ```python
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}

@@ -1,14 +1,14 @@
 ---
 title: Amazon Bedrock で Claude3 Haiku を fine-tuning する
 tags:
+  - Python
   - AWS
   - bedrock
-  - Python
-  - claude
   - 生成AI
+  - claude
 private: true
-updated_at: ""
-id: null
+updated_at: '2024-07-30T10:35:23+09:00'
+id: 060cc15f10e492b2d987
 organization_url_name: null
 slide: false
 ignorePublish: false

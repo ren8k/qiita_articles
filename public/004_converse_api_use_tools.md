@@ -14,6 +14,12 @@ slide: false
 ignorePublish: false
 ---
 
+:::note
+本記事は，2024/06/18 の [Bedrock Claude Night 2（JAWS-UG AI/ML 支部 × 東京支部コラボ）](https://jawsug-ai.connpass.com/event/319748/)で登壇した際の内容です．登壇資料は以下にございますので，併せてご覧下さい！
+:::
+
+https://speakerdeck.com/ren8k/building-a-chat-app-using-claude3-on-bedrock-with-the-converse-api-plus-tool-use
+
 ## はじめに
 
 株式会社 NTT データ デザイン＆テクノロジーコンサルティング事業本部の [@ren8k](https://qiita.com/ren8k) です．

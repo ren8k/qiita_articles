@@ -24,7 +24,7 @@ npx qiita new 記事のファイルのベース名
 ## 記事の作成（自身のテンプレート利用時）
 
 - public/template.md を複製コピー．
-- `ignorePublish`を `true` に設定する．
+- `ignorePublish`を `false` に設定する．
 
 ## 記事の投稿・更新
 

@@ -294,12 +294,93 @@ if __name__ == "__main__":
 
 ### データセットのフォーマット（前処理）
 
-Claude3 Haiku で fine-tuning を行うためには，以下のフォーマットに変換する必要があります．
+Claude3 Haiku で fine-tuning を行うには，前処理として，訓練データおよび検証データを以下のフォーマットの JSON Lines (JSONL) 形式にする必要があります．具体的には，システムプロンプト，ユーザーのプロンプト，LLM のレスポンスを 各 json レコードとして保存します．
 
 ```python
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}
+```
+
+本検証では，以下に示すコードで前処理を行いました．python コード実行時の引数で，システムプロンプト，入力ファイル（訓練データ or 検証データ），出力ファイル，入力ファイルで利用されている json のキーを指定することが可能です．
+
+<details open><summary>Python実装（折り畳めます）</summary>
+
+```python:preprocess.py
+import argparse
+import json
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--system-prompt",
+        type=str,
+        default="You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately.",
+    )
+    parser.add_argument(
+        "--input-file",
+        type=str,
+        default="../../dataset/rawdata/validation.json",
+    )
+    parser.add_argument(
+        "--output-file",
+        type=str,
+        default="../../dataset/preprocessed/claude3_ft_validation.jsonl",
+    )
+    parser.add_argument("--prompt-key", type=str, default="question")
+    parser.add_argument("--completion-key", type=str, default="answer")
+
+    return parser.parse_args()
+
+
+def preprocess(args: argparse.Namespace) -> None:
+    """
+    Preprocess the input JSON file to the format that can be used for claude3's fine-tuning.
+    Input JSON file should have the structure of a list of dictionaries.
+    Below is an example of the input JSON file.
+    [
+        {
+            "question": "What is the capital of France?",
+            "answer": "Paris"
+        },
+        ...
+    ]
+    """
+    with open(args.input_file, "r") as f_in, open(args.output_file, "w") as f_out:
+        input_json = json.load(f_in)
+        for data in input_json:
+            prompt = data[args.prompt_key]
+            completion = data[args.completion_key]
+
+            new_data = {}
+            new_data["system"] = args.system_prompt
+            new_data["messages"] = [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": completion},
+            ]
+
+            f_out.write(json.dumps(new_data) + "\n")
+
+
+def main(args: argparse.Namespace) -> None:
+    preprocess(args)
+    print("Conversion completed!")
+
+
+if __name__ == "__main__":
+    args = get_args()
+    main(args)
+
+```
+
+</details>
+
+上記のコードでは，外部の jsonl ファイルに 指定のフォーマットでデータセットを保存しています．参考に，実際にフォーマットした訓練データの一部を示します．
+
+```jsonl
+{"system": "You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately.", "messages": [{"role": "user", "content": "What is Amazon Bedrock and its key features?"}, {"role": "assistant", "content": "Amazon Bedrock is a fully managed service that offers a choice of high-performing foundation models along with a broad set of capabilities for building generative AI applications, simplifying development with security, privacy, and responsible AI features."}]}
+{"system": "You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately.", "messages": [{"role": "user", "content": "How can I get started with using Amazon Bedrock?"}, {"role": "assistant", "content": "With the serverless experience of Amazon Bedrock, you can quickly get started by navigating to the service in the AWS console and trying out the foundation models in the playground or creating and testing an agent."}]}
 ```
 
 ## S3 へのアップロード

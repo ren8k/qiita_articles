@@ -30,8 +30,8 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
 - 利用申請
 - データセットの作成
-- S3 へのアップロード
-- fine-tuning Job の実行
+- データセットを S3 へアップロード
+- fine-tuning job の実行
 - プロビジョンスループットの購入
 - 実際にモデルを実行してみる
 
@@ -61,7 +61,7 @@ https://aws.amazon.com/jp/blogs/machine-learning/fine-tune-anthropics-claude-3-h
 
 https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main/sentence-transformer/multiple-negatives-ranking-loss/training.json
 
-本データセットは，[Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/)を基に作成されており，json 形式で 計 85 個の質問と回答のペアが保存されています．以下に，データセットの一部を示します．json のキー`sentence1`が質問，`sentence2`が回答となっております．
+本データセットは，[Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/)を基に作成されており，JSON 形式で 計 85 個の質問と回答のペアが保存されています．以下に，データセットの一部を示します．JSON のキー`sentence1`が質問，`sentence2`が回答となっております．
 
 ```json
 [
@@ -84,7 +84,7 @@ https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main
 
 ### 検証データの作成
 
-以下の AWS 公式ドキュメントを基に，Claude3 Opus で検証データを作成しました．その際，下記のドキュメントを PDF 化しておき，Amazon Bedrock の Converse API の **Document chat** と **Json mode** を利用することで，比較的容易に json 形式でかつ 品質の高い QA 形式のデータセットを作成することができました．
+以下の AWS 公式ドキュメントを基に，Claude3 Opus で検証データを作成しました．その際，下記のドキュメントを PDF 化しておき，Amazon Bedrock の Converse API の **Document chat** と **Json mode** を利用することで，比較的容易に JSON 形式でかつ 品質の高い QA 形式のデータセットを作成することができました．
 
 https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
 
@@ -92,7 +92,7 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
 
 <details open><summary>Python実装（折り畳めます）</summary>
 
-Tool use の設定を行うためのコード `tool_config.py` と，検証データを作成するためのコード `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` を要素とする json を Array 型で生成するように設定しており，プロンプトで 32 個生成するように指示しています．なお，Json mode で利用するため，ツール自体の定義は行っておりません．
+Tool use の設定を行うためのコード `tool_config.py` と，検証データを作成するためのコード `create_val_dataset.py` を示します．`tool_conifg.py` では，`question` と `answer` を要素とする JSON を Array 型で生成するように設定しており，プロンプトで 32 個生成するように指示しています．なお，Json mode で利用するため，ツール自体の定義は行っておりません．
 
 ```python:tool_conifg.py
 class ToolConfig:
@@ -151,7 +151,7 @@ class ToolConfig:
 
 ```
 
-`create_val_dataset.py` では，AWS 公式ドキュメントの PDF ファイルをバイナリ形式で読み込み，Converse API の Document chat で直接入力入力しています．加えて，Converse API の Tool use の設定値で `toolChoice` を指定することで，ツールの呼び出しを強制しています．これにより，Converse API のレスポンスに json 形式のツール呼び出しのリクエスト（生成された QA 形式の検証データセット）が確実に含まれるようになります．
+`create_val_dataset.py` では，AWS 公式ドキュメントの PDF ファイルをバイナリ形式で読み込み，Converse API の Document chat で直接入力入力しています．加えて，Converse API の Tool use の設定値で `toolChoice` を指定することで，ツールの呼び出しを強制しています．これにより，Converse API のレスポンスに JSON 形式のツール呼び出しのリクエスト（生成された QA 形式の検証データセット）が確実に含まれるようになります．
 
 ```python:create_val_dataset.py
 import argparse
@@ -277,7 +277,7 @@ if __name__ == "__main__":
 
 </details>
 
-上記のコードでは，外部の json ファイルに 32 個の QA 形式の検証データを保存しています．実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
+上記のコードでは，外部の JSON ファイルに 32 個の QA 形式の検証データを保存しています．実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
 
 ```json
 [
@@ -294,7 +294,7 @@ if __name__ == "__main__":
 
 ### データセットのフォーマット（前処理）
 
-Claude3 Haiku で fine-tuning を行うには，前処理として，訓練データおよび検証データを以下のフォーマットの JSON Lines (JSONL) 形式にする必要があります．具体的には，システムプロンプト，ユーザーのプロンプト，LLM のレスポンスを 各 json レコードとして保存します．
+Claude3 Haiku で fine-tuning を行うには，前処理として，訓練データおよび検証データを以下のフォーマットの JSON Lines (JSONL) 形式にする必要があります．具体的には，システムプロンプト，ユーザーのプロンプト，LLM のレスポンスを 各 JSON レコードとして保存します．
 
 ```python
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}
@@ -302,7 +302,7 @@ Claude3 Haiku で fine-tuning を行うには，前処理として，訓練デ�
 {"system": string, "messages": [{"role": "user", "content": string}, {"role": "assistant", "content": string}]}
 ```
 
-本検証では，以下に示すコードで前処理を行いました．python コード実行時の引数で，システムプロンプト，入力ファイル（訓練データ or 検証データ），出力ファイル，入力ファイルで利用されている json のキーを指定することが可能です．
+本検証では，以下に示すコードで前処理を行いました．python コード実行時の引数で，システムプロンプト，入力ファイル（訓練データ or 検証データ），出力ファイル，入力ファイルで利用されている JSON のキーを指定することが可能です．
 
 <details open><summary>Python実装（折り畳めます）</summary>
 
@@ -383,26 +383,90 @@ if __name__ == "__main__":
 {"system": "You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately.", "messages": [{"role": "user", "content": "How can I get started with using Amazon Bedrock?"}, {"role": "assistant", "content": "With the serverless experience of Amazon Bedrock, you can quickly get started by navigating to the service in the AWS console and trying out the foundation models in the playground or creating and testing an agent."}]}
 ```
 
-## S3 へのアップロード
+## データセットを S3 へアップロード
 
-## fine-tuning Job の実行
+作成した訓練データ，検証データを，米国西部 (オレゴン) リージョンの S3 バケットにアップロードする必要があります．[本リポジトリ](https://github.com/ren8k/aws-bedrock-claude3-fine-tuning/tree/main/dataset/preprocessed)では，先程のステップで作成した前処理済みのデータセットを公開しております．本リポジトリ上のデータを利用する場合，以下のコマンドで，本データセットのアップロードが可能です．コマンド中の `<your bucket>` は、任意のバケット名に置き換えてください。
+
+```bash
+aws s3 cp dataset/preprocessed/ s3://<your bucket>/claude3-haiku/dataset --recursive
+```
+
+## fine-tuning job の実行
+
+以降，[Amazon Bedrock コンソール](https://console.aws.amazon.com/bedrock)上での，Claude3 Haiku の fine-tuning の実施手順を説明します。
+
+オレゴンリージョンで、Amazon Bedrock コンソールから、左側にあるナビケーションペインの [基盤モデル] セクションから [カスタムモデル] を選択します。
+
+![スクリーンショット 2024-07-24 121526.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3d928b42-a495-9bb8-b948-48bdc49daa74.png)
+
+右側の [モデルをカスタマイズ] を選択し，[微調整ジョブを作成] を選択します．
+
+![スクリーンショット 2024-07-24 121726.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e29259df-c918-b618-5564-d8a5221d34e5.png)
+
+微調整ジョブ (fine-tuning job) の作成画面の [ソースモデル] の [モデルを選択] を選択します．
+
+![スクリーンショット 2024-07-24 121626.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/829e16d0-e547-90fd-5a44-d14cb2612998.png)
+
+Claude3 Haiku を選択し，[適用] を押下します．
+
+![スクリーンショット 2024-07-24 121845.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2ef34d9d-125a-f632-58ad-a5f05aba2c2a.png)
+
+fine-tuning job の設定画面で，以下の情報を入力します．
+
+- 微調整されたモデル名: 任意のモデル名
+- ジョブ名: fine-tuning job 名
+- 入力データ: 先程アップロードした訓練データと検証データの S3 パス
+
+![スクリーンショット 2024-07-26 203659.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/706fad24-c0a1-ef54-c6ee-76366f2b029a.png)
+
+fine-tuning job のハイパーパラメータを設定します．なお，エポック数のデフォルト値は 2 ですが，本検証は 10 エポックで実施し，その他のパラメータはデフォルト値としました．
+
+| ハイパーパラメータ        | 内容                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------------- |
+| エポック                  | 訓練データセット全体を繰り返し学習する回数（最大 10epoch）                                   |
+| バッチサイズ              | モデルのパラメータ更新で使用するデータの数                                                   |
+| learning rate multiplier  | 基本学習率 (base learning rate) を調整するための係数                                         |
+| Early stopping (早期停止) | validation loss が一定のエポック数で改善しない場合に学習を停止する，過学習を防ぐための手法． |
+| 早期停止のしきい値        | Early stopping を判断するための validation loss の改善幅のしきい値                           |
+| 早期停止ペイシェンス      | Early stopping を判断するまでに許容するエポック数                                            |
+
+![スクリーンショット 2024-07-26 203928.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/32b298e0-1e81-0226-7e57-f50975d3902b.png)
+
+fine-tuning 実行時の training loss, validation loss の推移を記録するため，保存先の S3 URI を指定します．また，サービスロールは新規作成します．その後，[モデルを微調整] を選択し，fine-tuning job を実行します．
+
+![スクリーンショット 2024-07-26 203949.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c6309f0a-0bf5-71eb-02e4-5d2549e1bdf9.png)
+
+fine-tuning job が開始されます．ステータス が `トレーニング` から `完了` に変わるまで待ちます．
+
+![スクリーンショット 2024-07-26 204256.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9d38d8ae-8e7b-5556-ff99-2e765414dfdc.png)
+
+あああああ
+
+### training loss，validation loss の観察
+
+```
+## TODO
+
+- training loss，validation loss の観察
+- プロビジョンスループットの購入
+- 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
+```
+
+---
+
+★ ここから
+
+---
+
+---
 
 ## プロビジョンスループットの購入
 
 ## 実際にモデルを実行してみる
 
----
+### コンソール上から
 
----
-
----
-
-![スクリーンショット 2024-07-24 121726.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e29259df-c918-b618-5564-d8a5221d34e5.png)
-![スクリーンショット 2024-07-24 121845.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2ef34d9d-125a-f632-58ad-a5f05aba2c2a.png)
-![スクリーンショット 2024-07-26 203659.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/706fad24-c0a1-ef54-c6ee-76366f2b029a.png)
-![スクリーンショット 2024-07-26 203928.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/32b298e0-1e81-0226-7e57-f50975d3902b.png)
-![スクリーンショット 2024-07-26 203949.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c6309f0a-0bf5-71eb-02e4-5d2549e1bdf9.png)
-![スクリーンショット 2024-07-26 204256.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9d38d8ae-8e7b-5556-ff99-2e765414dfdc.png)
+### Boto3 から
 
 ## aaa
 

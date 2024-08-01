@@ -393,6 +393,8 @@ aws s3 cp dataset/preprocessed/ s3://<your bucket>/claude3-haiku/dataset --recur
 
 ## fine-tuning job の実行
 
+### コンソール上での実施手順
+
 以降，[Amazon Bedrock コンソール](https://console.aws.amazon.com/bedrock)上での，Claude3 Haiku の fine-tuning の実施手順を説明します。
 
 オレゴンリージョンで、Amazon Bedrock コンソールから、左側にあるナビケーションペインの [基盤モデル] セクションから [カスタムモデル] を選択します。
@@ -440,41 +442,46 @@ fine-tuning job が開始されます．ステータス が `トレーニング`
 
 ![スクリーンショット 2024-07-26 204256.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9d38d8ae-8e7b-5556-ff99-2e765414dfdc.png)
 
-あああああ
+fine-tuning job が完了すると，ステータスが `完了` に変わります．今回の検証では，2 時間程度で完了しました．
+
+![スクリーンショット 2024-07-31 210226.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a3cd20a0-5cfc-22f3-3fc2-632bb3d228a9.png)
+
+[モデル] を選択し、モデル名を選択すると、モデル ARN ジョブ ARN，出力データ（epoch 毎の training loss, validation loss の値）の保存先などの詳細情報を確認できます。
+
+![スクリーンショット 2024-07-31 210436.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cf7efd19-d8b7-dc72-3ec3-2e00961bc10a.png)
+
+![スクリーンショット 2024-07-31 210710.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a01f30b2-2dc1-aa52-a9c4-1210620a0866.png)
 
 ### training loss，validation loss の観察
+
+以下に fine-tuning 実行時の trainin loss, validation loss の推移を示します．training loss, validation loss 共に，エポック数が増えるにつれて減少しており，適切に学習が行えていることが確認できます．また，6, 7 エポック目で，validation loss が改善していないため，7 エポック目で Early stopping が発生していることが確認できます．
+
+![loss_curves.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1425b22d-df25-23e1-cabc-adde882eedbf.png)
+
+---
+
+---
+
+---
 
 ```
 ## TODO
 
-- training loss，validation loss の観察
 - プロビジョンスループットの購入
 - 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
 ```
 
----
-
-★ ここから
-
----
-
----
-
 ## プロビジョンスループットの購入
+
+![スクリーンショット 2024-08-01 105444.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/d834c793-e9e1-d1e4-3f11-ae244ae497d0.png)
+![スクリーンショット 2024-08-01 105636.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1ed625c1-2bcd-d070-7b9c-7cafbfe1558d.png)
+![スクリーンショット 2024-08-01 105725.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a82f5929-7a33-54e7-1a82-ce2df56af95b.png)
 
 ## 実際にモデルを実行してみる
 
 ### コンソール上から
 
 ### Boto3 から
-
-## aaa
-
-![スクリーンショット 2024-07-26 195723.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7862b159-f759-b7ec-02f9-146e426bcdb0.png)
-![スクリーンショット 2024-07-26 195943.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/26169f6d-862f-287b-ddf2-70413d803264.png)
-![スクリーンショット 2024-07-26 200145.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/229a40e6-a187-52e7-49bf-2ca1970efe30.png)
-![スクリーンショット 2024-07-26 201355.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/bbc725cc-affa-90ca-fbea-5044abc44dbb.png)
-![スクリーンショット 2024-07-26 201547.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/6ba0583f-6a33-99c6-6873-3a2ffc85990f.png)
 
 ## まとめ
 

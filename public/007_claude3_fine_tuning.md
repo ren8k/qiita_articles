@@ -32,7 +32,7 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 - データセットの作成
 - データセットを S3 へアップロード
 - fine-tuning job の実行
-- プロビジョンスループットの購入
+- プロビジョンドスループットの購入
 - 実際にモデルを実行してみる
 
 ## 利用申請
@@ -454,9 +454,32 @@ fine-tuning job が完了すると，ステータスが `完了` に変わりま
 
 ### training loss，validation loss の観察
 
-以下に fine-tuning 実行時の trainin loss, validation loss の推移を示します．training loss, validation loss 共に，エポック数が増えるにつれて減少しており，適切に学習が行えていることが確認できます．また，6, 7 エポック目で，validation loss が改善していないため，7 エポック目で Early stopping が発生していることが確認できます．
+出力データとして，エポック毎の training loss, validation loss の値が記録された CSV ファイルが S3 に保存されます．これらの値をグラフ化することで，fine-tuning が正常に行えているかを判断することができます．
+
+以下に fine-tuning 実行時の trainin loss, validation loss の推移を示します．training loss, validation loss 共に，エポック数が増えるにつれて減少しており，適切に学習が行えていることが確認できます．また，6, 7 エポック目で，validation loss が改善しておらず，7 エポック目で Early stopping が発生していることが確認できます．
 
 ![loss_curves.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1425b22d-df25-23e1-cabc-adde882eedbf.png)
+
+## プロビジョンドスループットの購入
+
+fine-tuning したモデルをデプロイするために，プロビジョンドスループットを購入する必要があります．以降，コンソール上でのプロビジョンドスループットの購入手順を説明します．
+
+Bedrock コンソールの [カスタムモデル] の画面で微調整されたモデルを選択し，「プロビジョンドスループットの購入」を選択します．
+
+![スクリーンショット 2024-08-02 150103.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f1d646d4-4880-4523-a355-cb8469bfacb2.png)
+
+プロビジョンドスループットの名前を入力し，契約期間を選択します．今回の検証では 1 時間程度しか利用しないため， `No commitment` を選択しました．その後，[プロビジョンドスループットを購入] を選択します．
+
+![スクリーンショット 2024-08-01 105444.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/d834c793-e9e1-d1e4-3f11-ae244ae497d0.png)
+
+購入確認画面が表示されるので，チェックボックスを付け [購入を確認] を選択します．
+
+![スクリーンショット 2024-08-01 105636.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1ed625c1-2bcd-d070-7b9c-7cafbfe1558d.png)
+![スクリーンショット 2024-08-01 105725.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a82f5929-7a33-54e7-1a82-ce2df56af95b.png)
+
+今回の検証では，20 分程度で完了しました．
+
+![スクリーンショット 2024-08-01 111945.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f8dc0758-db18-b764-00af-07a7c064f953.png)
 
 ---
 
@@ -469,19 +492,62 @@ fine-tuning job が完了すると，ステータスが `完了` に変わりま
 
 - プロビジョンスループットの購入
 - 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
+- 本橋さんみたいに表を作成する．表の一番右に，総評を書いたほうがわかりやすいかも．
 ```
-
-## プロビジョンスループットの購入
-
-![スクリーンショット 2024-08-01 105444.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/d834c793-e9e1-d1e4-3f11-ae244ae497d0.png)
-![スクリーンショット 2024-08-01 105636.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1ed625c1-2bcd-d070-7b9c-7cafbfe1558d.png)
-![スクリーンショット 2024-08-01 105725.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a82f5929-7a33-54e7-1a82-ce2df56af95b.png)
 
 ## 実際にモデルを実行してみる
 
 ### コンソール上から
 
+![スクリーンショット 2024-08-01 112305.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e72815e6-a4e2-ab66-253a-c737e304b8d7.png)
+![スクリーンショット 2024-08-01 114125.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/10f8e93b-d458-5498-3644-39f4f5a8de0f.png)
+![スクリーンショット 2024-08-01 114232.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/673ffe7a-0e0a-83b4-aa45-ea47484b7ebe.png)
+![スクリーンショット 2024-08-01 114622.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/50db2da2-01d6-a373-d023-7dc20379fa1c.png)
+![スクリーンショット 2024-08-01 114705.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1a02946c-5f8e-9ae6-f46a-8cbbd01ea977.png)
+![スクリーンショット 2024-08-01 115519.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/0887eea0-7cd4-c4ea-a220-ac5c4b7e4661.png)
+
+| プロンプト                                  | fine-tuning モデルの回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | default モデルの回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What can you do with Amazon Bedrock?        | Amazon Bedrock is a fully managed service that provides a quick, effective, and secure path to building generative AI applications powered by foundation models from Amazon, Anthropic, Stability AI, Cohere, and other integrated providers. It simplifies the creation and deployment of cutting-edge customized models and foundational models for a wide range of natural language processing (NLP), text-to-image, and speech-to-text use cases, all while focusing on security, data privacy, and responsible AI.                                                                                                                                                                                                                                                    | Amazon Bedrock is a platform that provides developers with a set of tools and services to build, deploy, and manage conversational AI applications. Here are some of the key things developers can do with Amazon Bedrock:<br><br>1. Build conversational AI models: Bedrock provides access to pre-trained language models that can be fine-tuned for various natural language processing (NLP) tasks, such as text generation, intent detection, and entity extraction.<br><br>2. Deploy and manage models: Bedrock makes it easier to deploy and manage conversational AI models by providing a scalable, cloud-based infrastructure. Developers can use Bedrock to host, monitor, and update their models. |
+| What is Knowledge Bases for Amazon Bedrock? | Knowledge Bases for Amazon Bedrock is a feature that allows you to seamlessly integrate structured and unstructured data sources into your large language model (LLM) applications built on Amazon Bedrock. This feature enables you to enhance the context and knowledge available to your models, leading to more informed and relevant responses.<br><br>With Knowledge Bases for Amazon Bedrock, you can connect your LLM applications to a variety of data sources, including databases, content management systems, enterprise applications, and file storage services. The feature supports a wide range of data formats, including structured data (e.g., CSV, Excel, SQL), unstructured data (e.g., PDF, Word, HTML), and semi-structured data (e.g., JSON, XML). | Unfortunately, I do not have any specific information about "Knowledge Bases for Amazon Bedrock." Bedrock is a platform provided by Amazon, but I do not have detailed knowledge about its capabilities or features. Knowledge bases are typically collections of structured data that can be used to provide information, but without more context about how this relates to Amazon Bedrock, I cannot provide any details. My knowledge is limited, so I cannot give you a substantive answer about this particular topic. I'd suggest checking the Amazon documentation or other reliable sources to learn more about Amazon Bedrock and any associated knowledge base capabilities.                         |
+
 ### Boto3 から
+
+```python:invoke_ft_model.py
+import json
+
+import boto3
+
+model_id = "<provisioned throughput arn>"
+
+system_prompt = "You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately."
+prompt = "What can you do with Amazon Bedrock?"
+
+client = boto3.client(service_name="bedrock-runtime", region_name="us-west-2")
+
+response = client.invoke_model(
+    body=json.dumps(
+        {
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 2048,
+            "messages": [{"role": "user", "content": f"{prompt}"}],
+            "temperature": 0.1,
+            "top_p": 0.9,
+            "system": f"{system_prompt}",
+        }
+    ),
+    modelId=model_id,
+)
+output = response.get("body").read().decode("utf-8")
+response_body = json.loads(output)
+response_text = response_body["content"][0]["text"]
+print(response_text)
+
+```
+
+```
+Amazon Bedrock is a fully managed service that enables developers to build, deploy, and scale generative AI applications quickly and easily. With Amazon Bedrock, you can create generative AI applications that can generate human-like text, images, code, and other content, as well as engage in open-ended conversations and complete a variety of tasks.
+```
 
 ## まとめ
 
@@ -586,3 +652,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
 </div></details>
+```

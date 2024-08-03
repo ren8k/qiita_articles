@@ -33,7 +33,8 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 - データセットを S3 へアップロード
 - fine-tuning job の実行
 - プロビジョンドスループットの購入
-- 実際にモデルを実行してみる
+- fine-tuning したモデルの実行
+- モデルの評価
 
 ## 利用申請
 
@@ -41,7 +42,9 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
 ## データセットの作成
 
-### 方針
+本検証では，Claude3 Haiku にドメイン知識を獲得させることを目的として，Amazon Bedrock に関する fine-tuning 用データセットを準備しました．データセットとして，AWS 公式ドキュメントから作成された質問と回答のペアを利用しています．以降，本検証を行う際に検討した事項や検証方針，データセットの準備・作成方法について説明します．
+
+### 利用するデータセットの方針
 
 オープンソースで公開されている日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
 
@@ -374,6 +377,23 @@ if __name__ == "__main__":
 
 ```
 
+例えば，訓練データの前処理を行いたい場合，以下の shell のようなコマンドを実行します．（`argparse`の default 値は検証データに合わせているため，検証データの前処理を行う際は，引数指定は不要です．）
+
+```bash:run_preprocess.sh
+#!/bin/bash
+
+INPUT="../../dataset/rawdata/training.json"
+OUTPUT="../../dataset/preprocessed/claude3_ft_training.jsonl"
+PROMPT_KEY="sentence1"
+COMPLETION_KEY="sentence2"
+
+python3 preprocess.py \
+    --input-file $INPUT \
+    --output-file $OUTPUT \
+    --prompt-key $PROMPT_KEY \
+    --completion-key $COMPLETION_KEY
+```
+
 </details>
 
 上記のコードでは，外部の jsonl ファイルに 指定のフォーマットでデータセットを保存しています．参考に，実際にフォーマットした訓練データの一部を示します．
@@ -423,14 +443,14 @@ fine-tuning job の設定画面で，以下の情報を入力します．
 
 fine-tuning job のハイパーパラメータを設定します．なお，エポック数のデフォルト値は 2 ですが，本検証は 10 エポックで実施し，その他のパラメータはデフォルト値としました．
 
-| ハイパーパラメータ        | 内容                                                                                         |
-| ------------------------- | -------------------------------------------------------------------------------------------- |
-| エポック                  | 訓練データセット全体を繰り返し学習する回数（最大 10epoch）                                   |
-| バッチサイズ              | モデルのパラメータ更新で使用するデータの数                                                   |
-| learning rate multiplier  | 基本学習率 (base learning rate) を調整するための係数                                         |
-| Early stopping (早期停止) | validation loss が一定のエポック数で改善しない場合に学習を停止する，過学習を防ぐための手法． |
-| 早期停止のしきい値        | Early stopping を判断するための validation loss の改善幅のしきい値                           |
-| 早期停止ペイシェンス      | Early stopping を判断するまでに許容するエポック数                                            |
+| ハイパーパラメータ        | 内容                                                                                       |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| エポック                  | 訓練データセット全体を繰り返し学習する回数（最大 10epoch）                                 |
+| バッチサイズ              | モデルのパラメータ更新で使用するデータの数                                                 |
+| Learning rate multiplier  | 基本学習率 (base learning rate) を調整するための係数                                       |
+| Early stopping (早期停止) | validation loss が一定のエポック数で改善しない場合に学習を停止する，過学習を防ぐための手法 |
+| 早期停止のしきい値        | Early stopping を判断するための validation loss の改善幅のしきい値                         |
+| 早期停止ペイシェンス      | Early stopping を判断するまでに許容するエポック数                                          |
 
 ![スクリーンショット 2024-07-26 203928.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/32b298e0-1e81-0226-7e57-f50975d3902b.png)
 
@@ -454,11 +474,15 @@ fine-tuning job が完了すると，ステータスが `完了` に変わりま
 
 ### training loss，validation loss の観察
 
-出力データとして，エポック毎の training loss, validation loss の値が記録された CSV ファイルが S3 に保存されます．これらの値をグラフ化することで，fine-tuning が正常に行えているかを判断することができます．
+出力データとして，エポック毎の training loss, validation loss の値が記録された CSV ファイルが S3 に保存されます．これらの値を観察することで，fine-tuning が正常に行えているかを判断することができます．
 
-以下に fine-tuning 実行時の trainin loss, validation loss の推移を示します．training loss, validation loss 共に，エポック数が増えるにつれて減少しており，適切に学習が行えていることが確認できます．また，6, 7 エポック目で，validation loss が改善しておらず，7 エポック目で Early stopping が発生していることが確認できます．
+以下に fine-tuning 実行時の trainin loss, validation loss の推移を示します．training loss, validation loss 共に，エポック数が増えるにつれて減少しており，適切に学習が行えていることが確認できます．また，5 ~ 7 エポック目で validation loss が改善しておらず，7 エポック目で Early stopping が発生していることが確認できます．
 
 ![loss_curves.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1425b22d-df25-23e1-cabc-adde882eedbf.png)
+
+:::note warn
+CSV ファイルにはステップ毎の loss が記録されていますが，上図ではエポック毎の loss の平均値を示しています．
+:::
 
 ## プロビジョンドスループットの購入
 
@@ -481,37 +505,41 @@ Bedrock コンソールの [カスタムモデル] の画面で微調整され�
 
 ![スクリーンショット 2024-08-01 111945.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f8dc0758-db18-b764-00af-07a7c064f953.png)
 
----
+作成されたプロビジョンドスループットを選択すると，プロビジョンドスループットの ARN などを確認できます．こちらは，Boto3 を利用してモデルで推論する際に利用します．
 
----
-
----
-
-```
-## TODO
-
-- プロビジョンスループットの購入
-- 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
-- 本橋さんみたいに表を作成する．表の一番右に，総評を書いたほうがわかりやすいかも．
-```
-
-## 実際にモデルを実行してみる
-
-### コンソール上から
-
-![スクリーンショット 2024-08-01 112305.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e72815e6-a4e2-ab66-253a-c737e304b8d7.png)
-![スクリーンショット 2024-08-01 114125.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/10f8e93b-d458-5498-3644-39f4f5a8de0f.png)
-![スクリーンショット 2024-08-01 114232.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/673ffe7a-0e0a-83b4-aa45-ea47484b7ebe.png)
-![スクリーンショット 2024-08-01 114622.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/50db2da2-01d6-a373-d023-7dc20379fa1c.png)
-![スクリーンショット 2024-08-01 114705.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1a02946c-5f8e-9ae6-f46a-8cbbd01ea977.png)
 ![スクリーンショット 2024-08-01 115519.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/0887eea0-7cd4-c4ea-a220-ac5c4b7e4661.png)
 
-| プロンプト                                  | fine-tuning モデルの回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | default モデルの回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| What can you do with Amazon Bedrock?        | Amazon Bedrock is a fully managed service that provides a quick, effective, and secure path to building generative AI applications powered by foundation models from Amazon, Anthropic, Stability AI, Cohere, and other integrated providers. It simplifies the creation and deployment of cutting-edge customized models and foundational models for a wide range of natural language processing (NLP), text-to-image, and speech-to-text use cases, all while focusing on security, data privacy, and responsible AI.                                                                                                                                                                                                                                                    | Amazon Bedrock is a platform that provides developers with a set of tools and services to build, deploy, and manage conversational AI applications. Here are some of the key things developers can do with Amazon Bedrock:<br><br>1. Build conversational AI models: Bedrock provides access to pre-trained language models that can be fine-tuned for various natural language processing (NLP) tasks, such as text generation, intent detection, and entity extraction.<br><br>2. Deploy and manage models: Bedrock makes it easier to deploy and manage conversational AI models by providing a scalable, cloud-based infrastructure. Developers can use Bedrock to host, monitor, and update their models. |
-| What is Knowledge Bases for Amazon Bedrock? | Knowledge Bases for Amazon Bedrock is a feature that allows you to seamlessly integrate structured and unstructured data sources into your large language model (LLM) applications built on Amazon Bedrock. This feature enables you to enhance the context and knowledge available to your models, leading to more informed and relevant responses.<br><br>With Knowledge Bases for Amazon Bedrock, you can connect your LLM applications to a variety of data sources, including databases, content management systems, enterprise applications, and file storage services. The feature supports a wide range of data formats, including structured data (e.g., CSV, Excel, SQL), unstructured data (e.g., PDF, Word, HTML), and semi-structured data (e.g., JSON, XML). | Unfortunately, I do not have any specific information about "Knowledge Bases for Amazon Bedrock." Bedrock is a platform provided by Amazon, but I do not have detailed knowledge about its capabilities or features. Knowledge bases are typically collections of structured data that can be used to provide information, but without more context about how this relates to Amazon Bedrock, I cannot provide any details. My knowledge is limited, so I cannot give you a substantive answer about this particular topic. I'd suggest checking the Amazon documentation or other reliable sources to learn more about Amazon Bedrock and any associated knowledge base capabilities.                         |
+## fine-tuning したモデルの実行
 
-### Boto3 から
+Amazon Bedrock のプレイグラウンドおよび，AWS SDK for Python (Boto3) を利用して，実際に fine-tuning したモデルで推論してみます．
+
+### プレイグラウンドで実行
+
+Amazon Bedrock コンソール上でプレイグラウンドの[チャット]を選択し，モデルを選択します．その際，カスタムモデルを選択し，先程 fine-tuning したモデルを選択します．
+
+![スクリーンショット 2024-08-01 112305.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e72815e6-a4e2-ab66-253a-c737e304b8d7.png)
+
+プレイグラウンドで利用されるモデル名が，fine-tuning したモデル名になっていることが確認できます．試しに，`What is Knowledge Bases for Amazon Bedrock?` という質問を入力し，[実行] ボタンを押下しました．
+
+![スクリーンショット 2024-08-01 114125.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/10f8e93b-d458-5498-3644-39f4f5a8de0f.png)
+
+以下が，fine-tuning したモデルの回答です．それらしい回答が得られています．
+
+> Knowledge Bases for Amazon Bedrock is a feature that allows you to seamlessly integrate structured and unstructured data sources into your large language model (LLM) applications built on Amazon Bedrock. This feature enables you to enhance the context and knowledge available to your models, leading to more informed and relevant responses.
+>
+> With Knowledge Bases for Amazon Bedrock, you can connect your LLM applications to a variety of data sources, including databases, content management systems, enterprise applications, and file storage services. The feature supports a wide range of data formats, including structured data (e.g., CSV, Excel, SQL), unstructured data (e.g., PDF, Word, HTML), and semi-structured data (e.g., JSON, XML).
+
+:::note warn
+コンソール上からは，システムプロンプトを設定することはできないようでした．
+:::
+
+<!-- ![スクリーンショット 2024-08-01 114232.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/673ffe7a-0e0a-83b4-aa45-ea47484b7ebe.png)
+![スクリーンショット 2024-08-01 114622.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/50db2da2-01d6-a373-d023-7dc20379fa1c.png)
+![スクリーンショット 2024-08-01 114705.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1a02946c-5f8e-9ae6-f46a-8cbbd01ea977.png) -->
+
+### AWS SDK for Python (Boto3) で実行
+
+AWS SDK for Python (Boto3) を利用し，API 経由でインポートしたモデルを呼び出すことも可能です．具体的には，Amazon Bedrock の InvokeModel API を利用し，引数の modelId にインポートしたプロビジョンドスループットの ARN を指定することで，推論を行えます．
 
 ```python:invoke_ft_model.py
 import json
@@ -545,9 +573,47 @@ print(response_text)
 
 ```
 
+上記のコードを実行すると、以下が出力されました。`What can you do with Amazon Bedrock?` という質問に対して，適切な回答が得られています．
+
+> Amazon Bedrock is a fully managed service that enables developers to build, deploy, and scale generative AI applications quickly and easily. With Amazon Bedrock, you can create generative AI applications that can generate human-like text, images, code, and other content, as well as engage in open-ended conversations and complete a variety of tasks.
+
+## 評価
+
+### 設定
+
+- 用意した質問は以下．
+- 想定回答は事前に用意．
+
+### 評価指標
+
+- langchain を利用
+
+### 結果
+
+### 考察
+
+### 補足実験
+
+日本語の場合
+
+---
+
+---
+
+---
+
 ```
-Amazon Bedrock is a fully managed service that enables developers to build, deploy, and scale generative AI applications quickly and easily. With Amazon Bedrock, you can create generative AI applications that can generate human-like text, images, code, and other content, as well as engage in open-ended conversations and complete a variety of tasks.
+## TODO
+
+- 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
+- 本橋さんみたいに表を作成する．表の一番右に，総評を書いたほうがわかりやすいかも．
+- 図の一部は小さくした方が見やすい．．．
 ```
+
+| プロンプト                                  | Fine-tuning model の回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Base model の回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What can you do with Amazon Bedrock?        | Amazon Bedrock is a fully managed service that provides a quick, effective, and secure path to building generative AI applications powered by foundation models from Amazon, Anthropic, Stability AI, Cohere, and other integrated providers. It simplifies the creation and deployment of cutting-edge customized models and foundational models for a wide range of natural language processing (NLP), text-to-image, and speech-to-text use cases, all while focusing on security, data privacy, and responsible AI.                                                                                                                                                                                                                                                    | Amazon Bedrock is a platform that provides developers with a set of tools and services to build, deploy, and manage conversational AI applications. Here are some of the key things developers can do with Amazon Bedrock:<br><br>1. Build conversational AI models: Bedrock provides access to pre-trained language models that can be fine-tuned for various natural language processing (NLP) tasks, such as text generation, intent detection, and entity extraction.<br><br>2. Deploy and manage models: Bedrock makes it easier to deploy and manage conversational AI models by providing a scalable, cloud-based infrastructure. Developers can use Bedrock to host, monitor, and update their models. |
+| What is Knowledge Bases for Amazon Bedrock? | Knowledge Bases for Amazon Bedrock is a feature that allows you to seamlessly integrate structured and unstructured data sources into your large language model (LLM) applications built on Amazon Bedrock. This feature enables you to enhance the context and knowledge available to your models, leading to more informed and relevant responses.<br><br>With Knowledge Bases for Amazon Bedrock, you can connect your LLM applications to a variety of data sources, including databases, content management systems, enterprise applications, and file storage services. The feature supports a wide range of data formats, including structured data (e.g., CSV, Excel, SQL), unstructured data (e.g., PDF, Word, HTML), and semi-structured data (e.g., JSON, XML). | Unfortunately, I do not have any specific information about "Knowledge Bases for Amazon Bedrock." Bedrock is a platform provided by Amazon, but I do not have detailed knowledge about its capabilities or features. Knowledge bases are typically collections of structured data that can be used to provide information, but without more context about how this relates to Amazon Bedrock, I cannot provide any details. My knowledge is limited, so I cannot give you a substantive answer about this particular topic. I'd suggest checking the Amazon documentation or other reliable sources to learn more about Amazon Bedrock and any associated knowledge base capabilities.                         |
 
 ## まとめ
 

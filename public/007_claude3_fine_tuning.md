@@ -541,9 +541,6 @@ Amazon Bedrock コンソール上でプレイグラウンドの[チャット]を
 
 > Unfortunately, I do not have any specific information about "Knowledge Bases for Amazon Bedrock." Bedrock is a platform provided by Amazon, but I do not have detailed knowledge about its capabilities or features. Knowledge bases are typically collections of structured data that can be used to provide information, but without more context about how this relates to Amazon Bedrock, I cannot provide any details. My knowledge is limited, so I cannot give you a substantive answer about this particular topic. I'd suggest checking the Amazon documentation or other reliable sources to learn more about Amazon Bedrock and any associated knowledge base capabilities.
 
-<!-- ![スクリーンショット 2024-08-01 114622.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/50db2da2-01d6-a373-d023-7dc20379fa1c.png)
-![スクリーンショット 2024-08-01 114705.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1a02946c-5f8e-9ae6-f46a-8cbbd01ea977.png) -->
-
 ### AWS SDK for Python (Boto3) で実行
 
 AWS SDK for Python (Boto3) を利用し，API 経由でインポートしたモデルを呼び出すことも可能です．具体的には，Amazon Bedrock の InvokeModel API を利用し，引数の modelId にインポートしたプロビジョンドスループットの ARN を指定することで，推論を行えます．
@@ -584,7 +581,7 @@ print(response_text)
 
 > Amazon Bedrock is a fully managed service that enables developers to build, deploy, and scale generative AI applications quickly and easily. With Amazon Bedrock, you can create generative AI applications that can generate human-like text, images, code, and other content, as well as engage in open-ended conversations and complete a variety of tasks.
 
-## 評価
+## モデルの評価
 
 fine-tuning したモデルを評価するため，評価用データセットを作成し，LLM-as-a-Judge によって評価を行いました．
 
@@ -618,7 +615,7 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 
 #### 質問毎の評価値
 
-以下に，質問毎の，各モデルの Correctness の評価値を示します．fine-tuning model は，項番 1, 3, 4 の質問については高い正確性を示していますが，項番 2 の質問については，低い正確性となっています．
+以下に，質問毎の，各モデルの Correctness の評価値を示します．fine-tuning したモデル は，項番 1, 2, 4 の質問については高い正確性を示していますが，項番 3 の質問については，低い正確性となっています．Base model については，全体的に正確性が低いことが確認できます．
 
 | #   | 質問 (プロンプト)                           | Correctness (Fine-tuning model) | Correctness (Base model) |
 | --- | ------------------------------------------- | ------------------------------- | ------------------------ |
@@ -627,7 +624,13 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 | 3   | What are Agents for Amazon Bedrock?         | 4.0 / 10.0                      | 2.0 / 10.0               |
 | 4   | What are Guardrails for Amazon Bedrock?     | 8.0 / 10.0                      | 3.0 / 10.0               |
 
-#### 各モデルの回答内容
+#### 質問毎の回答内容
+
+以下に，各モデルの質問毎の回答内容を示します．fine-tuning したモデルの回答内容は，Base model と比較すると適切な内容となっていることが確認できます．特に，Correctness の高かった項番 1, 2, 4 については，回答品質が高いです．一方，項番 2 や項番 3 の回答の一部にハルシネーションが見られます．また，項番 3 の回答内容について，他の項番と比較すると情報量が乏しく，あまり適切に回答することができていないことがわかります．
+
+Base model の回答内容を観察すると，項番 2, 3 では，「そのような知識は持っていない」と回答しています．また，その他の項番の回答についてもハルシネーションが非常に多く見られ，全体的に Correctness が低いことが確認できます．
+
+以上の結果から，fine-tunning により，Claude3 Haiku に Amazon Bedrock の知識をある程度獲得させることができていると考えられます．
 
 | #   | 質問 (プロンプト)                           | Fine-tuning model の回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | Base model の回答                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | --- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -636,9 +639,33 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 | 3   | What are Agents for Amazon Bedrock?         | Agents for Amazon Bedrock are pre-built AI agents like Claude or Exporter that can be easily added via APIs while maintaining flexibility and customization. They are ready-to-use capabilities for rapid development of conversational AI apps and workflows.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | I do not have any specific information about "Agents for Amazon Bedrock". Amazon Bedrock is a machine learning platform, but I don't have details on what "Agents" may refer to in that context. My knowledge is limited, so I cannot provide a more complete answer about this. You may need to check Amazon's documentation or other resources for more information about the features and capabilities of the Amazon Bedrock platform.                                                                                                                                                                                                                                                                                                      |
 | 4   | What are Guardrails for Amazon Bedrock?     | Guardrails for Amazon Bedrock is a feature that allows you to manage and mitigate potential risks associated with the use of large language models (LLMs) in various applications.<br><br>Guardrails for Amazon Bedrock provides a set of controls and policies that can be applied to the input and output of the LLM to help ensure responsible and ethical use, alignment with organizational policies, and protection against potential misuse or harm. These controls can include content filtering, sensitive data detection, profanity filtering, hate speech detection, and other safeguards.<br><br>With Guardrails for Amazon Bedrock, you can implement controls to prevent or mitigate the generation of inappropriate, harmful, or biased content, as well as ensure compliance with regulations and organizational policies. | Guardrails for Amazon Bedrock are a set of default security and compliance configurations that help protect Bedrock models and deployments. They are designed to provide a secure baseline for Bedrock usage and help customers adhere to best practices and industry standards.<br><br>Some key features of Bedrock Guardrails include:<br><br>1. Encryption: Guardrails ensure that all data stored and transmitted by Bedrock is encrypted at rest and in transit using industry-standard encryption protocols.<br><br>2. IAM-based access control: Guardrails enforce strict access control policies using AWS Identity and Access Management (IAM), ensuring that only authorized users and services can interact with Bedrock resources. |
 
+### 考察
+
+fine-tuning したモデルで観察された点について考察します．
+
+#### 項番 3 の回答の正確性について
+
+fine-tuning したモデルの項番 3 の回答内容は，他の項番の回答内容に比べて文量が少なく，情報量が乏しいことが確認されました．項番 3 の質問内容は，Agents for Amazon Bedrock に関する質問であり，他の項番の質問と比べても複雑な質問ではありません．項番 3 以外の質問にはかなり正確に回答できている点を踏まえると，Agents for Amazon Bedrock の知識をうまく獲得できていないことが考えられます．この原因は，fine-tuning に用いたデータセットで，Agents for Amazon Bedrock に関する情報が不足していたことが考えられます．
+
+訓練データにおける，Agents for Amazon Bedrock に関する QA ペア数を確認したところ，85 個中 1 個のみで，単語としての出現数は 2 回のみでした．項番 1, 2, 4 に関する QA ペア数は 最低 7 個以上あり，単語としての出現数も 14 回以上ありました．これらの結果から，Agents for Amazon Bedrock に関するデータが不足していることが確認できます．
+
+本課題を解決するためには，Agents for Amazon Bedrock に関する QA ペアを増やす必要があると考えられます．
+
+#### 回答の品質について
+
+fine-tuning したモデルの回答の Correctness が高いことを確認しましたが，詳細に確認すると一部ハルシネーションが含まれていました．この原因としては，訓練データのサイズが小さく，知識獲得のためのデータが不足していることが考えられます．
+
+本課題については，品質の高いデータセットを追加で用意することで，回答の正確性が向上し，結果的にハルシネーションを減らすことができると考えられます．
+
+また，LLM-as-a-Judge では，これらのハルシネーションを正確に検出することが難しいため，人手での評価も必要であると考えられます．
+
+#### 出力形式について
+
+本検証の Base model に限らず，Claude3 Haiku の回答には，番号付きリスト (箇条書き) が多用されますが，本検証での fine-tuning したモデルの回答内容は含まれていません．これは，fine-tuning に用いたデータセットに，番号付きリストのデータが含まれておらず，QA 形式でのデータで学習した結果，回答の出力形式にも影響が出たと考えられます．
+
 ### 評価時のコード
 
-参考のため，今回の検証で利用したコードを掲載します．fine-tuning したモデルの回答内容，Base model (Claude3 Haiku)の回答内容，および，評価用のラベルデータを外部ファイルに保存しておき，それらを読み込み，LangChain で評価を実施しています．
+参考のため，今回の検証で利用したコードを掲載します．fine-tuning したモデルの回答内容，Base model (Claude3 Haiku)の回答内容，および，評価用のラベルデータを外部ファイルに保存しておき，それらを読み込み，LangChain で評価を行っています．
 
 <details open><summary>Python実装（折り畳めます）</summary>
 
@@ -714,21 +741,19 @@ if __name__ == "__main__":
 
 ### 補足実験
 
-日本語の場合
+日本語で `Amazon Bedrockについて教えて` と質問した場合の回答を確認しました．
 
----
+![スクリーンショット 2024-08-01 114622.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/50db2da2-01d6-a373-d023-7dc20379fa1c.png)
 
----
+以下に fine-tuning したモデルの回答を示します．英語の場合と比較すると，ハルシネーションが多く見られます．また，`大規模な自然対話型 AI` という不自然な単語も利用されており，回答の品質としては低いです．日本語での対話を自然に行うためには，日本語のデータセットを追加で用意する必要があると考えられます．
 
----
+> アマゾンウェブサービス(AWS)がサービスする、完全マネージド型のデータベースサービス「AmazonBedrock」は、大規模な自然対話型 AI (generative AI)アプリケーションの構築と、リアルタイムでの対話的な顧客エクスペリエンス実現を可能にする製品です。
+>
+> AmazonBedrock は、Amazon lex、Amazon Transcribe、AmazonComprehend Premium、Amazon Titan と統合されており、自然言語プロセッシング (NLP)、音声変換、感情分析、ドキュメントランダム化などの広範囲にわたるジェネレーティブ AI 機能を提供しています。
+>
+> また、AmazonChatGPT、AmazonPaLM、Amazon Anthropic Charles などの LLM を統合し、ハイパフォーマンスな自然対話型 AI 体験を実現します。
 
-```
-## TODO
-
-- 実際にモデルを実行してみる，モデルの評価（どのように結論づけるか）
-- 本橋さんみたいに表を作成する．表の一番右に，総評を書いたほうがわかりやすいかも．
-- 図の一部は小さくした方が見やすい．．．
-```
+<!-- ![スクリーンショット 2024-08-01 114705.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1a02946c-5f8e-9ae6-f46a-8cbbd01ea977.png) -->
 
 ## まとめ
 

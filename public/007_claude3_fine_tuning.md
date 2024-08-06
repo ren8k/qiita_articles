@@ -17,15 +17,11 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+2024/7/10 に，Amazon Bedrock で [Anthropic Claude 3 Haiku の Fine-Tuning がプレビューで利用可能](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)になりました．本稿では，Claude3 Haiku の Fine-Tuning の利用手順および，Fine-Tuning したモデルを評価した結果を共有いたします．
 
-2024/7/10 に，Amazon Bedrock で [Anthropic Claude 3 Haiku の Fine-Tuning がプレビューで利用可能](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)になりました．
-Claude3 の fine-tuning をやってみたので，その内容を共有します．
-
-本検証で利用したコードは以下のリポジトリで公開しています．
+なお，本検証で利用したコードは以下のリポジトリで公開しています．是非ご覧下さい．
 
 https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
-
-※LLM を fine-tuning するメリットも言及しておきたい．
 
 ## 利用手順と検証内容
 
@@ -281,7 +277,7 @@ if __name__ == "__main__":
 
 </details>
 
-上記のコードでは，外部の JSON ファイルに 32 個の QA 形式の検証データを保存しています．実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
+上記のコードでは，外部の JSON ファイルに 32 個の QA 形式の検証データを保存しています．以下に，実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
 
 ```json
 [
@@ -622,9 +618,7 @@ fine-tuning したモデルを評価するため，評価用データセット�
 
 ### 評価指標
 
-評価指標として，LLM-as-a-Judge による Correctness (正確性)を利用しました．
-
-LLM-as-a-Judge の実行には，LangChain の [Scoring Evaluator](https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/) の [evaluate_strings](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.html#langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.evaluate_strings) メソッドを利用しました．evaluate_strings メソッドを利用することで，LangChain で用意されている様々な評価指標を用いて LLM-as-a-Judge で評価することが可能です．定量評価のため，LLM の推論結果に対して 1~10 のスコアを付ける [labeled_score_string](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.schema.EvaluatorType.html#langchain.evaluation.schema.EvaluatorType) を利用し，評価指標として[Correctness (正確性)](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.criteria.eval_chain.Criteria.html) を利用しました．また，評価用の LLM として，Claude3.5 Sonnet を利用しました．
+評価指標として，LLM-as-a-Judge による Correctness (正確性)を利用しました．LLM-as-a-Judge の実行には，LangChain の [Scoring Evaluator](https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/) の [evaluate_strings](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.html#langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.evaluate_strings) メソッドを利用しました．evaluate_strings メソッドを利用することで，LangChain で用意されている様々な評価指標を用いて LLM-as-a-Judge で評価することが可能です．定量評価のため，LLM の推論結果に対して 1~10 のスコアを付ける [labeled_score_string](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.schema.EvaluatorType.html#langchain.evaluation.schema.EvaluatorType) を利用し，評価指標として[Correctness (正確性)](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.criteria.eval_chain.Criteria.html) を利用しました．また，評価用の LLM として，Claude3.5 Sonnet を利用しました．
 
 https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/
 
@@ -641,7 +635,7 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 
 #### 質問毎の評価値
 
-以下に，質問毎の，各モデルの Correctness の評価値を示します．fine-tuning したモデル は，項番 1, 2, 4 の質問については高い正確性を示していますが，項番 3 の質問については，低い正確性となっています．Base model については，全体的に正確性が低いことが確認できます．
+以下に，質問毎の Correctness の評価値を示します．fine-tuning したモデル は，項番 1, 2, 4 の質問については高い正確性を示していますが，項番 3 の質問については，低い正確性となっています．Base model については，全体的に正確性が低いことが確認できます．
 
 | #   | 質問 (プロンプト)                           | Correctness (Fine-tuning model) | Correctness (Base model) |
 | --- | ------------------------------------------- | ------------------------------- | ------------------------ |
@@ -652,7 +646,7 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 
 #### 質問毎の回答内容
 
-以下に，各モデルの質問毎の回答内容を示します．fine-tuning したモデルの回答内容は，Base model と比較すると適切な内容となっていることが確認できます．特に，Correctness の高かった項番 1, 2, 4 の回答の品質は高いです．一方，項番 2 や項番 3 の回答の一部にハルシネーションが見られます．また，項番 3 の回答内容について，他の項番と比較すると情報量が乏しく，あまり適切に回答することができていないことがわかります．
+以下に，質問毎の各モデルの回答内容を示します．fine-tuning したモデルの回答内容は，Base model と比較すると適切な内容となっていることが確認できます．特に，Correctness の高かった項番 1, 2, 4 の回答の品質は高いです．一方，項番 2 や項番 3 の回答の一部にハルシネーションが見られます．また，項番 3 の回答内容について，他の項番と比較すると情報量が乏しく，あまり適切に回答することができていないことがわかります．
 
 Base model の回答内容を観察すると，項番 2, 3 では，「そのような知識は持っていない」と回答しています．また，その他の項番の回答についてもハルシネーションが非常に多く見られ，全体的に Correctness が低いことが確認できます．
 
@@ -671,7 +665,7 @@ fine-tuning したモデルで観察された点について考察します．
 
 #### 項番 3 の回答の正確性について
 
-fine-tuning したモデルの項番 3 の回答内容は，他の項番の回答内容に比べて文量が少なく，情報量が乏しいことが確認されました．項番 3 の質問内容は，Agents for Amazon Bedrock に関する質問であり，他の項番の質問と比べても複雑な質問ではありません．項番 3 以外の質問にはかなり正確に回答できている点を踏まえると，Agents for Amazon Bedrock の知識をうまく獲得できていないことが考えられます．この原因は，fine-tuning に用いたデータセットで，Agents for Amazon Bedrock に関する情報が不足していたことが考えられます．
+fine-tuning したモデルの項番 3 の回答内容は，他の項番の回答内容に比べて文量が少なく，情報量が乏しいことが確認されました．項番 3 の質問内容は，Agents for Amazon Bedrock に関する質問であり，他の項番の質問と比べても複雑な質問ではありません．項番 3 以外の質問にはかなり正確に回答できている点を踏まえると，Agents for Amazon Bedrock の知識をうまく獲得できていないことが考えられます．この原因は，fine-tuning に用いたデータセットで，Agents for Amazon Bedrock に関する情報が不足していたためでした．
 
 訓練データにおける，Agents for Amazon Bedrock に関する QA ペア数を確認したところ，85 個中 1 個のみで，単語としての出現数は 2 回のみでした．項番 1, 2, 4 に関する QA ペア数は 最低 7 個以上あり，単語としての出現数も 14 回以上ありました．これらの結果から，Agents for Amazon Bedrock に関するデータが不足していることが確認できます．
 
@@ -681,9 +675,7 @@ fine-tuning したモデルの項番 3 の回答内容は，他の項番の回�
 
 fine-tuning したモデルの回答の Correctness が高いことを確認しましたが，詳細に確認すると一部ハルシネーションが含まれていました．この原因としては，訓練データのサイズが小さく，知識獲得のためのデータが不足していることが考えられます．
 
-本課題については，品質の高いデータセットを追加で用意することで，回答の正確性が向上し，結果的にハルシネーションを減らすことができると考えられます．
-
-また，LLM-as-a-Judge では，これらのハルシネーションを正確に検出することが難しいため，人手での評価も必要であると考えられます．
+本課題については，品質の高いデータセットを追加で用意することで，回答の正確性が向上し，結果的にハルシネーションを減らすことができると考えられます．また，LLM-as-a-Judge では，これらのハルシネーションを正確に検出することが難しいため，人手での評価も必要であると考えられます．
 
 #### 出力形式について
 
@@ -778,7 +770,7 @@ if __name__ == "__main__":
 | Fine-tuning model          | 0.74      | 0.76   | 0.75     |
 | Base model (Claude3 Haiku) | 0.67      | 0.71   | 0.69     |
 
-LLM-as-a-Judge の Correctness の結果と同様，fine-tuning したモデルの方が Base model よりも高い評価値を示しており，想定回答に似た文章を生成できていることが確認できます．また，各モデルにおいて，Precision よりも Recall が高い傾向にあります．この原因は，回答文が長く，参照文（想定回答）に含まれる類似表現が比較的多く含まれていたためです．（ROUGE-1 を確認したところ，Precision よりも Recall が高い傾向でした．）
+LLM-as-a-Judge の Correctness の結果と同様，fine-tuning したモデルの方が Base model よりも評価値が高く，想定回答に似た文章を生成できていることが確認できます．また，各モデルにおいて，Precision よりも Recall が高い傾向にあります．この原因は，回答文が長く，参照文（想定回答）に含まれる類似表現が比較的多く含まれていたためです．（ROUGE-1 を確認したところ，Precision よりも Recall が高い傾向でした．）
 
 一方，Base model の評価値はそこまで悪い値ではありませんでした．この原因は，回答内容にハルシネーションを多く含む場合でも，回答文中の単語やその類似単語が参照文（想定回答）に多く含まれているためだと考えています．
 
@@ -877,7 +869,7 @@ if __name__ == "__main__":
 
 一方，ランニングコストの観点では，Claude3 Haiku のプロビジョンドスループットの費用はかなり高額な印象を受け，現時点では RAG の方がコストパフォーマンスが高いと感じました．（6 ヶ月の契約でも 1 ヶ月あたり $48180．）しかし，Claude3 Haiku のような高性能モデルを fine-tuning することができる点は非常に魅力的であり，今後の改善が期待されます．
 
-本検証では小規模なデータセットでの fine-tuning を行いましたが，より大規模なデータセットを利用することで精度が向上する可能性もあるので，是非試してみて下さい．
+本検証では小規模なデータセットでの fine-tuning を行いましたが，より大規模なデータセットを利用することで精度が向上する可能性があります．本記事を参考に，是非試してみて下さい．
 
 ## 仲間募集
 

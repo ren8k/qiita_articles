@@ -1,5 +1,5 @@
 ---
-title: Amazon Bedrock で Claude3 Haiku を Fine-Tuning し，評価する
+title: Amazon Bedrock における Claude 3 Haiku の Fine-Tuning 検証レポート
 tags:
   - AWS
   - bedrock
@@ -22,6 +22,10 @@ ignorePublish: false
 なお，本検証で利用したコードは以下のリポジトリで公開しています．是非ご覧下さい．
 
 https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
+
+## LLM を Fine-Tuning するメリット
+
+Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得することができます．これにより，(RAG と比較した場合，) プロンプトへの参照情報の挿入が不要になり，入力トークンを最小限に抑えることができる結果，API 実行時のコストやレイテンシーを低減することができます．また，参照情報の外部保存や Retrieve が不要になるため，外部 DB の管理コスト削減や，Retrieve に要する時間の短縮にも繋がります．（一方で，Fine-Tuning と RAG を組合せて利用することで，更に精度が向上する可能性もあります．）
 
 ## 利用手順と検証内容
 

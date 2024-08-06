@@ -47,7 +47,7 @@ Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得�
 
 ### 利用するデータセットの検討
 
-オープンソースで公開されている日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
+オープンソースで公開されている代表的な日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
 
 そこで，本検証では，Claude3 Haiku に出力形式を学習させるのではなく，ドメイン知識を獲得させることを目的としました．具体的には，Claude3 Haiku の事前学習データに含まれていないと考えられる「Amazon Bedrock」の知識を学習させるためのデータセットを準備することにしました．
 
@@ -774,7 +774,7 @@ if __name__ == "__main__":
 | Fine-tuning model          | 0.74      | 0.76   | 0.75     |
 | Base model (Claude3 Haiku) | 0.67      | 0.71   | 0.69     |
 
-LLM-as-a-Judge の Correctness の結果と同様，fine-tuning したモデルの方が Base model よりも評価値が高く，想定回答に似た文章を生成できていることが確認できます．また，各モデルにおいて，Precision よりも Recall が高い傾向にあります．この原因は，回答文が長く，参照文（想定回答）に含まれる類似表現が比較的多く含まれていたためです．（ROUGE-1 を確認したところ，Precision よりも Recall が高い傾向でした．）
+LLM-as-a-Judge の Correctness の結果と同様，fine-tuning したモデルの方が Base model よりも評価値が高く，想定回答に似た文章を生成できていることが確認できます．また，各モデルにおいて，Precision よりも Recall が高い傾向にあります．この原因は，回答文が長く，参照文（想定回答）に含まれる単語の類似表現が比較的多く含まれていたためです．（ROUGE-1 を確認したところ，Precision よりも Recall が高い傾向でした．）
 
 一方，Base model の評価値はそこまで悪い値ではありませんでした．この原因は，回答内容にハルシネーションを多く含む場合でも，回答文中の単語やその類似単語が参照文（想定回答）に多く含まれているためだと考えています．
 

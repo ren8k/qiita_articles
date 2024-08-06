@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
-2024/7/10 に，Amazon Bedrock で [Anthropic Claude 3 Haiku の Fine-Tuning がプレビューで利用可能](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)になりました．本稿では，Claude3 Haiku の Fine-Tuning の利用手順および，Fine-Tuning したモデルを評価した結果を共有いたします．
+2024/7/10 に，Amazon Bedrock で [Anthropic Claude 3 Haiku の Fine-Tuning がプレビューで利用可能](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)になりました．本稿では，Claude3 Haiku の Fine-Tuning の利用手順および，Fine-Tuning したモデルの評価結果を共有いたします．
 
 なお，本検証で利用したコードは以下のリポジトリで公開しています．是非ご覧下さい．
 

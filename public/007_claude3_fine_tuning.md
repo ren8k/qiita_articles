@@ -1,5 +1,5 @@
 ---
-title: Amazon Bedrock で Claude3 Haiku を fine-tuning する
+title: Amazon Bedrock における Claude 3 Haiku の Fine-Tuning 検証レポート
 tags:
   - Python
   - AWS
@@ -17,14 +17,15 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+2024/7/10 に，Amazon Bedrock で [Anthropic Claude 3 Haiku の Fine-Tuning がプレビューで利用可能](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)になりました．本稿では，Claude3 Haiku の Fine-Tuning の利用手順および，Fine-Tuning したモデルを評価した結果を共有いたします．
 
-Claude3 の FT をやってみたので，その内容を共有します．
-
-本検証で利用したコードは以下のリポジトリで公開しています．
+なお，本検証で利用したコードは以下のリポジトリで公開しています．是非ご覧下さい．
 
 https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
-※LLM を fine-tuning するメリットも言及しておきたい．
+## LLM を Fine-Tuning するメリット
+
+Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得することができます．これにより，(RAG と比較した場合，) プロンプトへの参照情報の挿入が不要になり，入力トークンを最小限に抑えることができる結果，API 実行時のコストやレイテンシーを低減することができます．また，参照情報の外部保存や Retrieve が不要になるため，外部 DB の管理コスト削減や，Retrieve に要する時間の短縮にも繋がります．（一方で，Fine-Tuning と RAG を組合せて利用することで，更に精度が向上する可能性もあります．）
 
 ## 利用手順と検証内容
 
@@ -38,7 +39,7 @@ https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
 ## 利用申請
 
-執筆時点（2024/07/27）では，Amazon Bedrock で Claude3 Haiku を fine-tuning するには，[AWS サポートに申請が必要](https://aws.amazon.com/jp/about-aws/whats-new/2024/07/fine-tuning-anthropics-claude-3-haiku-bedrock-preview/)です．サポートチケット作成時，サービスとして「Bedrock」を選択し，カテゴリとして「Models」を選択して下さい．
+執筆時点（2024/07/27）では，Amazon Bedrock で Claude3 Haiku を fine-tuning するには，[AWS サポートに申請が必要](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html)です．サポートチケット作成時，サービスとして「Bedrock」を選択し，カテゴリとして「Models」を選択して下さい．
 
 ## データセットの作成
 
@@ -280,7 +281,7 @@ if __name__ == "__main__":
 
 </details>
 
-上記のコードでは，外部の JSON ファイルに 32 個の QA 形式の検証データを保存しています．実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
+上記のコードでは，外部の JSON ファイルに 32 個の QA 形式の検証データを保存しています．以下に，実際に生成された検証データの一部を示します．プロンプトで指示した通り，QA 形式となっていることを確認できます．
 
 ```json
 [
@@ -621,13 +622,13 @@ fine-tuning したモデルを評価するため，評価用データセット�
 
 ### 評価指標
 
-LangChain の [Scoring Evaluator](https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/) の [evaluate_strings](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.html#langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.evaluate_strings) メソッドを利用し，評価を行いました．evaluate_strings メソッドを利用することで，LangChain で用意されている様々な評価指標を用いて LLM-as-a-Judge で評価することが可能です．定量評価のため，LLM の推論結果に対して 1~10 のスコアを付ける [labeled_score_string](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.schema.EvaluatorType.html#langchain.evaluation.schema.EvaluatorType) を利用し，評価指標として[Correctness (正確性)](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.criteria.eval_chain.Criteria.html) を利用しました．また，評価用の LLM として，Claude3.5 Sonnet を利用しました．
+評価指標として，LLM-as-a-Judge による Correctness (正確性)を利用しました．LLM-as-a-Judge の実行には，LangChain の [Scoring Evaluator](https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/) の [evaluate_strings](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.html#langchain.evaluation.scoring.eval_chain.LabeledScoreStringEvalChain.evaluate_strings) メソッドを利用しました．evaluate_strings メソッドを利用することで，LangChain で用意されている様々な評価指標を用いて LLM-as-a-Judge で評価することが可能です．定量評価のため，LLM の推論結果に対して 1~10 のスコアを付ける [labeled_score_string](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.schema.EvaluatorType.html#langchain.evaluation.schema.EvaluatorType) を利用し，評価指標として[Correctness (正確性)](https://api.python.langchain.com/en/latest/evaluation/langchain.evaluation.criteria.eval_chain.Criteria.html) を利用しました．また，評価用の LLM として，Claude3.5 Sonnet を利用しました．
 
 https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/string/scoring_eval_chain/
 
 ### 結果
 
-以下に，モデル毎の 4 つの質問に対する Correctness (正確性) の平均値を示します．fine-tuning したモデルの方が，Base model よりも正確性が高く，評価値としても良好であることが確認できます．
+以下に，モデル毎の 4 つの質問に対する Correctness (正確性) の平均値を示します．fine-tuning したモデルの方が，Base model よりも正確性が高く，評価値としても比較的良好であることが確認できます．
 
 | Model                      | Correctness (平均) |
 | -------------------------- | ------------------ |
@@ -638,7 +639,7 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 
 #### 質問毎の評価値
 
-以下に，質問毎の，各モデルの Correctness の評価値を示します．fine-tuning したモデル は，項番 1, 2, 4 の質問については高い正確性を示していますが，項番 3 の質問については，低い正確性となっています．Base model については，全体的に正確性が低いことが確認できます．
+以下に，質問毎の Correctness の評価値を示します．fine-tuning したモデル は，項番 1, 2, 4 の質問については高い正確性を示していますが，項番 3 の質問については，低い正確性となっています．Base model については，全体的に正確性が低いことが確認できます．
 
 | #   | 質問 (プロンプト)                           | Correctness (Fine-tuning model) | Correctness (Base model) |
 | --- | ------------------------------------------- | ------------------------------- | ------------------------ |
@@ -649,7 +650,7 @@ https://python.langchain.com/v0.1/docs/guides/productionization/evaluation/strin
 
 #### 質問毎の回答内容
 
-以下に，各モデルの質問毎の回答内容を示します．fine-tuning したモデルの回答内容は，Base model と比較すると適切な内容となっていることが確認できます．特に，Correctness の高かった項番 1, 2, 4 については，回答品質が高いです．一方，項番 2 や項番 3 の回答の一部にハルシネーションが見られます．また，項番 3 の回答内容について，他の項番と比較すると情報量が乏しく，あまり適切に回答することができていないことがわかります．
+以下に，質問毎の各モデルの回答内容を示します．fine-tuning したモデルの回答内容は，Base model と比較すると適切な内容となっていることが確認できます．特に，Correctness の高かった項番 1, 2, 4 の回答の品質は高いです．一方，項番 2 や項番 3 の回答の一部にハルシネーションが見られます．また，項番 3 の回答内容について，他の項番と比較すると情報量が乏しく，あまり適切に回答することができていないことがわかります．
 
 Base model の回答内容を観察すると，項番 2, 3 では，「そのような知識は持っていない」と回答しています．また，その他の項番の回答についてもハルシネーションが非常に多く見られ，全体的に Correctness が低いことが確認できます．
 
@@ -668,7 +669,7 @@ fine-tuning したモデルで観察された点について考察します．
 
 #### 項番 3 の回答の正確性について
 
-fine-tuning したモデルの項番 3 の回答内容は，他の項番の回答内容に比べて文量が少なく，情報量が乏しいことが確認されました．項番 3 の質問内容は，Agents for Amazon Bedrock に関する質問であり，他の項番の質問と比べても複雑な質問ではありません．項番 3 以外の質問にはかなり正確に回答できている点を踏まえると，Agents for Amazon Bedrock の知識をうまく獲得できていないことが考えられます．この原因は，fine-tuning に用いたデータセットで，Agents for Amazon Bedrock に関する情報が不足していたことが考えられます．
+fine-tuning したモデルの項番 3 の回答内容は，他の項番の回答内容に比べて文量が少なく，情報量が乏しいことが確認されました．項番 3 の質問内容は，Agents for Amazon Bedrock に関する質問であり，他の項番の質問と比べても複雑な質問ではありません．項番 3 以外の質問にはかなり正確に回答できている点を踏まえると，Agents for Amazon Bedrock の知識をうまく獲得できていないことが考えられます．この原因は，fine-tuning に用いたデータセットで，Agents for Amazon Bedrock に関する情報が不足していたためでした．
 
 訓練データにおける，Agents for Amazon Bedrock に関する QA ペア数を確認したところ，85 個中 1 個のみで，単語としての出現数は 2 回のみでした．項番 1, 2, 4 に関する QA ペア数は 最低 7 個以上あり，単語としての出現数も 14 回以上ありました．これらの結果から，Agents for Amazon Bedrock に関するデータが不足していることが確認できます．
 
@@ -678,13 +679,11 @@ fine-tuning したモデルの項番 3 の回答内容は，他の項番の回�
 
 fine-tuning したモデルの回答の Correctness が高いことを確認しましたが，詳細に確認すると一部ハルシネーションが含まれていました．この原因としては，訓練データのサイズが小さく，知識獲得のためのデータが不足していることが考えられます．
 
-本課題については，品質の高いデータセットを追加で用意することで，回答の正確性が向上し，結果的にハルシネーションを減らすことができると考えられます．
-
-また，LLM-as-a-Judge では，これらのハルシネーションを正確に検出することが難しいため，人手での評価も必要であると考えられます．
+本課題については，品質の高いデータセットを追加で用意することで，回答の正確性が向上し，結果的にハルシネーションを減らすことができると考えられます．また，LLM-as-a-Judge では，これらのハルシネーションを正確に検出することが難しいため，人手での評価も必要であると考えられます．
 
 #### 出力形式について
 
-本検証の Base model に限らず，Claude3 Haiku の回答には，番号付きリスト (箇条書き) が多用されますが，本検証での fine-tuning したモデルの回答内容は含まれていません．これは，fine-tuning に用いたデータセットに，番号付きリストのデータが含まれておらず，QA 形式でのデータで学習した結果，回答の出力形式にも影響が出たと考えられます．
+本検証の Base model に限らず，Claude3 Haiku の回答には，番号付きリスト (箇条書き) が多用されますが，本検証での fine-tuning したモデルの回答内容は含まれていません．これは，番号付きリストのデータが含まれておらず，QA 形式でのデータで学習した結果，回答の出力形式にも影響が出たと考えられます．
 
 ### 評価時のコード
 
@@ -692,7 +691,7 @@ fine-tuning したモデルの回答の Correctness が高いことを確認し�
 
 <details open><summary>Python実装（折り畳めます）</summary>
 
-```python:evaluation.py
+```python:eval_llm_as_a_judge.py
 import argparse
 import json
 
@@ -705,25 +704,22 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "--prediction-file",
         type=str,
-        default="./eval_data/fine-tuning-model_prediction.json",
+        default="../../dataset/eval/fine-tuning-model_prediction.json",
     )
     parser.add_argument(
         "--label-file",
         type=str,
-        default="./eval_data/label.json",
+        default="../../dataset/eval/label.json",
     )
     return parser.parse_args()
 
 
-def load_json(file_path: str) -> dict:
+def load_json(file_path: str) -> list:
     with open(file_path, "r") as f:
         return json.load(f)
 
 
-def main(args: argparse.Namespace) -> None:
-    predictions = load_json(args.prediction_file)
-    labels = load_json(args.label_file)
-
+def llm_as_a_judge(predictions: list, labels: list) -> None:
     model = ChatBedrock(
         model_id="anthropic.claude-3-5-sonnet-20240620-v1:0",
         region_name="us-east-1",
@@ -754,6 +750,13 @@ def main(args: argparse.Namespace) -> None:
     print(f"Average score: {score_average}")
 
 
+def main(args: argparse.Namespace) -> None:
+    predictions = load_json(args.prediction_file)
+    labels = load_json(args.label_file)
+
+    llm_as_a_judge(predictions, labels)
+
+
 if __name__ == "__main__":
     args = get_args()
     main(args)
@@ -762,7 +765,93 @@ if __name__ == "__main__":
 
 </details>
 
-### 補足実験
+### 補足: 利用する評価指標について
+
+本検証の評価指標として LLM-as-a-Judge の Correctness を利用しましたが，文章生成タスクで利用される評価指標には，ROUGE, BLEU, BERTScore などがあります．特に，BERTScore は，事前学習済みの BERT から得られる文脈化トークン埋め込みを利用し，テキスト間の類似度を計算する評価指標であり，文章生成や要約タスクではよく利用されております．検証時に BERTScore でも評価を行っていたため，その結果を以下に示します．以下の表では，各モデルでの Precision, Recall, F1 Score の平均値を示しています．
+
+| Model                      | Precision | Recall | F1 Score |
+| -------------------------- | --------- | ------ | -------- |
+| Fine-tuning model          | 0.74      | 0.76   | 0.75     |
+| Base model (Claude3 Haiku) | 0.67      | 0.71   | 0.69     |
+
+LLM-as-a-Judge の Correctness の結果と同様，fine-tuning したモデルの方が Base model よりも評価値が高く，想定回答に似た文章を生成できていることが確認できます．また，各モデルにおいて，Precision よりも Recall が高い傾向にあります．この原因は，回答文が長く，参照文（想定回答）に含まれる類似表現が比較的多く含まれていたためです．（ROUGE-1 を確認したところ，Precision よりも Recall が高い傾向でした．）
+
+一方，Base model の評価値はそこまで悪い値ではありませんでした．この原因は，回答内容にハルシネーションを多く含む場合でも，回答文中の単語やその類似単語が参照文（想定回答）に多く含まれているためだと考えています．
+
+今回の検証では，LLM-as-a-Judge のみで評価を行いましたが，意味的類似性の観点で BERTScore を，論理的整合性や事実的正確性の観点で LLM-as-a-Judge の Correctness を併用することで，より多角的な評価が可能になると考えられます．
+
+参考に，BERTScore の評価コードを以下に示します．
+
+<details><summary>Python実装（折り畳めます）</summary>
+
+```python:eval_bert_score.py
+import argparse
+import json
+
+from bert_score import score
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--prediction-file",
+        type=str,
+        default="../../dataset/eval/fine-tuning-model_prediction.json",
+    )
+    parser.add_argument(
+        "--label-file",
+        type=str,
+        default="../../dataset/eval/label.json",
+    )
+    return parser.parse_args()
+
+
+def load_json(file_path: str) -> list:
+    with open(file_path, "r") as f:
+        return json.load(f)
+
+
+def get_target_sentences(qa_list: list) -> list:
+    sentences = []
+    for qa in qa_list:
+        sentences.append(qa["answer"])
+    return sentences
+
+
+def calc_bert_score(cands: list, refs: list) -> tuple:
+    Precision, Recall, F1 = score(cands, refs, lang="ja", verbose=True)
+    return Precision.numpy().tolist(), Recall.numpy().tolist(), F1.numpy().tolist()
+
+
+def bert_score(predictions: list, labels: list) -> None:
+    cands = get_target_sentences(predictions)
+    refs = get_target_sentences(labels)
+
+    P, R, F1 = calc_bert_score(cands, refs)
+    for p, r, f1 in zip(P, R, F1):
+        print(f"precision: {p}, recall: {r}, f1_score: {f1}")
+
+    print(f"Average precision: {sum(P) / len(P)}")
+    print(f"Average recall: {sum(R) / len(R)}")
+    print(f"Average f1_score: {sum(F1) / len(F1)}")
+
+
+def main(args: argparse.Namespace) -> None:
+    predictions = load_json(args.prediction_file)
+    labels = load_json(args.label_file)
+
+    bert_score(predictions, labels)
+
+
+if __name__ == "__main__":
+    args = get_args()
+    main(args)
+
+```
+
+</details>
+
+### 補足: 日本語での実験
 
 日本語で `Amazon Bedrockについて教えて` と質問した場合の回答を確認しました．
 
@@ -780,7 +869,11 @@ if __name__ == "__main__":
 
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+本稿では，Amazon Bedrock 上で Claude3 Haiku を fine-tuning する方法を紹介し，実際に fine-tuning したモデルを評価しました．データセットとして，Amazon Bedrock FAQs のデータを利用し，検証データを Bedrock Converse API の Document chat と Json mode を利用して作成しました．モデルの評価では，評価指標として，LLM-as-a-Judge の Correctness および，BERTScore を利用し，fine-tuning により，Amazon Bedrock の知識獲得に成功していることを確認しました．
+
+一方，ランニングコストの観点では，Claude3 Haiku のプロビジョンドスループットの費用はかなり高額な印象を受け，現時点では RAG の方がコストパフォーマンスが高いと感じました．（6 ヶ月の契約でも 1 ヶ月あたり $48180．）しかし，Claude3 Haiku のような高性能モデルを fine-tuning することができる点は非常に魅力的であり，今後の改善が期待されます．
+
+本検証では小規模なデータセットでの fine-tuning を行いましたが，より大規模なデータセットを利用することで精度が向上する可能性があります．本記事を参考に，是非試してみて下さい．
 
 ## 仲間募集
 
@@ -829,7 +922,7 @@ https://enterprise-aiiot.nttdata.com/tdf/
 
 <details><summary> TDF-AM（Trusted Data FoundationⓇ - Analytics Managed Service）について</summary><div>
 
-～データ活用基盤の段階的な拡張支援（Quick Start) と保守運用のマネジメント（Analytics Managed）をご提供することでお客様の DX を成功に導く、データ活用プラットフォームサービス～
+～データ活用基盤の段階的な拡張支援 (Quick Start) と保守運用のマネジメント（Analytics Managed）をご提供することでお客様の DX を成功に導く、データ活用プラットフォームサービス～
 https://enterprise-aiiot.nttdata.com/service/tdf/tdf_am
 TDFⓇ-AM は、データ活用を Quick に始めることができ、データ活用の成熟度に応じて段階的に環境を拡張します。プラットフォームの保守運用は NTT データが一括で実施し、お客様は成果創出に専念することが可能です。また、日々最新のテクノロジーをキャッチアップし、常に活用しやすい環境を提供します。なお、ご要望に応じて上流のコンサルティングフェーズから AI/BI などのデータ活用支援に至るまで、End to End で課題解決に向けて伴走することも可能です。
 

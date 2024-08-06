@@ -6,8 +6,8 @@ tags:
   - bedrock
   - 生成AI
   - claude
-private: true
-updated_at: '2024-08-07T03:04:21+09:00'
+private: false
+updated_at: "2024-08-07T03:04:21+09:00"
 id: 060cc15f10e492b2d987
 organization_url_name: null
 slide: false
@@ -869,7 +869,7 @@ if __name__ == "__main__":
 
 ## まとめ
 
-本稿では，Amazon Bedrock 上で Claude3 Haiku を fine-tuning する方法を紹介し，実際に fine-tuning したモデルを評価しました．データセットとして，Amazon Bedrock FAQs のデータを利用し，検証データを Bedrock Converse API の Document chat と Json mode を利用して作成しました．モデルの評価では，評価指標として，LLM-as-a-Judge の Correctness および，BERTScore を利用し，fine-tuning により，Amazon Bedrock の知識獲得に成功していることを確認しました．
+本稿では，Amazon Bedrock 上で Claude3 Haiku を fine-tuning する方法を紹介し，実際に fine-tuning したモデルを評価しました．データセットとして，Amazon Bedrock FAQs のデータを利用し，検証データを Bedrock Converse API の Document chat と Json mode を利用して作成しました．モデルの評価では，評価指標として，LLM-as-a-Judge の Correctness および BERTScore を利用しました．評価の結果，fine-tuning により，Amazon Bedrock の知識獲得に成功していることを確認しました．
 
 一方，ランニングコストの観点では，Claude3 Haiku のプロビジョンドスループットの費用はかなり高額な印象を受け，現時点では RAG の方がコストパフォーマンスが高いと感じました．（6 ヶ月の契約でも 1 ヶ月あたり $48180．）しかし，Claude3 Haiku のような高性能モデルを fine-tuning することができる点は非常に魅力的であり，今後の改善が期待されます．
 

@@ -403,6 +403,24 @@ python3 preprocess.py \
 {"system": "You are a high-performance QA assistant that responds to questions concisely, accurately, and appropriately.", "messages": [{"role": "user", "content": "How can I get started with using Amazon Bedrock?"}, {"role": "assistant", "content": "With the serverless experience of Amazon Bedrock, you can quickly get started by navigating to the service in the AWS console and trying out the foundation models in the playground or creating and testing an agent."}]}
 ```
 
+:::note
+訓練データ，および検証データには，以下の要件があります．
+
+- データの件数の上限・下限
+  - 訓練データ: 32~10000
+  - 検証データ: 32~1000
+- データセットのサイズ
+  - 訓練データ: 10GB 以下
+  - 検証データ: 1GB 以下
+- データセットのフォーマット
+  - JSON Lines (JSONL) 形式
+  - システムプロンプト，ユーザーのプロンプト，LLM のレスポンスを Claude3 用のフォーマットで保存
+
+fine-tuning には時間や費用がかかるため，事前にデータセットが要件を満たしているかを確認することを推奨します．本検証では，以下で公開されている AWS 公式の Data Validation ツールを利用することで，事前に確認を行っています．
+:::
+
+https://github.com/aws-samples/amazon-bedrock-samples/tree/main/bedrock-fine-tuning/claude-haiku/DataValidation
+
 ## データセットを S3 へアップロード
 
 作成した訓練データ，検証データを，米国西部 (オレゴン) リージョンの S3 バケットにアップロードする必要があります．[本リポジトリ](https://github.com/ren8k/aws-bedrock-claude3-fine-tuning/tree/main/dataset/preprocessed)では，先程のステップで作成した前処理済みのデータセットを公開しております．本リポジトリ上のデータを利用する場合，以下のコマンドで，本データセットのアップロードが可能です．コマンド中の `<your bucket>` は、任意のバケット名に置き換えてください。
@@ -427,11 +445,11 @@ aws s3 cp dataset/preprocessed/ s3://<your bucket>/claude3-haiku/dataset --recur
 
 微調整ジョブ (fine-tuning job) の作成画面の [ソースモデル] の [モデルを選択] を選択します．
 
-![スクリーンショット 2024-07-24 121626.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/829e16d0-e547-90fd-5a44-d14cb2612998.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/829e16d0-e547-90fd-5a44-d14cb2612998.png">
 
 Claude3 Haiku を選択し，[適用] を押下します．
 
-![スクリーンショット 2024-07-24 121845.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2ef34d9d-125a-f632-58ad-a5f05aba2c2a.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/2ef34d9d-125a-f632-58ad-a5f05aba2c2a.png">
 
 fine-tuning job の設定画面で，以下の情報を入力します．
 
@@ -439,24 +457,24 @@ fine-tuning job の設定画面で，以下の情報を入力します．
 - ジョブ名: fine-tuning job 名
 - 入力データ: 先程アップロードした訓練データと検証データの S3 パス
 
-![スクリーンショット 2024-07-26 203659.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/706fad24-c0a1-ef54-c6ee-76366f2b029a.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/706fad24-c0a1-ef54-c6ee-76366f2b029a.png">
 
 fine-tuning job のハイパーパラメータを設定します．なお，エポック数のデフォルト値は 2 ですが，本検証は 10 エポックで実施し，その他のパラメータはデフォルト値としました．
 
 | ハイパーパラメータ        | 内容                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------ |
 | エポック                  | 訓練データセット全体を繰り返し学習する回数（最大 10epoch）                                 |
-| バッチサイズ              | モデルのパラメータ更新で使用するデータの数                                                 |
-| Learning rate multiplier  | 基本学習率 (base learning rate) を調整するための係数                                       |
+| バッチサイズ              | モデルのパラメータ更新で使用するサンプル数                                                 |
+| Learning rate multiplier  | 基本学習率 (base learning rate) を調整するための乗数                                       |
 | Early stopping (早期停止) | validation loss が一定のエポック数で改善しない場合に学習を停止する，過学習を防ぐための手法 |
 | 早期停止のしきい値        | Early stopping を判断するための validation loss の改善幅のしきい値                         |
 | 早期停止ペイシェンス      | Early stopping を判断するまでに許容するエポック数                                          |
 
-![スクリーンショット 2024-07-26 203928.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/32b298e0-1e81-0226-7e57-f50975d3902b.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/32b298e0-1e81-0226-7e57-f50975d3902b.png">
 
 fine-tuning 実行時の training loss, validation loss の推移を記録するため，保存先の S3 URI を指定します．また，サービスロールは新規作成します．その後，[モデルを微調整] を選択し，fine-tuning job を実行します．
 
-![スクリーンショット 2024-07-26 203949.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c6309f0a-0bf5-71eb-02e4-5d2549e1bdf9.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c6309f0a-0bf5-71eb-02e4-5d2549e1bdf9.png">
 
 fine-tuning job が開始されます．ステータス が `トレーニング` から `完了` に変わるまで待ちます．
 
@@ -494,11 +512,12 @@ Bedrock コンソールの [カスタムモデル] の画面で微調整され�
 
 プロビジョンドスループットの名前を入力し，契約期間を選択します．今回の検証では 1 時間程度しか利用しないため， 時間単位の課金である `No commitment` を選択しました．その後，[プロビジョンドスループットを購入] を選択します．
 
-![スクリーンショット 2024-08-01 105444.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/d834c793-e9e1-d1e4-3f11-ae244ae497d0.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/d834c793-e9e1-d1e4-3f11-ae244ae497d0.png">
 
 購入確認画面が表示されるので，チェックボックスを付け [購入を確認] を選択します．
 
-![スクリーンショット 2024-08-01 105636.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1ed625c1-2bcd-d070-7b9c-7cafbfe1558d.png)
+<img width="600" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1ed625c1-2bcd-d070-7b9c-7cafbfe1558d.png">
+
 ![スクリーンショット 2024-08-01 105725.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a82f5929-7a33-54e7-1a82-ce2df56af95b.png)
 
 今回の検証では，20 分程度で完了しました．
@@ -508,6 +527,10 @@ Bedrock コンソールの [カスタムモデル] の画面で微調整され�
 作成されたプロビジョンドスループットを選択すると，プロビジョンドスループットの ARN などを確認できます．こちらは，Boto3 を利用してモデルで推論する際に利用します．
 
 ![スクリーンショット 2024-08-01 115519.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/0887eea0-7cd4-c4ea-a220-ac5c4b7e4661.png)
+
+:::note warn
+1 時間あたり 132 ドルの課金が発生するので，利用後は迅速にプロビジョンドスループットを削除することをお勧めします！
+:::
 
 ## fine-tuning したモデルの実行
 

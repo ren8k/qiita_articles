@@ -7,9 +7,9 @@ tags:
   - 生成AI
   - claude
 private: false
-updated_at: '2024-08-07T10:29:11+09:00'
+updated_at: "2024-08-07T10:29:11+09:00"
 id: 060cc15f10e492b2d987
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
@@ -47,7 +47,7 @@ Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得�
 
 ### 利用するデータセットの検討
 
-オープンソースで公開されている代表的な日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しにくい可能性があります．
+オープンソースで公開されている代表的な日本語データセットとして，[databricks-dolly-15k-ja](https://huggingface.co/datasets/kunishou/databricks-dolly-15k-ja) や [databricks-dolly-15k-ja-gozaru](https://huggingface.co/datasets/bbz662bbz/databricks-dolly-15k-ja-gozaru?row=99) などが挙げられます．databricks-dolly-15k-ja-gozaru は，LLM の応答の語尾（口調）を「ござる」にするためのユニークなデータセットです．しかし，Claude3 Haiku の性能であれば，このデータセットで fine-tuning せずとも，システムプロンプトで指示するだけで同様の効果が得られると予想されます．そのため，このデータセットを使用しての fine-tuning は，その効果を実感しづらい可能性があります．
 
 そこで，本検証では，Claude3 Haiku に出力形式を学習させるのではなく，ドメイン知識を獲得させることを目的としました．具体的には，Claude3 Haiku の事前学習データに含まれていないと考えられる「Amazon Bedrock」の知識を学習させるためのデータセットを準備することにしました．
 

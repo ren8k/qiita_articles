@@ -1,14 +1,14 @@
 ---
 title: Amazon Bedrock Converse API で Claude3 の JSON モードを利用する
 tags:
+  - Python
   - AWS
   - bedrock
-  - Python
-  - LLM
   - 生成AI
+  - LLM
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-07-01T15:16:32+09:00'
+id: 3d5f66df251703b8407e
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

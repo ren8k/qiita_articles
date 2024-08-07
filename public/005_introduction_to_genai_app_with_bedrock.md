@@ -2,13 +2,13 @@
 title: 「Amazon Bedrock」で始める生成AIアプリ開発入門バイブルの登場！！
 tags:
   - AWS
-  - bedrock
   - 技術書
-  - LLM
+  - bedrock
   - 生成AI
+  - LLM
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-06-26T18:22:13+09:00'
+id: 6134d2457211e5a285c4
 organization_url_name: null
 slide: false
 ignorePublish: false

@@ -290,8 +290,8 @@ if __name__ == "__main__":
     "answer": "Amazon Bedrock is a fully managed service that offers a choice of high-performing foundation models along with capabilities for building generative AI applications, simplifying development with security, privacy, and responsible AI features."
   },
   {
-    "question": "What can you do with Amazon Bedrock?",
-    "answer": "With Amazon Bedrock, you can experiment with and evaluate top foundation models for your use cases, privately customize them with your own data using techniques like fine-tuning and retrieval augmented generation, and build agents that execute tasks using your enterprise systems and data sources."
+    "question": "What are guardrails used for in Amazon Bedrock?",
+    "answer": "Guardrails in Amazon Bedrock allow you to implement safeguards for your generative AI applications to prevent inappropriate or unwanted content."
   }
 ]
 ```

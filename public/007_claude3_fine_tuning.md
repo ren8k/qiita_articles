@@ -61,7 +61,7 @@ https://aws.amazon.com/jp/blogs/machine-learning/fine-tune-anthropics-claude-3-h
 
 ### 利用する訓練データ
 
-本検証では，AWS Machine Learning Blog の記事 “[Improve RAG accuracy with fine-tuned embedding models on Amazon SageMaker](https://aws.amazon.com/jp/blogs/machine-learning/improve-rag-accuracy-with-fine-tuned-embedding-models-on-amazon-sagemaker/)” で利用されている [Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/) のデータセットを fine-tuning 用の訓練データとして利用しました．データセットは以下のリポジトリで公開されています．
+fine-tuning 用の訓練データとして，AWS Machine Learning Blog の記事 “[Improve RAG accuracy with fine-tuned embedding models on Amazon SageMaker](https://aws.amazon.com/jp/blogs/machine-learning/improve-rag-accuracy-with-fine-tuned-embedding-models-on-amazon-sagemaker/)” で利用されている [Amazon Bedrock FAQs](https://aws.amazon.com/jp/bedrock/faqs/) のデータセットを利用しました．データセットは以下のリポジトリで公開されています．
 
 https://github.com/aws-samples/fine-tune-embedding-models-on-sagemaker/blob/main/sentence-transformer/multiple-negatives-ranking-loss/training.json
 

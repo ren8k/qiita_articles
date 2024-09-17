@@ -28,9 +28,12 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 ## 目次
 
+- はじめに
 - Amazon Titan Image Generator v2 とは
 - Amazon Titan Image Generator v2 の機能
-- 各機能について
+- 各機能の紹介
+- プロンプトエンジニアリングについて
+- まとめ
 
 ## Amazon Titan Image Generator v2 とは
 
@@ -42,16 +45,24 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 入力の言語は英語のみ対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
 
-## プロンプトエンジニアリングについて
-
-[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#titanimage-prompt)や[プロンプトエンジニアリングガイドブック](https://d2eo22ngex1n9g.cloudfront.net/Documentation/User+Guides/Titan/Amazon+Titan+Image+Generator+Prompt+Engineering+Guidelines.pdf)が参考になります．
-
 ## Amazon Titan Image Generator v2 の機能一覧
 
 | タスクタイプ | 機能                               | 説明                                           |
 | ------------ | ---------------------------------- | ---------------------------------------------- |
 | TEXT_IMAGE   | 画像生成                           | テキストプロンプトを使用して画像を生成します。 |
-| TEXT_IMAGE   | 画像コンディショニング(Canny Edge) | ~~~                                            |
+| TEXT_IMAGE   | 画像コンディショニング(Canny Edge) | Canny Edge 画像を生成します。                  |
+
+---
+
+| タスクタイプ              | 機能                               | 説明                                                                                                   |
+| ------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `TEXT_IMAGE`              | 画像生成                           | テキストプロンプトを使用して画像を生成。                                                               |
+| `TEXT_IMAGE`              | 画像コンディショニング(Canny Edge) | 入力条件画像のレイアウトと構図に従う画像も生成可能。                                                   |
+| `INPAINTING`              | 画像修正                           | マスクの内側を周囲の背景に合わせて変更し、画像を修正。                                                 |
+| `OUTPAINTING`             | 画像拡張                           | マスクで定義された領域をシームレスに拡張し、画像を修正。                                               |
+| `IMAGE_VARIATION`         | バリエーション生成                 | 元の画像のバリエーションを生成して画像を修正。                                                         |
+| `COLOR_GUIDED_GENERATION` | 色指定画像生成                     | テキストプロンプトと Hex カラーコードのリストを使用し、指定カラーパレットに従う画像を生成（V2 のみ）。 |
+| `BACKGROUND_REMOVAL`      | 背景除去                           | 複数のオブジェクトを識別し背景を削除、透明な背景の画像を出力（V2 のみ）。                              |
 
 ## 機能紹介
 
@@ -161,6 +172,23 @@ SDXL の方が新しいかも？
 https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1
 
 https://qiita.com/nabata/items/86cb2ac5b3e345ea86a7#create-image-edit
+
+## プロンプトエンジニアリングについて
+
+Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様，プロンプトエンジニアリングが重要です．プロンプトエンジニアリングには以下の推奨事項があります．詳細は，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#titanimage-prompt)や[プロンプトエンジニアリングガイドブック](https://d2eo22ngex1n9g.cloudfront.net/Documentation/User+Guides/Titan/Amazon+Titan+Image+Generator+Prompt+Engineering+Guidelines.pdf)を参照下さい．
+
+- 画像生成の際，プロンプトを主題から始める．
+  - 例: An image of a ...
+- 可能な限り，詳細情報をプロンプトに含める．
+  - 例: 表現方法（油彩/水彩画など），色，照明，備考，形容詞，品質，およびスタイル（印象派，写実的など）
+- テキストを囲む場合，ダブルクオーテーション ("") を使用する．
+  - 例: An image of a boy holding a sign that says "success"
+- プロンプトの要素を論理的に順序付け，句読点を使用して関係性を示す．
+  - 例: An image of a cup of coffee from the side, steam rising, on a wooden table,...
+- プロンプトでは具体的な単語を使用し，必要に応じてネガティブプロンプトを使用する．
+- インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．
+
+また，モデルの推論パラメーター (`cfgScale` や `numberOfImages`など) を調整することも重要です．
 
 ## まとめ
 

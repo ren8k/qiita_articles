@@ -66,30 +66,28 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 ## 機能紹介
 
-また，推論パラメーターについては，以下のパラメーターがあります．その他詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)に記載があります．
+本節では，AWS SDK for Python (boto3) を使用し，Amazon Titan Image Generator v2 の各機能を紹介します．
 
-"numberOfImages": num_image, # Range: 1 to 5
-"quality": "premium", # Options: standard/premium
-"height": 1024, # Supported height list in the docs
-"width": 1024, # Supported width list in the docs
-"cfgScale": cfg_scale, # Range: 1.0 (exclusive) to 10.0
-"seed": seed, # Range: 0 to 214783647
+説明のため，画像を生成して表示するヘルパー関数 `generate_image` を定義しておきます．
 
-```python
-def titan_image(
+```python:generate_image.py
+import base64
+import io
+import json
+
+import boto3
+from PIL import Image
+
+
+def generate_image(
     payload: dict,
-    num_image: int = 2,
-    cfg: float = 10.0,
+    num_image: int = 1,
+    cfg_scale: float = 10.0,
     seed: int = 42,
-    modelId: str = "amazon.titan-image-generator-v2",
-) -> list:
-    #   ImageGenerationConfig Options:
-    #   - numberOfImages: Number of images to be generated
-    #   - quality: Quality of generated images, can be standard or premium
-    #   - height: Height of output image(s)
-    #   - width: Width of output image(s)
-    #   - cfgScale: Scale for classifier-free guidance
-    #   - seed: The seed to use for reproducibility
+    model_id: str = "amazon.titan-image-generator-v2:0",
+) -> None:
+
+    client = boto3.client("bedrock-runtime", region_name="us-west-2")
     body = json.dumps(
         {
             **payload,
@@ -98,25 +96,54 @@ def titan_image(
                 "quality": "premium",  # Options: standard/premium
                 "height": 1024,  # Supported height list above
                 "width": 1024,  # Supported width list above
-                "cfgScale": cfg,  # Range: 1.0 (exclusive) to 10.0
+                "cfgScale": cfg_scale,  # Range: 1.0 (exclusive) to 10.0
                 "seed": seed,  # Range: 0 to 214783647
             },
         }
     )
 
-    response = bedrock_runtime_client.invoke_model(
+    response = client.invoke_model(
         body=body,
-        modelId=modelId,
+        modelId=model_id,
         accept="application/json",
         contentType="application/json",
     )
 
     response_body = json.loads(response.get("body").read())
-    images = [
-        Image.open(io.BytesIO(base64.b64decode(base64_image)))
-        for base64_image in response_body.get("images")
-    ]
-    return images
+    base64_image = response_body.get("images")[0]
+    base64_bytes = base64_image.encode("ascii")
+    image_bytes = base64.b64decode(base64_bytes)
+
+    image = Image.open(io.BytesIO(image_bytes))
+    image.show()
+```
+
+`imageGenerationConfig`は各機能で共通の推論パラメーターであり，以下の設定が可能です．その他詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)に記載があります．
+
+- `numberOfImages`: 生成する画像の数
+- `quality`: 生成される画像の品質 (standard or premium)
+- `height`: 出力画像の高さ
+- `width`: 出力画像の幅
+- `cfgScale`: 生成画像に対するプロンプトの影響度合い（忠実度）
+- `seed`: 再現性のために使用するシード値
+
+ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook はこちらにございます．★
+
+```json
+{
+  "taskType": "TEXT_IMAGE",
+  "textToImageParams": {
+    "text": "string",
+    "negativeText": "string"
+  },
+  "imageGenerationConfig": {
+    "numberOfImages": "int",
+    "height": "int",
+    "width": "int",
+    "cfgScale": "float",
+    "seed": "int"
+  }
+}
 ```
 
 ### 画像生成
@@ -136,6 +163,16 @@ Canny Edge を実際に試してみる
 小さいオブジェクトだとうまくいくかも
 
 猫と犬が走ってる画像（画像中で中くらいにうつってる）を生成する
+
+---
+
+ここでマスク画像は，黒塗り部分が inpaint 対象である点に注意（[DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion 2 Inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) 系のモデルでは，白塗り部分が inpaint 対象である．）
+
+SDXL の方が新しいかも？
+
+https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1
+
+https://qiita.com/nabata/items/86cb2ac5b3e345ea86a7#create-image-edit
 
 #### コラム
 
@@ -163,16 +200,6 @@ https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#tit
 
 https://aws.amazon.com/jp/blogs/news/fine-tune-your-amazon-titan-image-generator-g1-model-using-amazon-bedrock-model-customization/
 
----
-
-ここでマスク画像は，黒塗り部分が inpaint 対象である点に注意（[DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion 2 Inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) 系のモデルでは，白塗り部分が inpaint 対象である．）
-
-SDXL の方が新しいかも？
-
-https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1
-
-https://qiita.com/nabata/items/86cb2ac5b3e345ea86a7#create-image-edit
-
 ## プロンプトエンジニアリングについて
 
 Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様，プロンプトエンジニアリングが重要です．プロンプトエンジニアリングには以下の推奨事項があります．詳細は，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#titanimage-prompt)や[プロンプトエンジニアリングガイドブック](https://d2eo22ngex1n9g.cloudfront.net/Documentation/User+Guides/Titan/Amazon+Titan+Image+Generator+Prompt+Engineering+Guidelines.pdf)を参照下さい．
@@ -186,6 +213,7 @@ Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様�
 - プロンプトの要素を論理的に順序付け，句読点を使用して関係性を示す．
   - 例: An image of a cup of coffee from the side, steam rising, on a wooden table,...
 - プロンプトでは具体的な単語を使用し，必要に応じてネガティブプロンプトを使用する．
+  - ネガティブプロンプトには，画像に含めたくない要素を指定する（否定語は利用しない）
 - インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．
 
 また，モデルの推論パラメーター (`cfgScale` や `numberOfImages`など) を調整することも重要です．

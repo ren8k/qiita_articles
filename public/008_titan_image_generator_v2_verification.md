@@ -173,9 +173,9 @@ generate_image(
 
 ### 画像コンディショニング(Canny Edge)
 
-Canny 法により，入力画像からエッジ（オブジェクトの輪郭や境界線など）を検出し，テキストプロンプトからエッジに従った画像を生成する機能です．Canny 法とは，古典的なエッジ検出アルゴリズムであり，ノイズ除去，画像の輝度勾配の算出，非極大値の抑制，ヒステリシスを利用した閾値処理により，エッジを検出するアルゴリズムです．参考のため，Canny 法によるエッジ検出の例を示します．
+Canny 法により，入力画像からエッジ（オブジェクトの輪郭や境界線など）を検出し，テキストプロンプトからエッジに従った画像を生成する機能です．Canny 法とは，古典的なエッジ検出アルゴリズムであり，ノイズ除去，画像の輝度勾配の算出，非極大値の抑制，ヒステリシスを利用した閾値処理により，エッジを検出します．参考のため，Canny 法によるエッジ検出の例を示します．
 
-| 入力画像                                                                                                                    | エッジ検出結果                                                                                                                   |
+| 入力画像                                                                                                                    | エッジ検出結果 (例)                                                                                                              |
 | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_edge.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e8db4541-3c0d-7c2a-f69b-696d7f3ec76d.png) |
 
@@ -212,7 +212,7 @@ canny_edge_detection('/path/to/img', low_threshold=100, high_threshold=200)
 
 </details>
 
-画像内の顕著なエッジが検出されていることを確認できます．なお，API 側でエッジ検出が行われるため，本機能を利用する際の入力画像は，未加工のもので問題ありません．
+画像内の顕著なエッジが検出されていることを確認できます．なお，API 側でエッジ検出が行われるため，本機能を利用する際，エッジ検出した画像は不要です．
 
 以下のコードでは，先程生成した画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
 
@@ -241,7 +241,7 @@ generate_image(
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_conditioning_canny.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed8285b9-ffc8-78ce-e2cd-3ceed75d8645.png) |
 
-入力画像のエッジに忠実に，画像が生成されていることが確認できます．
+入力画像のエッジに対して忠実に，画像が生成されていることが確認できます．
 
 :::note
 [What's news](https://aws.amazon.com/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/?nc1=h_ls) によると，生成画像の制御には ControlNet を利用しているようです．（憶測ですが，Amazon Titan Image Generator のアーキテクチャは Unet ベースなのかもしれません．）
@@ -249,9 +249,60 @@ generate_image(
 
 ### 画像コンディショニング(Segmentation)
 
+入力画像をセグメンテーションすることにより，入力画像内のオブジェクトや領域を特定したマスクを生成し，テキストプロンプトからマスクに従った画像を生成する機能です．なお，本機能で利用されるセグメンテーションアルゴリズムは非公開です．SoTA なセグメンテーションモデルの中でも，代表的なものとして[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) が挙げられます．
+
+SAM2 は，Meta が公開したセグメンテーションのための基盤モデルであり，ゼロショットで画像・動画内の任意のオブジェクトや領域のセグメンテーションを行うことができます．モデルは[OSS として公開](https://github.com/facebookresearch/segment-anything-2)されており，Apache-2.0 ライセンスの下，利用が可能です．参考のため，SAM2 によるセグメンテーション結果の例を示します．
+
+| 入力画像                                                                                                                    | セグメンテーション結果 (例)                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_segmentation_mask.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/6953b27c-93b7-ff20-8253-2524a67cc6b7.png) |
+
+:::note
+SAM2 を利用することで，以降紹介するインペインティングやアウトペインティング機能で利用するためのマスク画像を容易に作成することができます．
+:::
+
+画像内のオブジェクト（犬や猫，背景）を区別して検出できていることが確認できます．なお，API 側でセグメンテーションが行われるため，本機能を利用する際，セグメンテーション画像は不要です．
+
+以下のコードでは，先程生成した画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": "A cute black puppy and a brown cat inside a blue bucket",
+            "conditionImage": input_image,
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "controlMode": "SEGMENTATION", # Optional: CANNY_EDGE | SEGMENTATION
+            "controlStrength": 0.7 # Optional: weight given to the condition image. Default: 0.7
+        },
+    },
+)
+```
+
+> テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
+> ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_conditioning_segmentation.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c8c29a-75a7-2677-c904-8247a4e38de1.png) |
+
+入力画像のセグメンテーション領域に対して，忠実に画像が生成されていることが確認できます．ここで，先程の画像コンディショニング(Canny Edge) と比較すると，犬の目線やバケツの模様，猫の右足などは，入力画像とは異なることがわかります．入力画像の細かな特徴を生成画像に反映したい場合は，Canny Edge の利用が適していると考えられます．
+
 ### インペインティング(Default)
 
+#### mask prompt の利用
+
+#### mask image の利用
+
 ### インペインティング(Removal)
+
+#### mask prompt の利用
+
+#### mask image の利用
 
 小さいオブジェクトだとうまくいくかも
 

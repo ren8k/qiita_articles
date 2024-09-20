@@ -148,11 +148,104 @@ def generate_image(
 
 ### 画像生成
 
+テキストプロンプトから，画像を生成する機能です．オプションとしてネガティブプロンプトを利用し，画像に含めたくない要素を指定可能です．なお，テキストプロンプト，ネガティブプロンプト共に 512 文字以下である必要があります．
+
+以下のコードでは，`"A cute brown puppy and a white cat inside a red bucket"` というテキストプロンプトから画像を生成しています．
+
+```python
+generate_image(
+    {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": "A cute brown puppy and a white cat inside a red bucket",  # Required
+            "negativeText": "bad quality, low res, noise",  # Optional
+        },
+    }
+)
+```
+
+> テキストプロンプト: "A cute brown puppy and a white cat inside a red bucket"
+> ネガティブプロンプト: "bad quality, low res, noise"
+
+| 生成画像                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) |
+
 ### 画像コンディショニング(Canny Edge)
 
-違い: https://chatgpt.com/c/66e7db36-bc2c-800a-a4f0-5da080dcb115
+入力画像からエッジ（オブジェクトの輪郭や境界線など）を検出し，テキストプロンプトからエッジに従った画像を生成する機能です．エッジ検出手法として，Canny 法という古典的な検出アルゴリズムが利用されています．参考のため，Canny 法によるエッジ検出の例を示します．
 
-Canny Edge を実際に試してみる
+| 入力画像                                                                                                                    | エッジ検出結果                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_edge.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e8db4541-3c0d-7c2a-f69b-696d7f3ec76d.png) |
+
+<details><summary>（参考）Canny 法によるエッジ検出の実行コード</summary>
+
+OpenCV には cv2.Canny() という関数が用意されており，これを利用することで簡単に Canny 法によるエッジ検出を行うことができます．
+
+```python
+import cv2
+import matplotlib.pyplot as plt
+
+def canny_edge_detection(image_path: str, low_threshold: int, high_threshold: int):
+    """
+    Canny法によるエッジ検出を行う関数
+    :param image_path: 画像ファイルのパス
+    :param low_threshold: 二重しきい値処理の低い方の閾値
+    :param high_threshold: 二重しきい値処理の高い方の閾値
+    :return: エッジ検出結果の画像
+    """
+    image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    edges = cv2.Canny(image, low_threshold, high_threshold)
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(121), plt.imshow(image, cmap='gray')
+    plt.title('Original Image'), plt.xticks([]), plt.yticks([])
+    plt.subplot(122), plt.imshow(edges, cmap='gray')
+    plt.title('Edge Image'), plt.xticks([]), plt.yticks([])
+    plt.show()
+
+    return edges
+
+canny_edge_detection('/path/to/img', low_threshold=100, high_threshold=200)
+```
+
+</details>
+
+画像内の顕著なエッジが検出されていることを確認できます．なお，API 側でエッジ検出が行われるため，本機能を利用する際の入力画像は，未加工のもので問題ありません．
+
+以下のコードでは，先程生成した画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": "A cute black puppy and a brown cat inside a blue bucket",
+            "conditionImage": input_image,
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "controlMode": "CANNY_EDGE", # Optional: CANNY_EDGE | SEGMENTATION
+            "controlStrength": 0.7 # Optional: weight given to the condition image. Default: 0.7
+        },
+    },
+)
+```
+
+> テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
+> ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_conditioning_canny.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ed8285b9-ffc8-78ce-e2cd-3ceed75d8645.png) |
+
+入力画像のエッジに忠実に，画像が生成されていることが確認できます．
+
+:::note
+[What's news](https://aws.amazon.com/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/?nc1=h_ls) によると，生成画像の制御には ControlNet を利用しているようです．（憶測ですが，Amazon Titan Image Generator のアーキテクチャは Unet ベースなのかもしれません．）
+:::
 
 ### 画像コンディショニング(Segmentation)
 
@@ -204,17 +297,18 @@ https://aws.amazon.com/jp/blogs/news/fine-tune-your-amazon-titan-image-generator
 
 Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様，プロンプトエンジニアリングが重要です．プロンプトエンジニアリングには以下の推奨事項があります．詳細は，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#titanimage-prompt)や[プロンプトエンジニアリングガイドブック](https://d2eo22ngex1n9g.cloudfront.net/Documentation/User+Guides/Titan/Amazon+Titan+Image+Generator+Prompt+Engineering+Guidelines.pdf)を参照下さい．
 
-- 画像生成の際，プロンプトを主題から始める．
+- **画像生成の際，プロンプトを主題から始める．**
   - 例: An image of a ...
-- 可能な限り，詳細情報をプロンプトに含める．
-  - 例: 表現方法（油彩/水彩画など），色，照明，備考，形容詞，品質，およびスタイル（印象派，写実的など）
-- テキストを囲む場合，ダブルクオーテーション ("") を使用する．
+- **詳細情報をプロンプトに含める．**
+  - 例: 表現方法（油彩/水彩画など），色，照明，備考，形容詞，品質，スタイル（印象派，写実的など）
+- **テキストを囲む場合，ダブルクオーテーション ("") を使用する．**
   - 例: An image of a boy holding a sign that says "success"
-- プロンプトの要素を論理的に順序付け，句読点を使用して関係性を示す．
+- **プロンプトの要素を論理的に順序付け，句読点を使用して関係性を示す．**
   - 例: An image of a cup of coffee from the side, steam rising, on a wooden table,...
-- プロンプトでは具体的な単語を使用し，必要に応じてネガティブプロンプトを使用する．
+- **プロンプトでは具体的な単語を使用し，必要に応じてネガティブプロンプトを使用する．**
   - ネガティブプロンプトには，画像に含めたくない要素を指定する（否定語は利用しない）
-- インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．
+- **インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．**
+  - 例: A dog sitting on a bench next to a woman
 
 また，モデルの推論パラメーター (`cfgScale` や `numberOfImages`など) を調整することも重要です．
 

@@ -43,7 +43,7 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 - データセットも安全なものを利用している
 - その他あれば
 
-入力の言語は英語のみ対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
+入力の言語は**英語のみ**対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
 
 ## Amazon Titan Image Generator v2 の機能一覧
 
@@ -164,8 +164,8 @@ generate_image(
 )
 ```
 
-> テキストプロンプト: "A cute brown puppy and a white cat inside a red bucket"
-> ネガティブプロンプト: "bad quality, low res, noise"
+> - テキストプロンプト: "A cute brown puppy and a white cat inside a red bucket"
+> - ネガティブプロンプト: "bad quality, low res, noise"
 
 | 生成画像                                                                                                                    |
 | --------------------------------------------------------------------------------------------------------------------------- |
@@ -214,7 +214,7 @@ canny_edge_detection('/path/to/img', low_threshold=100, high_threshold=200)
 
 画像内の顕著なエッジが検出されていることを確認できます．なお，API 側でエッジ検出が行われるため，本機能を利用する際，エッジ検出した画像は不要です．
 
-以下のコードでは，先程生成した画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
+以下のコードでは，入力画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
 
 ```python
 with open("/path/to/img", "rb") as image_file:
@@ -234,8 +234,8 @@ generate_image(
 )
 ```
 
-> テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
-> ネガティブプロンプト: "bad quality, low res, noise"
+> - テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
+> - ネガティブプロンプト: "bad quality, low res, noise"
 
 | 入力画像                                                                                                                    | 生成画像                                                                                                                                       |
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -263,7 +263,7 @@ SAM2 を利用することで，以降紹介するインペインティングや
 
 画像内のオブジェクト（犬や猫，背景）を区別して検出できていることが確認できます．なお，API 側でセグメンテーションが行われるため，本機能を利用する際，セグメンテーション画像は不要です．
 
-以下のコードでは，先程生成した画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
+以下のコードでは，入力画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
 
 ```python
 with open("/path/to/img", "rb") as image_file:
@@ -283,8 +283,8 @@ generate_image(
 )
 ```
 
-> テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
-> ネガティブプロンプト: "bad quality, low res, noise"
+> - テキストプロンプト: "A cute black puppy and a brown cat inside a blue bucket"
+> - ネガティブプロンプト: "bad quality, low res, noise"
 
 | 入力画像                                                                                                                    | 生成画像                                                                                                                                              |
 | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -294,33 +294,114 @@ generate_image(
 
 ### インペインティング(Default)
 
-#### mask prompt の利用
+mask prompt, または mask image を利用することで，入力画像内の任意のオブジェクトをテキストプロンプトで指示した内容に置換 (編集) することができる機能です．ここで，mask prompt と mask image は，どちらか一方を指定する必要があります．
 
-#### mask image の利用
+#### mask prompt を利用する場合
+
+mask prompt には，入力画像内の編集対象のオブジェクトを自然言語で指定することができます．ただし，編集対象のオブジェクトについて，正確かつ詳細に説明する必要があります．
+
+以下のコードでは，入力画像と `"A brown puppy"` という mask prompt， `"A black cat inside a red bucket, background is dim green nature"` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "INPAINTING",
+        "inPaintingParams": {
+            "text": "A black cat inside a red bucket, background is dim green nature",
+            "image": input_image,  # Required
+            "maskPrompt": "A brown puppy",  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "deformed ears, bad quality, low res, noise",  # Optional
+        },
+    },
+)
+```
+
+> - マスクプロンプト: "A brown puppy"
+> - テキストプロンプト: "A black cat inside a red bucket, background is dim green nature"
+> - ネガティブプロンプト: "deformed ears, bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_inpaint_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/6b3dbe01-fddc-e119-7a7a-734efe776435.png) |
+
+mask prompt で指示した通り，入力画像中の犬のみ猫に置換されていることが確認できます．
+
+#### mask image を利用する場合
+
+mask image には，2 値のマスク画像を指定することができ，0 値のピクセル (黒塗り部分) が編集対象の領域を示し，255 値のピクセル (白塗り部分) が編集対象外の領域を示します．
+
+:::note
+[DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion XL Inpainting 0.1](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) の場合，mask image は白塗り部分が編集対象の領域を示す点に注意が必要です．
+:::
+
+今回の検証では，[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の犬の mask image を生成しました．(SAM2 で得られるセグメンテーション結果の色を反転させています．)
+
+以下のコードでは，入力画像と 犬の領域を黒で示した mask image， `"A black cat inside a red bucket, background is dim green nature"` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/app/sam2/notebooks/images/dogcat.png", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+with open("/app/sam2/notebooks/masks/dogcat/mask_1.png", "rb") as image_file:
+    mask_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "INPAINTING",
+        "inPaintingParams": {
+            "text": "A black cat inside a red bucket, background is dim green nature",
+            "image": input_image,  # Required
+            "maskImage": mask_image,  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "deformed ears, deformed eyes, bad quality, low res, noise",  # Optional
+        },
+    },
+)
+```
+
+> - テキストプロンプト: "A black cat inside a red bucket, background is dim green nature"
+> - ネガティブプロンプト: "deformed ears, deformed eyes, bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | マスク画像                                                                                                                  | 生成画像                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8e76ae64-1d1b-5b9e-2b66-f384bd7431ea.png) | ![dogcat_inpaint_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/bf8722aa-fb6f-2bfb-2bc9-82274a717017.png) |
+
+mask image で指示した通り，入力画像中の犬のみ猫に置換されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
+
+:::note
+
+#### コラム: mask image の作成手段について
+
+[SAM2 (Segment Anything Model 2)](https://github.com/facebookresearch/segment-anything-2) を利用すると，入力画像内の任意のオブジェクトを自動でセグメンテーション可能であり，以下のように，自動で検出されたオブジェクトの各マスク画像を容易に抽出することができます．各画像中の白い領域がセグメンテーション領域です．
+
+![masks.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/53956972-55d9-95ff-a422-e1dcca884c82.png)
+
+また，[Grounded-Segment-Anything](https://github.com/IDEA-Research/Grounded-Segment-Anything) という，テキストベースのオブジェクト検出モデルである [Grounding Dino](https://github.com/IDEA-Research/GroundingDINO) と [SAM](https://github.com/facebookresearch/segment-anything) を組み合わせたツールを利用することで，以下のように自然言語で指定のオブジェクトを自動で検出し，セグメンテーションすることが可能です．
+
+| 検出結果                                                                                                                           | セグメンテーション結果                                                                                                                   | マスク画像                                                                                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat_detect.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/bb8003de-3b42-d20d-19f4-301a3e93c7bc.png) | ![dogcat_segmentation.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/0451f70c-f9f4-83e7-1116-0357a3377850.png) | ![dogcat_mask.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/41304650-af81-5a3c-d03a-fef6d8ec0896.png) |
+
+実際に検証したノートブックも公開しているので，是非ご参照ください．★
+
+また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator G1 による Inpaint が利用されていますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは[U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
+:::
+
+https://aws.amazon.com/jp/blogs/news/aws-summit-2024-retail-cpg-ec-genai-bedrock-demo-architecture/
 
 ### インペインティング(Removal)
 
-#### mask prompt の利用
+#### mask prompt を利用する場合
 
-#### mask image の利用
+#### mask image を利用する場合
 
 小さいオブジェクトだとうまくいくかも
 
 猫と犬が走ってる画像（画像中で中くらいにうつってる）を生成する
 
 ---
-
-ここでマスク画像は，黒塗り部分が inpaint 対象である点に注意（[DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion 2 Inpainting](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting) 系のモデルでは，白塗り部分が inpaint 対象である．）
-
-SDXL の方が新しいかも？
-
-https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1
-
-https://qiita.com/nabata/items/86cb2ac5b3e345ea86a7#create-image-edit
-
-#### コラム
-
-SAM とかでもマスクを取得可能であるというのをさらっと書く．
 
 ### アウトペインティング(Default)
 

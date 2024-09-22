@@ -244,7 +244,7 @@ generate_image(
 入力画像のエッジに対して忠実に，画像が生成されていることが確認できます．
 
 :::note
-[What's news](https://aws.amazon.com/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/?nc1=h_ls) によると，生成画像の制御には ControlNet を利用しているようです．（憶測ですが，Amazon Titan Image Generator のアーキテクチャは Unet ベースなのかもしれません．）
+[What's news](https://aws.amazon.com/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/?nc1=h_ls) によると，生成画像の制御には ControlNet を利用しているようです．（憶測ですが，Amazon Titan Image Generator のモデルアーキテクチャは Unet ベースなのかもしれません．）
 :::
 
 ### 画像コンディショニング(Segmentation)
@@ -342,10 +342,10 @@ mask image には，2 値のマスク画像を指定することができ，0 �
 以下のコードでは，入力画像と 犬の領域を黒で示した mask image， `"A black cat inside a red bucket, background is dim green nature"` というテキストプロンプトから画像を生成しています．
 
 ```python
-with open("/app/sam2/notebooks/images/dogcat.png", "rb") as image_file:
+with open("/path/to/img", "rb") as image_file:
     input_image = base64.b64encode(image_file.read()).decode("utf8")
 
-with open("/app/sam2/notebooks/masks/dogcat/mask_1.png", "rb") as image_file:
+with open("/path/to/mask_img", "rb") as image_file:
     mask_image = base64.b64encode(image_file.read()).decode("utf8")
 
 generate_image(
@@ -414,7 +414,6 @@ generate_image(
             "negativeText": "bad quality, low res, noise",  # Optional
         },
     },
-    seed=7,
 )
 ```
 
@@ -425,15 +424,42 @@ generate_image(
 | --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_remove_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/b3fcdcae-5f5f-17b1-c966-a64c7cde98c7.png) |
 
-mask prompt で指示した通り，入力画像中の猫のみが削除されていることが確認できます．
+mask prompt で指示した通り，入力画像中の猫のみ削除されていることが確認できます．
 
 #### mask image を利用する場合
 
-小さいオブジェクトだとうまくいくかも
+mask image には，2 値のマスク画像を指定することができ，0 値のピクセル (黒塗り部分) が削除対象の領域を示し，255 値のピクセル (白塗り部分) が削除対象外の領域を示します．
 
-猫と犬が走ってる画像（画像中で中くらいにうつってる）を生成する
+[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の猫の mask image を生成しました．(SAM2 で得られるセグメンテーション結果の色を反転させています．)
 
----
+以下のコードでは，入力画像と 猫の領域を黒で示した mask image， `"A black cat inside a red bucket, background is dim green nature"` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+with open("/path/to/mask_img", "rb") as image_file:
+    mask_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "INPAINTING",
+        "inPaintingParams": {
+            "image": input_image,  # Required
+            "maskImage": mask_image,  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "bad quality, low res, noise",  # Optional
+        },
+    },
+)
+```
+
+> - ネガティブプロンプト: "deformed ears, deformed eyes, bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | マスク画像                                                                                                                  | 生成画像                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cda30655-fd92-6004-0979-0a5fa4707dc9.png) | ![dogcat_remove_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1504c862-2e20-6f84-94d6-a9873f6d5ee3.png) |
+
+mask image で指示した通り，入力画像中の猫のみ削除されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
 
 ### アウトペインティング(Default)
 

@@ -64,7 +64,7 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 | `COLOR_GUIDED_GENERATION` | 色指定画像生成                     | テキストプロンプトと Hex カラーコードのリストを使用し、指定カラーパレットに従う画像を生成（V2 のみ）。 |
 | `BACKGROUND_REMOVAL`      | 背景除去                           | 複数のオブジェクトを識別し背景を削除、透明な背景の画像を出力（V2 のみ）。                              |
 
-## 機能紹介
+## 機能解説
 
 本節では，AWS SDK for Python (boto3) を使用し，Amazon Titan Image Generator v2 の各機能を紹介します．
 
@@ -118,7 +118,7 @@ def generate_image(
     image.show()
 ```
 
-`imageGenerationConfig`は各機能で共通の推論パラメーターであり，以下の設定が可能です．その他詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)に記載があります．
+`imageGenerationConfig`は各機能で共通の推論パラメータであり，以下の設定が可能です．その他詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)に記載があります．
 
 - `numberOfImages`: 生成する画像の数
 - `quality`: 生成される画像の品質 (standard or premium)
@@ -294,7 +294,7 @@ generate_image(
 
 ### インペインティング(Default)
 
-mask prompt, または mask image を利用することで，入力画像内の任意のオブジェクトをテキストプロンプトで指示した内容に置換 (編集) することができる機能です．ここで，mask prompt と mask image は，どちらか一方を指定する必要があります．
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトをテキストプロンプトで指示した内容に置換 (編集) することができる機能です．なお，mask prompt と mask image は，どちらか一方を指定する必要があります．
 
 #### mask prompt を利用する場合
 
@@ -393,7 +393,39 @@ https://aws.amazon.com/jp/blogs/news/aws-summit-2024-retail-cpg-ec-genai-bedrock
 
 ### インペインティング(Removal)
 
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトを除去することができる機能です．本機能を利用する際の推論パラメータは先程のインペインティングと同様ですが，**テキストプロンプトの指定を省略**する必要があります．
+
 #### mask prompt を利用する場合
+
+mask prompt には，入力画像内の除去対象のオブジェクトを自然言語で指定することができます．ただし，除去対象のオブジェクトについて，正確かつ詳細に説明する必要があります．
+
+以下のコードでは，入力画像と `"A white cat"` という mask prompt から画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "INPAINTING",
+        "inPaintingParams": {
+            "image": input_image,  # Required
+            "maskPrompt": "A white cat",  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "bad quality, low res, noise",  # Optional
+        },
+    },
+    seed=7,
+)
+```
+
+> - マスクプロンプト: "A white cat"
+> - ネガティブプロンプト: "deformed ears, bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_remove_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/b3fcdcae-5f5f-17b1-c966-a64c7cde98c7.png) |
+
+mask prompt で指示した通り，入力画像中の猫のみが削除されていることが確認できます．
 
 #### mask image を利用する場合
 
@@ -442,7 +474,7 @@ Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様�
 - **インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．**
   - 例: A dog sitting on a bench next to a woman
 
-また，モデルの推論パラメーター (`cfgScale` や `numberOfImages`など) を調整することも重要です．
+また，モデルの推論パラメータ (`cfgScale` や `numberOfImages`など) を調整することも重要です．
 
 ## まとめ
 

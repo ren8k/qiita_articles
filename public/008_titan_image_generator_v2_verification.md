@@ -47,6 +47,10 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 ## Amazon Titan Image Generator v2 の機能一覧
 
+- カラムは以下の通り
+  - タスクタイプ，機能，入力，説明
+  - 入力カラムには，テキストプロンプト，画像，マスクプロンプト，マスク画像などが含まれる
+
 | タスクタイプ | 機能                               | 説明                                           |
 | ------------ | ---------------------------------- | ---------------------------------------------- |
 | TEXT_IMAGE   | 画像生成                           | テキストプロンプトを使用して画像を生成します。 |
@@ -212,7 +216,7 @@ canny_edge_detection('/path/to/img', low_threshold=100, high_threshold=200)
 
 画像内の顕著なエッジが検出されていることを確認できます．なお，API 側でエッジ検出が行われるため，本機能を利用する際，エッジ検出した画像は不要です．
 
-以下のコードでは，入力画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．
+以下のコードでは，入力画像と`"A cute black puppy and a brown cat inside a blue bucket"` というテキストプロンプトから画像を生成しています．推論パラメータの `controlStrength` は，入力画像のレイアウトと構図にどの程度従わせるかを調整する設定値であり，デフォルト値は 0.7 です．
 
 ```python
 with open("/path/to/img", "rb") as image_file:
@@ -329,7 +333,7 @@ mask prompt で指示した通り，入力画像中の犬のみ猫に置換さ�
 
 #### mask image を利用する場合
 
-mask image には，2 値のマスク画像を指定することができ，0 値のピクセル (黒塗り部分) が編集対象の領域を示し，255 値のピクセル (白塗り部分) が編集対象外の領域を示します．
+mask image として，2 値のマスク画像を利用することができ，0 値のピクセル (黒塗り部分) が編集対象の領域を示し，255 値のピクセル (白塗り部分) が編集対象外の領域を示します．
 
 :::note
 [DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion XL Inpainting 0.1](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) の場合，mask image は白塗り部分が編集対象の領域を示す点に注意が必要です．
@@ -426,7 +430,7 @@ mask prompt で指示した通り，入力画像中の猫のみ削除されて�
 
 #### mask image を利用する場合
 
-mask image には，2 値のマスク画像を指定することができ，0 値のピクセル (黒塗り部分) が削除対象の領域を示し，255 値のピクセル (白塗り部分) が削除対象外の領域を示します．
+mask image として，2 値のマスク画像を利用することができ，0 値のピクセル (黒塗り部分) が削除対象の領域を示し，255 値のピクセル (白塗り部分) が削除対象外の領域を示します．
 
 本検証では，[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の猫の mask image を生成しました．(SAM2 で得られるセグメンテーション結果の色を反転させています．)
 
@@ -461,7 +465,91 @@ mask image で指示した通り，入力画像中の猫のみ削除されてい
 
 ### アウトペインティング(Default)
 
-mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトの背景を変更することが可能です．アウトペインティングの **DEFAULT モード**では，背景の描画に伴い，オブジェクト内の一部のピクセルが変更され，全体の画像が一貫性を持つように調整されます．
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトの背景を変更することが可能です．特に， **DEFAULT モード**では，背景の描画に伴い，マスク内のオブジェクトの一部が変更され，全体の画像が一貫性を持つように調整されます．
+
+#### mask prompt を利用する場合
+
+mask prompt には，入力画像内で保持するオブジェクトを自然言語で指定することができます．（つまり，mask prompt で指定した領域以外が編集されます．）ただし，保持対象のオブジェクトについて，正確かつ詳細に説明する必要があります．
+
+以下のコードでは，入力画像と `"A cute brown puppy"` という mask prompt ，`"A dog riding in a small boat."` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "OUTPAINTING",
+        "outPaintingParams": {
+            "text": "A dog riding in a small boat.",
+            "image": input_image,  # Required
+            "maskPrompt": "A cute brown puppy",  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "outPaintingMode": "DEFAULT",  # One of "PRECISE" or "DEFAULT"
+        },
+    },
+)
+```
+
+> - テキストプロンプト: "A dog riding in a small boat.
+> - マスクプロンプト: "A cute brown puppy"
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_outpaint_default_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c0d27be8-3d80-14a1-18b9-a05acc11f4e4.png) |
+
+mask prompt で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．
+
+#### mask image を利用する場合
+
+mask image として，2 値のマスク画像を利用することができ，0 値のピクセル (黒塗り部分) が保持するオブジェクトの領域を示し，255 値のピクセル (白塗り部分) が編集対象の領域を示します．
+
+本検証では，[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の犬の mask image を生成しました．また，比較のため，[labelme](https://github.com/wkentaro/labelme) を利用して，矩形で犬の領域を示した mask image も作成しました．
+
+以下のコードでは，入力画像と 犬の領域を黒で示した mask image， `"A dog riding in a small boat."` というテキストプロンプトから画像を生成しています．
+
+```python
+with open("/path/to/img", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+with open("/path/to/mask_img", "rb") as image_file:
+    mask_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "OUTPAINTING",
+        "outPaintingParams": {
+            "text": "A dog riding in a small boat.",
+            "image": input_image,  # Required
+            "maskImage": mask_image,  # One of "maskImage" or "maskPrompt" is required
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "outPaintingMode": "DEFAULT",  # One of "PRECISE" or "DEFAULT"
+        },
+    },
+)
+```
+
+> - テキストプロンプト: "A dog riding in a small boat."
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | マスク画像                                                                                                                              | 生成画像                                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8e76ae64-1d1b-5b9e-2b66-f384bd7431ea.png)             | ![dogcat_outpaint_default_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4dcb2c9a-3867-acd2-2439-0a21a63515fb.png)             |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_dog_rectangle.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cfce07c2-6003-f825-6afa-db2df6300b4d.png) | ![dogcat_outpaint_default_mask_image_rectangle_2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/293bf576-5f83-c581-6710-cc027695fe7b.png) |
+
+mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，矩形の mask image を利用した場合，バケツの部分 (mask image で保持対象として指定した領域) が背景に合わせて編集されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
+
+:::note
+[AWS ブログ](https://aws.amazon.com/jp/blogs/machine-learning/use-amazon-titan-models-for-image-generation-editing-and-searching/)によると，DEFAULT モードは，mask image の精度が低い場合 (mask image がオブジェクトを正確に指定できてない場合) に推奨され，mask image の精度が高い場合は，後述の PRECISE モードを利用することが推奨されています．
+
+> “ If set as DEFAULT, pixels inside of the mask are allowed to be modified so that the reconstructed image will be consistent overall. This option is recommended if the maskImage provided doesn’t represent the object with pixel-level precision. If set as PRECISE, the modification of pixels inside of the mask is prevented. This option is recommended if using a maskPrompt or a maskImage that represents the object with pixel-level precision. ”
+
+:::
+
+### アウトペインティング(Precise)
+
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトの背景を変更することが可能です．特に， **PRECISE モード**では，マスク内のオブジェクトが変更されることなく，オブジェクトがそのまま全体の画像が一貫性を持つように調整されます．本機能は，mask image が正確である場合に適しています．
 
 #### mask prompt を利用する場合
 
@@ -493,13 +581,13 @@ generate_image(
 
 | 入力画像                                                                                                                    | 生成画像                                                                                                                                                 |
 | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_outpaint_default_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c0d27be8-3d80-14a1-18b9-a05acc11f4e4.png) |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_outpaint_precise_mask_prompt.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3a959847-a487-435f-d664-561ff3d42b30.png) |
 
 mask prompt で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．
 
 #### mask image を利用する場合
 
-mask image には，2 値のマスク画像を指定することができ，0 値のピクセル (黒塗り部分) が保持するオブジェクトの領域を示し，255 値のピクセル (白塗り部分) が編集対象の領域を示します．
+mask image として，2 値のマスク画像を利用することができ，0 値のピクセル (黒塗り部分) が保持するオブジェクトの領域を示し，255 値のピクセル (白塗り部分) が編集対象の領域を示します．
 
 本検証では，[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の犬の mask image を生成しました．また，比較のため，[labelme](https://github.com/wkentaro/labelme) を利用して，矩形で犬の領域を示した mask image も作成しました．
 
@@ -520,39 +608,77 @@ generate_image(
             "image": input_image,  # Required
             "maskImage": mask_image,  # One of "maskImage" or "maskPrompt" is required
             "negativeText": "bad quality, low res, noise",  # Optional
-            "outPaintingMode": "DEFAULT",  # One of "PRECISE" or "DEFAULT"
+            "outPaintingMode": "PRECISE",  # One of "PRECISE" or "DEFAULT"
         },
     },
-    seed=40,
 )
 ```
 
 > - テキストプロンプト: "A dog riding in a small boat."
 > - ネガティブプロンプト: "bad quality, low res, noise"
 
-| 入力画像                                                                                                                    | マスク画像                                                                                                                              | 生成画像                                                                                                                                                            |
-| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8e76ae64-1d1b-5b9e-2b66-f384bd7431ea.png)             | ![dogcat_outpaint_default_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4dcb2c9a-3867-acd2-2439-0a21a63515fb.png)             |
-| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_dog_rectangle.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cfce07c2-6003-f825-6afa-db2df6300b4d.png) | ![dogcat_outpaint_default_mask_image_rectangle_2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/293bf576-5f83-c581-6710-cc027695fe7b.png) |
+| 入力画像                                                                                                                    | マスク画像                                                                                                                              | 生成画像                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8e76ae64-1d1b-5b9e-2b66-f384bd7431ea.png)             | ![dogcat_outpaint_precise_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/41b3390f-0955-f868-7deb-a9d3dc1675a7.png)           |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_dog_rectangle.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cfce07c2-6003-f825-6afa-db2df6300b4d.png) | ![dogcat_outpaint_precise_mask_image_rectangle.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7fa0b2e5-ab9a-41b8-86dd-7387f7867849.png) |
 
-mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，矩形の mask image を利用した場合，バケツの部分 (mask image で保持対象として指定した領域) が背景に合わせて編集されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
-
-:::note
-[AWS ブログ](https://aws.amazon.com/jp/blogs/machine-learning/use-amazon-titan-models-for-image-generation-editing-and-searching/)によると，DEFAULT モードは，mask image の精度が低い場合 (mask image がオブジェクトを正確に指定できてない場合) に推奨され，mask image の精度が高い場合は，後述の PRECISE モードを利用することが推奨されています．
-
-> “ If set as DEFAULT, pixels inside of the mask are allowed to be modified so that the reconstructed image will be consistent overall. This option is recommended if the maskImage provided doesn’t represent the object with pixel-level precision. If set as PRECISE, the modification of pixels inside of the mask is prevented. This option is recommended if using a maskPrompt or a maskImage that represents the object with pixel-level precision.”
-
-:::
-
-### アウトペインティング(Precise)
-
-このオプションは、maskPrompt またはピクセルレベルで正確にオブジェクトを表す maskImage を使用する場合に推奨されます。
-
-マスク外部の情報も与えると良いらしい．
+mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，mask image が矩形の場合，つまり，mask iamge がオブジェクトの輪郭を正確に示せていない場合，機能の仕様上，アウトペインティングの結果が不自然となってしまうことが確認できます．（矩形領域のみ一切編集がなされていないことも確認できます．）
 
 ### イメージバリエーション
 
+入力画像から，入力画像と類似した画像のバリエーションを生成する機能です．オプションとしてテキストプロンプトを利用でき，入力画像の詳細な説明や，入力画像内で保持したい部分や変更する部分を指定することができます．
+
+以下のコードでは，`"A smiling dog and cat inside a red bucket"` というテキストプロンプトを利用して画像を生成しています．ここで，推論パラメータの `images` はリストで与える必要があり，1~5 個の画像を含めることができる点に注意が必要です．また，`similarityStrength` は，入力画像とどの程度類似させるかを調整する設定値であり，デフォルト値は 0.7 です．
+
+```python
+with open("/path/to/img.png", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "IMAGE_VARIATION",
+        "imageVariationParams": {
+            "text": "A smiling dog and cat inside a red bucket", # Optional
+            "images": [input_image],  # Required
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "similarityStrength": 0.7,  # Range: 0.2 to 1.0
+        },
+    },
+)
+```
+
+> - テキストプロンプト: "A smiling dog and cat inside a red bucket"
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像 1                                                                                                                              | 生成画像 2                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_variation_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8a309f9c-05dd-81e2-b87f-120ebb100169.png) | ![dogcat_variation_2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/92ae23a7-0a0f-4a53-c3e4-00f50974b3d8.png) |
+
+テキストプロンプトで指定した `"A smiling dog"` という内容が反映されており，入力画像と類似した画像が生成されていることを確認できます．
+
+:::note warn
+[AWS 公式のプロンプトエンジニアリングガイドブック](https://d2eo22ngex1n9g.cloudfront.net/Documentation/User+Guides/Titan/Amazon+Titan+Image+Generator+Prompt+Engineering+Guidelines.pdf)によると，本機能を利用する際，テキストプロンプトは入力画像を説明し，画像内で保持したい部分を全て詳細に指定する必要があると記載されていますが，こちらは，入力画像に非常に類似した画像を生成させたい場合に有効だと考えられます．
+
+> “ The text prompt should describe the input image, and specify all the details that you want to preserve about the image ”
+
+以下に示す通り，テキストプロンプトとして，`"A cute brown puppy and a white cat inside a red bucket"` という内容を指定して実験したところ，入力画像と非常に類似した画像を生成させることができました．
+
+> - テキストプロンプト: "A cute brown puppy and a white cat inside a red bucket"
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | 生成画像 1                                                                                                                              | 生成画像 2                                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_variation_3.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f1176d27-e4d5-36a1-51cf-dbbaf77e8f5f.png) | ![dogcat_variation_4.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7fc2bb36-ef9a-b100-0314-0b8ab38d0817.png) |
+
+:::
+
+:::note
+ここで，画像コンディショニング (Canny, Segmentation) と本機能が類似していると感じたかもしれません．公式ドキュメントには言及がありませんが，本機能と画像コンディショニングとの使い分けとしては，例えばイメージバリエーションで候補画像を複数生成し，その中から選んだ画像で追加で細かい修正を行いたい場合に画像コンディショニングを利用すると良いかもしれません．
+:::
+
 ### カラーパレットによる画像ガイダンス
+
+テキストプロンプトと 16 進数カラーコードのリストから，
 
 ### 背景の削除
 

@@ -292,7 +292,7 @@ generate_image(
 
 ### インペインティング(Default)
 
-mask prompt，または mask image を利用することで，指定した入力画像内の任意のオブジェクトをテキストプロンプトで指示した内容に置換 (編集) することができる機能です．なお，mask prompt と mask image は，どちらか一方を指定する必要があります．
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトをテキストプロンプトで指示した内容に置換 (編集) することができる機能です．なお，mask prompt と mask image は，どちらか一方を指定する必要があります．
 
 #### mask prompt を利用する場合
 
@@ -461,11 +461,11 @@ mask image で指示した通り，入力画像中の猫のみ削除されてい
 
 ### アウトペインティング(Default)
 
-mask prompt，または mask image を利用することで，指定した入力画像内の任意のオブジェクトの背景を変更することが可能です．アウトペインティングの **DEFAULT モード**では，背景の描画に伴い，オブジェクト内の一部のピクセルが変更され，全体の画像が一貫性を持つように調整されます．
+mask prompt，または mask image を利用することで，入力画像内の任意のオブジェクトの背景を変更することが可能です．アウトペインティングの **DEFAULT モード**では，背景の描画に伴い，オブジェクト内の一部のピクセルが変更され，全体の画像が一貫性を持つように調整されます．
 
 #### mask prompt を利用する場合
 
-mask prompt には，入力画像内で保持するオブジェクトを自然言語で指定することができます．（つまり，mask prompt で指定した領域以外が編集されます．）ただし，除去対象のオブジェクトについて，正確かつ詳細に説明する必要があります．
+mask prompt には，入力画像内で保持するオブジェクトを自然言語で指定することができます．（つまり，mask prompt で指定した領域以外が編集されます．）ただし，保持対象のオブジェクトについて，正確かつ詳細に説明する必要があります．
 
 以下のコードでは，入力画像と `"A cute brown puppy"` という mask prompt ，`"A dog riding in a small boat."` というテキストプロンプトから画像を生成しています．
 
@@ -535,10 +535,13 @@ generate_image(
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8e76ae64-1d1b-5b9e-2b66-f384bd7431ea.png)             | ![dogcat_outpaint_default_mask_image.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/4dcb2c9a-3867-acd2-2439-0a21a63515fb.png)             |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![mask_dog_rectangle.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/cfce07c2-6003-f825-6afa-db2df6300b4d.png) | ![dogcat_outpaint_default_mask_image_rectangle_2.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/293bf576-5f83-c581-6710-cc027695fe7b.png) |
 
-mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，矩形の mask image を利用した場合，バケツの部分が背景に合わせて編集されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
+mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，矩形の mask image を利用した場合，バケツの部分 (mask image で保持対象として指定した領域) が背景に合わせて編集されていることが確認できます．先程の mask prompt の場合と比較すると，結果の質の差は少ないように見えます．
 
 :::note
 [AWS ブログ](https://aws.amazon.com/jp/blogs/machine-learning/use-amazon-titan-models-for-image-generation-editing-and-searching/)によると，DEFAULT モードは，mask image の精度が低い場合 (mask image がオブジェクトを正確に指定できてない場合) に推奨され，mask image の精度が高い場合は，後述の PRECISE モードを利用することが推奨されています．
+
+> “ If set as DEFAULT, pixels inside of the mask are allowed to be modified so that the reconstructed image will be consistent overall. This option is recommended if the maskImage provided doesn’t represent the object with pixel-level precision. If set as PRECISE, the modification of pixels inside of the mask is prevented. This option is recommended if using a maskPrompt or a maskImage that represents the object with pixel-level precision.”
+
 :::
 
 ### アウトペインティング(Precise)

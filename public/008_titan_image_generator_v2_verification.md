@@ -4,7 +4,7 @@ tags:
   - AWS
   - bedrock
   - Python
-  -
+  - 画像生成
   - 生成AI
 private: true
 updated_at: ""
@@ -18,7 +18,7 @@ ignorePublish: false
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
-v2 が使えるようになった．
+2024/08/06 に，v2 が使えるようになった．
 
 https://aws.amazon.com/jp/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/
 
@@ -26,20 +26,13 @@ https://aws.amazon.com/jp/about-aws/whats-new/2024/08/titan-image-generator-v2-a
 
 https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-available-in-amazon-bedrock/
 
-## 目次
-
-- はじめに
-- Amazon Titan Image Generator v2 とは
-- Amazon Titan Image Generator v2 の機能
-- 各機能の紹介
-- プロンプトエンジニアリングについて
-- まとめ
-
 ## Amazon Titan Image Generator v2 とは
 
 - Amazon 謹製の画像生成 AI
 - 多機能
-- 生成したという印もついてる
+- 目に見えないウォーターマークが含まれている
+  - ウォーターマーク検出 API で検出可能
+  - [Content Credentials Verify](https://contentcredentials.org/verify)
 - データセットも安全なものを利用している
 - その他あれば
 
@@ -49,30 +42,25 @@ https://aws.amazon.com/jp/about-aws/whats-new/2024/09/content-credentials-amazon
 
 ## Amazon Titan Image Generator v2 の機能一覧
 
-- カラムは以下の通り
-  - タスクタイプ，機能，入力，説明
-  - 入力カラムには，テキストプロンプト，画像，マスクプロンプト，マスク画像などが含まれる
+6 種類のタスクタイプがありますが，細かい機能は計 11 種類あります．
 
-| タスクタイプ | 機能                               | 説明                                           |
-| ------------ | ---------------------------------- | ---------------------------------------------- |
-| TEXT_IMAGE   | 画像生成                           | テキストプロンプトを使用して画像を生成します。 |
-| TEXT_IMAGE   | 画像コンディショニング(Canny Edge) | Canny Edge 画像を生成します。                  |
-
----
-
-| タスクタイプ              | 機能                               | 説明                                                                                                   |
-| ------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `TEXT_IMAGE`              | 画像生成                           | テキストプロンプトを使用して画像を生成。                                                               |
-| `TEXT_IMAGE`              | 画像コンディショニング(Canny Edge) | 入力条件画像のレイアウトと構図に従う画像も生成可能。                                                   |
-| `INPAINTING`              | 画像修正                           | マスクの内側を周囲の背景に合わせて変更し、画像を修正。                                                 |
-| `OUTPAINTING`             | 画像拡張                           | マスクで定義された領域をシームレスに拡張し、画像を修正。                                               |
-| `IMAGE_VARIATION`         | バリエーション生成                 | 元の画像のバリエーションを生成して画像を修正。                                                         |
-| `COLOR_GUIDED_GENERATION` | 色指定画像生成                     | テキストプロンプトと Hex カラーコードのリストを使用し、指定カラーパレットに従う画像を生成（V2 のみ）。 |
-| `BACKGROUND_REMOVAL`      | 背景除去                           | 複数のオブジェクトを識別し背景を削除、透明な背景の画像を出力（V2 のみ）。                              |
+| タスクタイプ              | 機能                                 | 説明                                                                                |
+| ------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
+| `TEXT_IMAGE`              | 画像生成                             | テキストプロンプトから画像を生成                                                    |
+|                           | 画像コンディショニング(Canny Edge)   | 入力画像のエッジに従い、テキストプロンプトに基づいた画像を生成                      |
+|                           | 画像コンディショニング(Segmentation) | 入力画像のセグメンテーションに従い、テキストプロンプトに基づいた画像を生成          |
+| `INPAINTING`              | インペインティング(Default)          | 入力画像の指定した領域をテキストプロンプトに基づいて編集                            |
+|                           | インペインティング(Removal)          | 入力画像の指定した領域を削除し、周囲の背景に合わせて補完                            |
+| `OUTPAINTING`             | アウトペインティング(Default)        | 入力画像の指定した領域外をテキストプロンプトに基づいて拡張 (マスク内も一部変更)     |
+|                           | アウトペインティング(Precise)        | 入力画像の指定した領域外をテキストプロンプトに基づいて拡張 (マスク内は変更されない) |
+| `IMAGE_VARIATION`         | 画像バリエーション                   | 入力画像のバリエーションを生成                                                      |
+| `COLOR_GUIDED_GENERATION` | カラーパレットによる画像ガイダンス   | 指定されたカラーパレットに従い、テキストプロンプトに基づいた画像を生成              |
+| `BACKGROUND_REMOVAL`      | 背景の削除                           | 入力画像からオブジェクトを識別し、背景を透明化                                      |
+| ---                       | サブジェクトの一貫性                 | fine-tuning により、特定のオブジェクトの特徴とその名称を関連付ける                  |
 
 ## 機能解説
 
-本節では，AWS SDK for Python (boto3) を使用し，Amazon Titan Image Generator v2 の各機能を紹介します．説明のため，画像を生成して表示するヘルパー関数 `generate_image` を定義しておきます．
+本節では，AWS SDK for Python (boto3) を使用し，Amazon Titan Image Generator v2 の各機能を検証します．説明のため，画像を生成して表示するヘルパー関数 `generate_image` を定義しておきます．
 
 ```python:generate_image.py
 import base64
@@ -390,7 +378,7 @@ mask image で指示した通り，入力画像中の犬のみ猫に置換され
 
 実際に検証したノートブックも公開しているので，是非ご参照ください．★
 
-また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator G1 による Inpaint が利用されていますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは[U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
+また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator v1 による Inpaint が行われてますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは[U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
 :::
 
 https://aws.amazon.com/jp/blogs/news/aws-summit-2024-retail-cpg-ec-genai-bedrock-demo-architecture/
@@ -794,11 +782,15 @@ Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様�
 - **インペインティング・アウトペインティングの場合，マスク領域内部だけでなく，マスク領域外部（背景）との関連性を記述する．**
   - 例: A dog sitting on a bench next to a woman
 
-また，モデルの推論パラメータ (`cfgScale` や `numberOfImages`など) を調整することも重要です．
+また，モデルの推論パラメータ (`cfgScale` や `numberOfImages`，各機能固有のパラメータなど) を調整することも重要です．
 
 ## まとめ
 
-summary
+本稿では，Amazon Titan Image Generator v2 の全 11 機能について詳細な検証を行い，コードの実行例と生成画像を示しました．主に，画像生成 (text2img)，インペインティング，アウトペインティング，画像バリエーション，カラーパレットによる画像ガイダンス，背景の削除というタスクタイプが存在し，その中でも複数の機能が利用可能であることを確認しました．特に，インペインティングやアウトペインティングでは，mask prompt の利用が有効である点や，SAM2 などを利用することで高精度な mask image を作成可能であることを確認しました．
+
+また，Amazon Titan Image Generator v2 のプロンプトエンジニアリングについても解説しました．これには，詳細な説明の提供，論理的な順序付け，具体的な単語の使用などが含まれます．
+
+本稿が，Amazon Titan Image Generator v2 の各機能の理解と効果的な利用の一助となれば幸いです．
 
 ## 仲間募集
 

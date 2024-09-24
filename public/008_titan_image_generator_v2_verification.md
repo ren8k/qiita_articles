@@ -43,6 +43,8 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 - データセットも安全なものを利用している
 - その他あれば
 
+https://aws.amazon.com/jp/about-aws/whats-new/2024/09/content-credentials-amazon-titan-image-generator/
+
 入力の言語は**英語のみ**対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
 
 ## Amazon Titan Image Generator v2 の機能一覧
@@ -624,7 +626,21 @@ generate_image(
 
 mask image で指定した領域以外が，prompt で指定した内容で編集されていることが確認できます．また，mask image が矩形の場合，つまり，mask iamge がオブジェクトの輪郭を正確に示せていない場合，機能の仕様上，アウトペインティングの結果が不自然となってしまうことが確認できます．（矩形領域のみ一切編集がなされていないことも確認できます．）
 
-### イメージバリエーション
+:::note
+
+入力画像と mask image を縮小し，1024x1024 などの大きな白いキャンバス上に貼り付けたものを利用することで，ズームアウト効果を出すことも可能です．例として，以下に示す入力画像，mask image と `"ocean"` というテキストプロンプトを利用して生成した画像を示します．
+
+| 入力画像                                                                                                                            | マスク画像                                                                                                                                 | 生成画像                                                                                                                                                       |
+| ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![resized_dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1b88fa03-6575-8d58-89f6-1b149b1f7fa4.png) | ![resized_mask_combined.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/596a5642-c89b-ad02-0db4-321717994ec5.png) | ![dogcat_outpaint_precise_mask_image_zoomin.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1de4b66c-7998-42e0-1741-ebefe5e97f82.png) |
+
+> - テキストプロンプト: "ocean"
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+犬と猫が壮大な冒険に出発する様子が描かれています．
+:::
+
+### 画像バリエーション
 
 入力画像から，入力画像と類似した画像のバリエーションを生成する機能です．オプションとしてテキストプロンプトを利用でき，入力画像の詳細な説明や，入力画像内で保持したい部分や変更する部分を指定することができます．
 
@@ -673,12 +689,40 @@ generate_image(
 :::
 
 :::note
-ここで，画像コンディショニング (Canny, Segmentation) と本機能が類似していると感じたかもしれません．公式ドキュメントには言及がありませんが，本機能と画像コンディショニングとの使い分けとしては，例えばイメージバリエーションで候補画像を複数生成し，その中から選んだ画像で追加で細かい修正を行いたい場合に画像コンディショニングを利用すると良いかもしれません．
+ここで，画像コンディショニング (Canny, Segmentation) と本機能が類似していると感じたかもしれません．公式ドキュメントには言及がありませんが，本機能と画像コンディショニングとの使い分けとしては，例えば画像バリエーションで候補画像を複数生成し，その中から選んだ画像で追加で細かい修正を行いたい場合に画像コンディショニングを利用すると良いかもしれません．
 :::
 
 ### カラーパレットによる画像ガイダンス
 
-テキストプロンプトと 16 進数カラーコードのリストから，
+テキストプロンプトと 16 進数のカラーコード (カラーパレット) のリストから，特定の色調や配色に従って画像を生成する機能です．オプションとして参照画像を入力することができ，画像のスタイルや構成，利用する色を指定することができます．
+
+以下のコードでは，`"A cute brown puppy and a white cat inside a blue bucket, an orange sunset in the evening"` というテキストプロンプトと参照画像を利用して画像を生成しています．ここで，推論パラメータの `colors` はリストで与える必要があり，1~10 の 16 進数のカラーコードを含めることができます．
+
+```python
+with open("/path/to/img.png", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "COLOR_GUIDED_GENERATION",
+        "colorGuidedGenerationParams": {
+            "text": "A cute brown puppy and a white cat inside a blue bucket, an orange sunset in the evening",
+            "negativeText": "bad quality, low res, noise",  # Optional
+            "referenceImage": input_image,  # Optional
+            "colors": ["#FFA500", "#87CEEB"],  # list of color hex codes
+        },
+    },
+)
+```
+
+> - テキストプロンプト: "A cute brown puppy and a white cat inside a blue bucket, an orange sunset in the evening"
+> - ネガティブプロンプト: "bad quality, low res, noise"
+
+| 入力画像                                                                                                                    | カラーパレット                                                                                                                   | 生成画像                                                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![color_codes.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8481ebc6-610b-1da9-a421-bde1656410a5.png) | ![dogcat_color_guidence.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a2ab208b-e5b2-a675-7e71-b2aa6708d893.png) |
+
+カラーパレットとして指定した色が反映されており，入力画像と類似した画像が生成されていることを確認できます．
 
 ### 背景の削除
 

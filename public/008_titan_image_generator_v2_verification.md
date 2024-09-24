@@ -696,7 +696,7 @@ generate_image(
 
 テキストプロンプトと 16 進数のカラーコード (カラーパレット) のリストから，特定の色調や配色に従って画像を生成する機能です．オプションとして参照画像を入力することができ，画像のスタイルや構成，利用する色を指定することができます．
 
-以下のコードでは，`"A cute brown puppy and a white cat inside a blue bucket, an orange sunset in the evening"` というテキストプロンプトと参照画像を利用して画像を生成しています．ここで，推論パラメータの `colors` はリストで与える必要があり，1~10 の 16 進数のカラーコードを含めることができます．
+以下のコードでは，オレンジ色と水色のカラーパレットと，`"A cute brown puppy and a white cat inside a blue bucket, an orange sunset in the evening"` というテキストプロンプト，参照画像を利用して画像を生成しています．ここで，推論パラメータの `colors` はリストで与える必要があり，1~10 の 16 進数のカラーコードを含めることができます．
 
 ```python
 with open("/path/to/img.png", "rb") as image_file:
@@ -726,11 +726,52 @@ generate_image(
 
 ### 背景の削除
 
+入力画像からオブジェクトを識別し，背景を削除する機能です．生成画像の背景は透明になります．本機能ではテキストプロンプトを利用しない点に注意が必要です．
+
+以下のコードでは，入力画像から背景を除去した画像を生成しています．ここで，推論パラメータは `image` のみであり，全機能で共通の推論パラメータである `numberOfImages` や `seed` は利用できません．
+
+```python
+with open("/path/to/img.png", "rb") as image_file:
+    input_image = base64.b64encode(image_file.read()).decode("utf8")
+
+generate_image(
+    {
+        "taskType": "BACKGROUND_REMOVAL",
+        "backgroundRemovalParams": {
+            "image": input_image,
+        },
+    },
+)
+```
+
+| 入力画像                                                                                                                    | 生成画像                                                                                                                                       |
+| --------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_background_removal.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/98ec2b81-c5b9-aabf-12f8-7e608d5a9c83.png) |
+
+犬と猫以外の背景が全て透明となっていることが確認できます．一方，必ずしも希望するオブジェクト以外の背景を除去できるとは限らない (今回の例で言うと，赤いバケツは削除されている) ため，より高精度に背景を除去したい場合は，別のセグメンテーションモデルなどを利用する必要があるかもしれません．
+
 ### サブジェクトの一貫性
 
-fine-tuning のことでは？
+Bedrock の fine-tuning により，訓練データ内における特定のオブジェクトの特徴とその名称を関連付けることができる機能です．例えば，「ロン」という名前の犬の画像とその説明文をデータセットとして fine-tuning することで，以下のように「ロン」の特徴を持つ犬の画像を生成することができます．
 
-fine-tuning 用のデータセットの準備が難しかったため，今回は検証を行っておりません．データセットの構造とかは以下の公式ドキュメントや公式ブログが参考になりそうです．
+![aws-blog-img.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3b8d0d8f-aa84-6bde-a097-e4e5a3fdce94.jpeg)
+
+> 上図は，以下の AWS ブログから引用しています．
+
+https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-available-in-amazon-bedrock/
+
+執筆時点 (2024/09/24) で，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-prepare.html)には Amazon Titan Image Generator v2 の fine-tuning に関する情報は記載されていませんが，基本的には v1 と同様で，以下のような画像と各画像のキャプションを記録した jsonl ファイルを S3 にアップロードすることで，fine-tuning が可能です．なお，画像も S3 にアップロードする必要があります．
+
+```json
+{"image-ref": "<S3_BUCKET_URL>/ron_01.jpg", "caption": "Ron the dog laying on a white dog bed"}
+{"image-ref": "<S3_BUCKET_URL>/ron_02.jpg", "caption": "Ron the dog sitting on a tile floor"}
+{"image-ref": "<S3_BUCKET_URL>/ron_03.jpg", "caption": "Ron the dog laying on a car seat"}
+{"image-ref": "<S3_BUCKET_URL>/smila_01.jpg", "caption": "Smila the cat lying on a couch"}
+{"image-ref": "<S3_BUCKET_URL>/smila_02.jpg", "caption": "Smila the cat sitting next to the window next to a statue cat"}
+{"image-ref": "<S3_BUCKET_URL>/smila_03.jpg", "caption": "Smila the cat lying on a pet carrier"}
+```
+
+fine-tuning 用のデータセットの準備が難しかったため，今回は検証を行っておりませんが，fine-tuning 実施時には，以下の公式ドキュメントや公式ブログが参考になりそうです．
 
 https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html#titanimage-finetuning
 

@@ -26,6 +26,8 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 https://github.com/ren8k/aws-bedrock-titan-image-verification
 
+![demo.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3f339578-13cc-f5a0-a6c2-758f8931d249.gif)
+
 ## Amazon Titan Image Generator v2 とは
 
 Amazon が開発した画像生成 AI であり，Amazon Bedrock にて提供されているモデルです．Amazon Titan Image Generator v2 は，画像生成 AI として，以下の特徴を持っています．

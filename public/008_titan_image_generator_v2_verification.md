@@ -34,7 +34,7 @@ Amazon が開発した画像生成 AI であり，Amazon Bedrock にて提供さ
 
 - 機能が豊富であり，⾼品質な画像を⽣成可能
   - インペインティング/アウトペインティング，画像調整，背景除去,,,etc
-- 生成画像には，目に見えないウォーターマークが含まれる
+- 生成画像には，[不可視のウォーターマーク](https://aws.amazon.com/jp/about-aws/whats-new/2024/04/watermark-detection-amazon-titan-image-generator-bedrock/)や [C2PA のコンテンツ認証情報](https://aws.amazon.com/jp/about-aws/whats-new/2024/09/content-credentials-amazon-titan-image-generator/)が含まれる
   - [ウォーターマーク検出 API](https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-and-watermark-detection-api-are-now-available-in-amazon-bedrock/) や[Content Credentials Verify](https://contentcredentials.org/verify)で検出可能
 - 責任ある AI の原則に基づいた設計
   - 学習データとしてオープンソースや独自のデータなど，安全なものを利用

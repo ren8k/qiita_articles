@@ -22,7 +22,7 @@ ignorePublish: false
 
 https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-available-in-amazon-bedrock/
 
-また，検証にあたり，Amazon Titan Image Generator v2 の全機能を利用できる簡易アプリケーションを streamlit で実装し，Github 上で公開しております．是非利用してみて下さい．
+また，検証にあたり，Amazon Titan Image Generator v2 の全機能を利用できる簡易アプリケーションを streamlit で実装し，Github 上で公開しております．是非利用してみて下さい！
 
 https://github.com/ren8k/aws-bedrock-titan-image-generator-app
 
@@ -245,9 +245,9 @@ generate_image(
 
 ### 画像コンディショニング(Segmentation)
 
-入力画像をセグメンテーションすることにより，入力画像内のオブジェクトや領域を特定したマスクを生成し，テキストプロンプトからマスクに従った画像を生成する機能です．なお，本機能で利用されるセグメンテーションアルゴリズムは非公開です．SoTA なセグメンテーションモデルの中でも，代表的なものとして[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) が挙げられます．
+入力画像をセグメンテーションすることにより，入力画像内のオブジェクトや領域を特定したマスクを生成し，テキストプロンプトからマスクに従った画像を生成する機能です．なお，本機能で利用されるセグメンテーションアルゴリズムは非公開です．SoTA なセグメンテーションモデルの中でも，代表的なものとして [SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) が挙げられます．
 
-SAM2 は，Meta が公開したセグメンテーションのための基盤モデルであり，ゼロショットで画像・動画内の任意のオブジェクトや領域のセグメンテーションを行うことができます．モデルは[OSS として公開](https://github.com/facebookresearch/segment-anything-2)されており，Apache-2.0 ライセンスの下，利用が可能です．参考のため，SAM2 によるセグメンテーション結果の例を示します．
+SAM2 は，Meta が公開したセグメンテーションのための基盤モデルであり，ゼロショットで画像・動画内の任意のオブジェクトや領域のセグメンテーションを行うことができます．モデルは [OSS として公開](https://github.com/facebookresearch/segment-anything-2)されており，Apache-2.0 ライセンスの下，利用が可能です．参考のため，SAM2 によるセグメンテーション結果の例を示します．
 
 | 入力画像                                                                                                                    | セグメンテーション結果 (例)                                                                                                                   |
 | --------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -386,7 +386,7 @@ https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/noteboo
 
 https://github.com/ren8k/Grounded-Segment-Anything/blob/main/grounded_sam.ipynb
 
-また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator v1 による Inpaint が行われてますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは[U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
+また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator v1 による Inpaint が行われてますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは [U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
 :::
 
 https://aws.amazon.com/jp/blogs/news/aws-summit-2024-retail-cpg-ec-genai-bedrock-demo-architecture/

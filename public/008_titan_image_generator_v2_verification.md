@@ -1,5 +1,5 @@
 ---
-title: Amazon Titan Image Generator v2の Deep Dive
+title: Amazon Titan Image Generator v2 の全機能を徹底検証：機能解説と実践ガイド
 tags:
   - AWS
   - bedrock
@@ -16,29 +16,29 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．2024/08/06 に，Amazon Bedrock にて，画像生成 AI である [**Amazon Titan Image Generator v2** がバージニア北部リージョンとオレゴンリージョンで利用可能になりました．](https://aws.amazon.com/jp/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/)
 
-2024/08/06 に，v2 が使えるようになった．
-
-https://aws.amazon.com/jp/about-aws/whats-new/2024/08/titan-image-generator-v2-amazon-bedrock/
-
-機能が沢山増えた．改めて何ができるのかを確認する．
+本モデルでは，Amazon Titan Image Generator v1 の全ての機能に加え，様々な新機能が利用できるようになり，**計 11 種類**の機能が利用できます．本稿では，Amazon Titan Image Generator v2 の全機能の feasibility や利用方法を確認することを目的とし，検証結果をまとめました．
 
 https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-available-in-amazon-bedrock/
 
+また，検証にあたり，Amazon Titan Image Generator v2 の全機能を利用できる簡易アプリケーションを streamlit で実装し，Github 上で公開しております．是非利用してみて下さい．
+
+https://github.com/ren8k/aws-bedrock-titan-image-verification
+
 ## Amazon Titan Image Generator v2 とは
 
-- Amazon 謹製の画像生成 AI
-- 多機能
-- 目に見えないウォーターマークが含まれている
-  - ウォーターマーク検出 API で検出可能
-  - [Content Credentials Verify](https://contentcredentials.org/verify)
-- データセットも安全なものを利用している
-- その他あれば
+Amazon が開発した画像生成 AI であり，Amazon Bedrock にて提供されているモデルです．Amazon Titan Image Generator v2 は，画像生成 AI として，以下の特徴を持っています．
 
-https://aws.amazon.com/jp/about-aws/whats-new/2024/09/content-credentials-amazon-titan-image-generator/
+- 機能が豊富であり，⾼品質な画像を⽣成可能
+  - インペインティング/アウトペインティング，画像調整，背景除去,,,etc
+- 生成画像には，目に見えないウォーターマークが含まれる
+  - [ウォーターマーク検出 API](https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-and-watermark-detection-api-are-now-available-in-amazon-bedrock/) や[Content Credentials Verify](https://contentcredentials.org/verify)で検出可能
+- 責任ある AI の原則に基づいた設計
+  - 学習データとしてオープンソースや独自のデータなど，安全なものを利用
+  - 生成画像が著作権を侵害した際の請求に対して[補償](https://aws.amazon.com/jp/about-aws/whats-new/2023/12/aws-announces-more-model-choice-and-powerful-new-capabilities-in-amazon-bedrock-to-securely-build-and-scale-generative-ai-applications/)あり
 
-入力の言語は**英語のみ**対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
+執筆時点 (2024/09/24) では，入力の言語は**英語のみ**対応しており，最大 512 文字まで入力が可能です．その他詳細な仕様については，公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/titan-image-models.html)に記載があります．
 
 ## Amazon Titan Image Generator v2 の機能一覧
 
@@ -110,7 +110,7 @@ def generate_image(
     image.show()
 ```
 
-メソッド `invoke_model` の body 部の `imageGenerationConfig` は各機能で共通の推論パラメータであり，以下の設定が可能です．その他詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)に記載があります．
+メソッド `invoke_model` の body 部の `imageGenerationConfig` は各機能で共通の推論パラメータであり，以下の設定が可能です．詳細な情報は公式ドキュメントの[本ページ](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)にも記載があります．
 
 - `numberOfImages`: 生成する画像の数
 - `quality`: 生成される画像の品質 (standard or premium)
@@ -119,7 +119,9 @@ def generate_image(
 - `cfgScale`: 生成画像に対するプロンプトの影響度合い（忠実度）
 - `seed`: 再現性のために使用するシード値
 
-ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook はこちらにございます．★
+ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook は Github にて公開しております．
+
+https://github.com/ren8k/aws-bedrock-titan-image-verification/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
 ```json
 {
@@ -376,7 +378,11 @@ mask image で指示した通り，入力画像中の犬のみ猫に置換され
 | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | ![dogcat_detect.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/bb8003de-3b42-d20d-19f4-301a3e93c7bc.png) | ![dogcat_segmentation.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/0451f70c-f9f4-83e7-1116-0357a3377850.png) | ![dogcat_mask.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/41304650-af81-5a3c-d03a-fef6d8ec0896.png) |
 
-実際に検証したノートブックも公開しているので，是非ご参照ください．★
+実際に検証したノートブックも公開しているので，是非ご参照ください．
+
+https://github.com/ren8k/aws-bedrock-titan-image-verification/blob/main/notebook/automatic_mask_generator_example.ipynb
+
+https://github.com/ren8k/Grounded-Segment-Anything/blob/main/grounded_sam.ipynb
 
 また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator v1 による Inpaint が行われてますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは[U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
 :::
@@ -481,7 +487,7 @@ generate_image(
 )
 ```
 
-> - テキストプロンプト: "A dog riding in a small boat.
+> - テキストプロンプト: "A dog riding in a small boat."
 > - マスクプロンプト: "A cute brown puppy"
 > - ネガティブプロンプト: "bad quality, low res, noise"
 
@@ -565,7 +571,7 @@ generate_image(
 )
 ```
 
-> - テキストプロンプト: "A dog riding in a small boat.
+> - テキストプロンプト: "A dog riding in a small boat."
 > - マスクプロンプト: "A cute brown puppy"
 > - ネガティブプロンプト: "bad quality, low res, noise"
 
@@ -748,7 +754,7 @@ Bedrock の fine-tuning により，訓練データ内における特定のオ�
 
 https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-available-in-amazon-bedrock/
 
-執筆時点 (2024/09/24) で，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-prepare.html)には Amazon Titan Image Generator v2 の fine-tuning に関する情報は記載されていませんが，基本的には v1 と同様で，以下のような画像と各画像のキャプションを記録した jsonl ファイルを S3 にアップロードすることで，fine-tuning が可能です．なお，画像も S3 にアップロードする必要があります．
+執筆時点 (2024/09/24) では，[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-prepare.html)には Amazon Titan Image Generator v2 の fine-tuning に関する情報は記載されていませんが，基本的には v1 と同様で，以下のような画像と各画像のキャプションを記録した jsonl ファイルを S3 にアップロードすることで，fine-tuning が可能です．なお，画像も S3 にアップロードする必要があります．
 
 ```json
 {"image-ref": "<S3_BUCKET_URL>/ron_01.jpg", "caption": "Ron the dog laying on a white dog bed"}
@@ -786,9 +792,11 @@ Amazon Titan Image Generator v2 を利用する際，一般的な LLM と同様�
 
 ## まとめ
 
-本稿では，Amazon Titan Image Generator v2 の全 11 機能について詳細な検証を行い，コードの実行例と生成画像を示しました．主に，画像生成 (text2img)，インペインティング，アウトペインティング，画像バリエーション，カラーパレットによる画像ガイダンス，背景の削除というタスクタイプが存在し，その中でも複数の機能が利用可能であることを確認しました．特に，インペインティングやアウトペインティングでは，mask prompt の利用が有効である点や，SAM2 などを利用することで高精度な mask image を作成可能であることを確認しました．
+本稿では，Amazon Titan Image Generator v2 の全 11 機能について詳細な検証を行い，コードの実行例と生成画像を示しました．主に，画像生成 (text2img)，インペインティング，アウトペインティング，画像バリエーション，カラーパレットによる画像ガイダンス，背景の削除というタスクタイプが存在し，その中でも複数の機能が利用可能であることを確認しました．
 
-また，Amazon Titan Image Generator v2 のプロンプトエンジニアリングについても解説しました．これには，詳細な説明の提供，論理的な順序付け，具体的な単語の使用などが含まれます．
+特に，インペインティングやアウトペインティングでは，mask prompt の利用が有効である点や，高精度な mask image が必要な場合，SAM2 などを利用することが有効である点を確認しました．
+
+最後に，Amazon Titan Image Generator v2 のプロンプトエンジニアリングについても解説しました．重要な点として，詳細な説明の提供，論理的な順序付け，具体的な単語の使用などが挙げられます．
 
 本稿が，Amazon Titan Image Generator v2 の各機能の理解と効果的な利用の一助となれば幸いです．
 

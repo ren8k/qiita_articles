@@ -123,8 +123,6 @@ def generate_image(
 
 ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook は Github にて公開しております．
 
-https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
-
 ```json
 {
   "taskType": "TEXT_IMAGE",
@@ -141,6 +139,8 @@ https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/noteboo
   }
 }
 ```
+
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
 ### 画像生成
 
@@ -286,7 +286,11 @@ generate_image(
 | --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![dogcat_conditioning_segmentation.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/33c8c29a-75a7-2677-c904-8247a4e38de1.png) |
 
-入力画像のセグメンテーション領域に対して，忠実に画像が生成されていることが確認できます．ここで，先程の画像コンディショニング(Canny Edge) と比較すると，犬の目線やバケツの模様，猫の右足などは，入力画像とは異なることがわかります．入力画像の大まかな構図を生成画像に反映したい場合は Segmentation の利用が適しており，入力画像の細かな特徴を生成画像に反映したい場合は，Canny Edge の利用が適していると考えられます．
+入力画像のセグメンテーション領域に対して，忠実に画像が生成されていることが確認できます．ここで，先程の画像コンディショニング(Canny Edge) と比較すると，犬の目線やバケツの模様，猫の右足などは，入力画像とは異なることがわかります．
+
+:::note
+入力画像の大まかな構図を生成画像に反映したい場合は Segmentation の利用が適しており，入力画像の細かな特徴を生成画像に反映したい場合は，Canny Edge の利用が適していると考えられます．
+:::
 
 ### インペインティング(Default)
 
@@ -685,7 +689,7 @@ generate_image(
 :::
 
 :::note
-ここで，画像コンディショニング (Canny, Segmentation) と本機能が類似していると感じたかもしれません．公式ドキュメントには言及がありませんが，本機能と画像コンディショニングとの使い分けとしては，例えば画像バリエーションで候補画像を複数生成し，その中から選んだ画像で追加で細かい修正を行いたい場合に画像コンディショニングを利用すると良いかもしれません．
+ここで，画像コンディショニング (Canny, Segmentation) と本機能が類似していると感じたかもしれません．公式ドキュメントには言及がありませんが，本機能と画像コンディショニングとの使い分けとしては，例えば画像バリエーションで候補画像を複数生成し，その中から選んだ画像で追加で細かい修正を行いたい場合に画像コンディショニングを利用すると良いと考えております．
 :::
 
 ### カラーパレットによる画像ガイダンス

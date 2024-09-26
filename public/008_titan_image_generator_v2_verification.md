@@ -123,8 +123,6 @@ def generate_image(
 
 ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook は Github にて公開しております．
 
-https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
-
 ```json
 {
   "taskType": "TEXT_IMAGE",
@@ -141,6 +139,8 @@ https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/noteboo
   }
 }
 ```
+
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
 ### 画像生成
 

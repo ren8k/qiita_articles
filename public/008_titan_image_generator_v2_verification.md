@@ -24,7 +24,7 @@ https://aws.amazon.com/jp/blogs/news/amazon-titan-image-generator-v2-is-now-avai
 
 また，検証にあたり，Amazon Titan Image Generator v2 の全機能を利用できる簡易アプリケーションを streamlit で実装し，Github 上で公開しております．是非利用してみて下さい．
 
-https://github.com/ren8k/aws-bedrock-titan-image-verification
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app
 
 ![demo.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/3f339578-13cc-f5a0-a6c2-758f8931d249.gif)
 
@@ -123,7 +123,7 @@ def generate_image(
 
 ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook は Github にて公開しております．
 
-https://github.com/ren8k/aws-bedrock-titan-image-verification/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
 ```json
 {
@@ -382,7 +382,7 @@ mask image で指示した通り，入力画像中の犬のみ猫に置換され
 
 実際に検証したノートブックも公開しているので，是非ご参照ください．
 
-https://github.com/ren8k/aws-bedrock-titan-image-verification/blob/main/notebook/automatic_mask_generator_example.ipynb
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/automatic_mask_generator_example.ipynb
 
 https://github.com/ren8k/Grounded-Segment-Anything/blob/main/grounded_sam.ipynb
 

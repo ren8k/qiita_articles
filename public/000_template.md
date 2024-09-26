@@ -18,63 +18,13 @@ ignorePublish: true
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
-## コードの書き方
+## 目次
 
-以下にコードを示す．
-
-```python:main.py
-print("hello")
-```
-
-```bash:main.sh
-echo "hello"
-```
-
-:::note info
-インフォメーション
-info は省略可能です。
-:::
-
-:::note warn
-警告
-○○ に注意してください。
-:::
-
-:::note alert
-より強い警告
-○○ しないでください。
-:::
-
-<!-- open属性なし -->
-<details><summary>サンプルコード（open属性なし）</summary>
-
-(上に空行が必要)
-
-```rb:sample.rb
-puts 'Hello, World'
-```
-
-```json:sample.json
-{
-  "key": "value"
-}
-```
-
-```yaml:sample.yaml
-
-```
-
-</details>
-
-![recat.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/93909c5c-b2a6-5b2e-6885-715caa8e6977.jpeg)
-
-上記が実装したコードのフローである．
-
-![naive-rag-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/dde0d43e-2bfb-b17f-6c6a-67062ad30903.png)
+## 内容 1
 
 ## まとめ
 
-本日は Amazon Bedrock で昨日リリースされた Claude 3 Opus を中心に記載させていただきました。今後はどのようなビジネスユースケースで活用し、付加価値を提供できるかを検討しつつ、Agent for Amazon Bedrock なども活用し、より高度なサービスの提供を実施していきたい。
+summary
 
 ## 仲間募集
 

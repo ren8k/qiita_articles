@@ -142,6 +142,12 @@ def generate_image(
 
 https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
+:::note
+出力画像の解像度については，タスクタイプが `TEXT_IMAGE`，`COLOR_GUIDED_GENERATION` の場合，つまり，text2img のタスクの場合，1024x1024 や 1280x768 ，512×512 などの様々なアスペクト比・サイズを指定することができます．一方，タスクタイプが前述以外の場合，つまり，img2img のタスクの場合，出力画像の解像度は入力画像の解像度と同一になる点に注意が必要です．
+
+text2img のタスクで指定可能な解像度については[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)をご参照下さい．
+:::
+
 ### 画像生成
 
 テキストプロンプトから，画像を生成する機能です．オプションとしてネガティブプロンプトを利用し，画像に含めたくない要素を指定可能です．なお，テキストプロンプト，ネガティブプロンプト共に 512 文字以下である必要があります．
@@ -334,7 +340,7 @@ mask prompt で指示した通り，入力画像中の犬のみ猫に置換さ�
 mask image として，2 値のマスク画像を利用することができ，0 値のピクセル (黒塗り部分) が編集対象の領域を示し，255 値のピクセル (白塗り部分) が編集対象外の領域を示します．
 
 :::note
-[DALL-E-3](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion XL Inpainting 0.1](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) の場合，mask image は白塗り部分が編集対象の領域を示す点に注意が必要です．
+[DALL-E-2](https://platform.openai.com/docs/api-reference/images/createEdit#images-createedit-mask) や [Stable Diffusion XL Inpainting 0.1](https://huggingface.co/diffusers/stable-diffusion-xl-1.0-inpainting-0.1) の場合，mask image は白塗り部分が編集対象の領域を示す点に注意が必要です．
 :::
 
 本検証では，[SAM2 (Segment Anything Model 2)](https://ai.meta.com/sam2/) を利用して，高精度の犬の mask image を生成しました．(SAM2 で得られるセグメンテーション結果の色を反転させています．)
@@ -390,7 +396,7 @@ https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/noteboo
 
 https://github.com/ren8k/Grounded-Segment-Anything/blob/main/grounded_sam.ipynb
 
-また，以下の AWS ブログでのソリューションでも Amazon Titan Image Generator v1 による Inpaint が行われてますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．バックエンドで利用されているモデルは [U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されているようです．
+また，以下の AWS ブログでのソリューションでは， Amazon Titan Image Generator v1 による Inpaint が行われていますが，その際，[rembg](https://github.com/danielgatis/rembg) という Python ライブラリを利用して，マスク画像を生成しているようです．rembg のバックエンドのモデルとしては [U2-Net](https://github.com/xuebinqin/U-2-Net) などが利用されております．
 :::
 
 https://aws.amazon.com/jp/blogs/news/aws-summit-2024-retail-cpg-ec-genai-bedrock-demo-architecture/

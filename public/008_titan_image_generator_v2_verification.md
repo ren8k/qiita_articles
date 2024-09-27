@@ -143,7 +143,10 @@ def generate_image(
 https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_all_features_of_titan_image_generator_v2.ipynb
 
 :::note
-出力画像の解像度については，タスクタイプが `TEXT_IMAGE`，`COLOR_GUIDED_GENERATION` の場合，つまり，text2img のタスクの場合，1024x1024 や 1280x768 ，512×512 などの許容されている特定のアスペクト比を指定することができます．一方，タスクタイプが前述以外の場合，つまり，img2img のタスクの場合，出力画像の解像度は入力画像の解像度と同一になる点に注意が必要です．
+
+#### 出力画像の解像度について
+
+タスクタイプが `TEXT_IMAGE`，`COLOR_GUIDED_GENERATION` の場合，つまり，**text2img** のタスクの場合，1024x1024 や 1280x768 ，512×512 などの許容されている**特定のアスペクト比を指定することができます**．一方，タスクタイプが前述以外の場合，つまり，**img2img** のタスクの場合，**出力画像の解像度は入力画像の解像度と同一**になりますが，入力画像の幅と高さはそれぞれ **1408 pixel 以内**である必要がある点に注意が必要です．（本情報は公式ドキュメントには明示されておらず，実際に検証して確認しました．）
 
 text2img のタスクで指定可能な解像度については[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)をご参照下さい．
 :::

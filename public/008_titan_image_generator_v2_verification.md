@@ -118,7 +118,7 @@ def generate_image(
 - `quality`: 生成される画像の品質 (standard or premium)
 - `height`: 出力画像の高さ
 - `width`: 出力画像の幅
-- `cfgScale`: 生成画像に対するプロンプトの影響度合い（忠実度）
+- `cfgScale`: 生成画像に対するプロンプトや入力画像の影響度合い（忠実度）
 - `seed`: 再現性のために使用するシード値
 
 ヘルパー関数の引数 `payload` には，各機能独自の設定 (dict) を指定します．例えば，画像生成の機能の場合，`invoke_model` の最終的な body は以下のように指定する必要があります．以降，具体的な設定項目も提示しつつ解説していきます．なお，本解説で利用した jupyter notebook は Github にて公開しております．

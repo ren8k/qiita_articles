@@ -7,7 +7,7 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2024-10-04T16:07:35+09:00'
+updated_at: '2024-10-04T16:11:10+09:00'
 id: 94b5d9bdc513acde371e
 organization_url_name: nttdata
 slide: false

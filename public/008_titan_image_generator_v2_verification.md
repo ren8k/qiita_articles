@@ -7,9 +7,9 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2024-10-01T23:57:47+09:00'
+updated_at: "2024-10-01T23:57:47+09:00"
 id: 94b5d9bdc513acde371e
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
@@ -731,7 +731,7 @@ generate_image(
 | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | ![dogcat.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/7905b8de-bbe7-7709-fc31-00dac19eec0c.png) | ![color_codes.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/8481ebc6-610b-1da9-a421-bde1656410a5.png) | ![dogcat_color_guidence.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a2ab208b-e5b2-a675-7e71-b2aa6708d893.png) |
 
-カラーパレットとして指定した色が反映されており，入力画像と類似した画像が生成されていることを確認できます．
+カラーパレットとして指定した色が反映されており，入力画像と類似した構図の画像が生成されていることを確認できます．
 
 ### 背景の削除
 

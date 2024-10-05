@@ -1,5 +1,5 @@
 ---
-title: Qiita 投稿記事の閲覧数・のいいね数の分析
+title: Qiita 投稿記事の閲覧数・いいね数の分析
 tags:
   - Python
   - API

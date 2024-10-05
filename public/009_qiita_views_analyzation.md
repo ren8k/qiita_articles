@@ -365,7 +365,7 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
 
 ## まとめ
 
-Qiita API を利用して，Qiita 投稿記事の閲覧数・いいね数を取得し，集計する Python スクリプトを作成しました．集計期間の指定
+Qiita API を利用して，指定の期間に投稿した記事の閲覧数・いいね数を取得し，集計する Python スクリプトを作成しました．是非カスタマイズしてお使い下さい！
 
 <!--
 ## 仲間募集

@@ -25,20 +25,20 @@ https://github.com/ren8k/analyze_qiita
 
 ## 利用方法
 
-- コードの clone し，`src` ディレクトリに移動
+- コードを clone し，`src` ディレクトリに移動します．
 
 ```bash
 git clone https://github.com/ren8k/analyze_qiita.git
 cd src
 ```
 
-- Qiita のアクセストークンの発行
+- Qiita のアクセストークンを発行します．
 
   - ログインした状態で https://qiita.com/settings/tokens/new へアクセス
   - スコープでは `read_qiita` を選択し，任意の名前を `アクセストークンの説明` に入力した後，`発行` を押下
   - 発行されたアクセストークンをコピー
 
-- config.py の以下の変数を設定する．
+- config.py の以下の変数を設定します．
   - `USER_ID`: Qiita のユーザ名
   - `API_TOKEN`: Qiita API のアクセストークン
   - `START_DATE`: 集計開始日時
@@ -55,13 +55,13 @@ START_DATE: Final[datetime] = datetime(2024, 4, 1, tzinfo=timezone.utc)
 END_DATE: Final[datetime] = datetime(2025, 3, 31, tzinfo=timezone.utc)
 ```
 
-- `main.py` を実行する．
+- `main.py` を実行します．
 
 ```bash
 python main.py
 ```
 
-- 以下のような出力が得られる．
+- 以下のような出力が得られます．
 
 ```
 | 記事タイトル                                                                                 | いいね数 | ストック数 | View 数 | 作成日     | タグ                                                     |
@@ -88,7 +88,7 @@ python main.py
 
 ```
 
-- markdown プレビューすると，以下のように表示される．
+- markdown プレビューすると，以下のように表示されます．
 
 | 記事タイトル                                                                                 | いいね数 | ストック数 | View 数 | 作成日     | タグ                                                     |
 | :------------------------------------------------------------------------------------------- | -------: | ---------: | ------: | :--------- | :------------------------------------------------------- |
@@ -112,7 +112,7 @@ python main.py
 
 \================================
 
-私の記事の集計結果によると，全ての記事に AWS や Bedrock が関連していることがわかります．
+上記の私の記事の集計結果によると，全ての記事に AWS や Bedrock が関連していることがわかります．また，記事毎に閲覧数にばらつきがあることがわかります．
 
 ## コード
 
@@ -168,6 +168,7 @@ def get_item_details(item_id: str) -> Dict[str, Any]:
 <details><summary>analyzer.py</summary>
 
 ```python:analyzer.py
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
@@ -218,6 +219,7 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
                     "tags": tags,
                 }
             )
+            time.sleep(1)
 
         if len(items) < PER_PAGE:
             break  # 最後のページであればループを終了

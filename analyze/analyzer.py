@@ -1,3 +1,4 @@
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
@@ -48,6 +49,7 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
                     "tags": tags,
                 }
             )
+            time.sleep(1)
 
         if len(items) < PER_PAGE:
             break  # 最後のページであればループを終了

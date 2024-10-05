@@ -8,7 +8,7 @@ https://github.com/ren8k/analyze_qiita
 
 ## 利用方法
 
-- コードの clone し，`src` ディレクトリに移動
+- コードを clone し，`src` ディレクトリに移動
 
 ```bash
 git clone https://github.com/ren8k/analyze_qiita.git

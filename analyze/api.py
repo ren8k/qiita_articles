@@ -18,10 +18,3 @@ def get_user_items(page: int) -> List[Dict[str, Any]]:
     url: str = f"{BASE_URL}/authenticated_user/items?page={page}"
     response: requests.Response = requests.get(url, headers=get_headers())
     return response.json()
-
-
-# https://qiita.com/api/v2/docs#get-apiv2itemsitem_id
-def get_item_details(item_id: str) -> Dict[str, Any]:
-    url: str = f"{BASE_URL}/items/{item_id}"
-    response: requests.Response = requests.get(url, headers=get_headers())
-    return response.json()

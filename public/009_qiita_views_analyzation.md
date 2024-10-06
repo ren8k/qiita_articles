@@ -17,9 +17,9 @@ ignorePublish: false
 <!--
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です． -->
 
-会社の技術ブログ発信の手段として Qiita を利用している場合，技術ブログを成果として報告する際に，期間毎の閲覧数を定量指標として示したいことがあるかと思います．また，いいね数や閲覧数などを定量的に分析することで，どのような記事が人気であるのかを把握することもできます．
+会社の技術ブログ発信の手段として Qiita を利用している場合，技術ブログを成果として報告する際に，期間毎の閲覧数を定量指標として示すことが有効です．また，いいね数や閲覧数などを定量的に分析することで，どのような記事が人気であるかを把握することができます．
 
-上記の目的を達成するために，Qiita API を利用して，Qiita 投稿記事のいいね数・閲覧数などを Qiita API で取得し，集計する Python スクリプトを作成しました．集計コードは以下で公開しています．
+上記の目的を達成するために，[Qiita API](https://qiita.com/api/v2/docs) を利用して，指定の期間内の Qiita 投稿記事のいいね数・閲覧数などを取得し，集計する Python スクリプトを作成しました．集計コードは以下のリンクで公開しています．
 
 https://github.com/ren8k/analyze_qiita
 
@@ -37,8 +37,10 @@ cd src
   - ログインした状態で https://qiita.com/settings/tokens/new へアクセス
   - スコープでは `read_qiita` を選択し，任意の名前を `アクセストークンの説明` に入力した後，`発行` を押下
   - 発行されたアクセストークンをコピー
+    <br>
 
-- config.py の以下の変数を設定します．
+- `config.py` の以下の変数を設定します．
+
   - `USER_ID`: Qiita のユーザ名
   - `API_TOKEN`: Qiita API のアクセストークン
   - `START_DATE`: 集計開始日時
@@ -61,7 +63,7 @@ END_DATE: Final[datetime] = datetime(2025, 3, 31, tzinfo=timezone.utc)
 python main.py
 ```
 
-- 以下のような出力が得られます．
+- `config.py`で指定した期間の各記事の閲覧数やいいね数を含む，以下のような出力が得られます．
 
 ```
 | 記事タイトル                                                                                 | いいね数 | ストック数 | View 数 | 作成日     | タグ                                                     |
@@ -112,7 +114,7 @@ python main.py
 
 \================================
 
-上記の私の記事の集計結果によると，全ての記事に AWS や Bedrock が関連していることがわかります．また，記事毎に閲覧数にばらつきがありますが，いいね数と閲覧数には相関がありそうです．
+上記の私の記事の集計結果によると，全ての記事に AWS や Bedrock が関連していることがわかります．また，記事毎の閲覧数にばらつきがありますが，いいね数と閲覧数には相関がありそうです．
 
 ## コード
 
@@ -134,9 +136,8 @@ END_DATE: Final[datetime] = datetime(2025, 3, 31, tzinfo=timezone.utc)
 <details><summary>api.py</summary>
 
 ```python:api.py
-from typing import Any, Dict, Final, List
-
 import requests
+from typing import Any, Dict, Final, List
 from config import API_TOKEN
 
 BASE_URL: Final[str] = "https://qiita.com/api/v2"
@@ -155,12 +156,6 @@ def get_user_items(page: int) -> List[Dict[str, Any]]:
     response: requests.Response = requests.get(url, headers=get_headers())
     return response.json()
 
-
-# https://qiita.com/api/v2/docs#get-apiv2itemsitem_id
-def get_item_details(item_id: str) -> Dict[str, Any]:
-    url: str = f"{BASE_URL}/items/{item_id}"
-    response: requests.Response = requests.get(url, headers=get_headers())
-    return response.json()
 ```
 
 </details>
@@ -172,7 +167,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, List, Tuple
 
-from api import get_item_details, get_user_items
+from api import get_user_items
 from config import END_DATE, PER_PAGE, START_DATE
 
 
@@ -200,13 +195,9 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
             if not is_within_date_range(created_at) or item["private"]:
                 continue
 
-            item_details: Dict[str, Any] = get_item_details(item["id"])
-            page_views: int = item_details["page_views_count"]
-
-            all_views += page_views
+            all_views += item["page_views_count"]
             all_likes += item["likes_count"]
             all_stocks += item["stocks_count"]
-            tags: str = ", ".join([tag["name"] for tag in item["tags"]])
             items_count += 1
 
             articles.append(
@@ -214,16 +205,16 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
                     "title": item["title"],
                     "likes": item["likes_count"],
                     "stocks": item["stocks_count"],
-                    "views": page_views,
+                    "views": item["page_views_count"],
                     "created_at": created_at.strftime("%Y-%m-%d"),
-                    "tags": tags,
+                    "tags": ", ".join([tag["name"] for tag in item["tags"]]),
                 }
             )
-            time.sleep(1)
 
         if len(items) < PER_PAGE:
             break  # 最後のページであればループを終了
         page += 1
+        time.sleep(1)
 
     return articles, all_views, all_likes, all_stocks, items_count
 
@@ -295,23 +286,37 @@ if __name__ == "__main__":
 
 </details>
 
+## 利用している API について
+
+[`GET /api/v2/authenticated_user/items`](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems) により，認証中のユーザーの記事の一覧を作成日時の降順で取得できます．レスポンスには，各記事の以下の情報が含まれます．
+
+- id: 記事の ID
+- title: 記事のタイトル
+- created_at: 作成日時
+- updated_at: 更新日時
+- likes_count: いいね数
+- stocks_count: ストック数
+- comments_count: コメント数
+- page_views_count: 閲覧数
+
+:::note warn
+[`GET /api/v2/authenticated_user/items`](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems) で記事の ID を取得し，それを基に [`GET /api/v2/items/:item_id`](https://qiita.com/api/v2/docs#get-apiv2itemsitem_id) で閲覧数を取得している他の記事もありましたが，前者の API のみで得られる情報は包含されています．
+:::
+
 ## コード簡易説明
 
-[Qiita API](https://qiita.com/api/v2/docs) を利用することで，記事の閲覧数などの情報を取得することができます．本実装では，`analyzer.py` で定義している関数 `get_article_stats` にて，Qiita API を利用した集計処理を行っています．アルゴリズムとしては以下です．
+本実装では，`analyzer.py` で定義している関数 `get_article_stats` にて，Qiita API を利用した集計処理を行っています．アルゴリズムとしては以下です．
 
-- 統計情報 (views, likes, stocks) の初期化
-- ページング処理により記事を取得し，集計の実施
+- ページング処理により記事を取得し，集計を実施
   - 指定した期間内の記事，または，限定共有記事でないものを対象とする
-  - 関数 `get_user_items`: 認証中のユーザーの記事の一覧を作成日時の降順で取得
-  - 関数 `get_item_details`: 記事の詳細情報を取得
-- 記事の以下の詳細情報を取得
+  - 関数 `get_user_items` で，認証中のユーザーの記事の一覧を作成日時の降順で取得
+- 記事の以下の詳細情報を抽出
   - タイトル
   - いいね数
   - ストック数
   - View 数
   - 作成日
   - タグ
-- 統計情報を更新
 
 ```python: analyzer.py
 def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
@@ -334,13 +339,9 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
             if not is_within_date_range(created_at) or item["private"]:
                 continue
 
-            item_details: Dict[str, Any] = get_item_details(item["id"])
-            page_views: int = item_details["page_views_count"]
-
-            all_views += page_views
+            all_views += item["page_views_count"]
             all_likes += item["likes_count"]
             all_stocks += item["stocks_count"]
-            tags: str = ", ".join([tag["name"] for tag in item["tags"]])
             items_count += 1
 
             articles.append(
@@ -348,15 +349,16 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
                     "title": item["title"],
                     "likes": item["likes_count"],
                     "stocks": item["stocks_count"],
-                    "views": page_views,
+                    "views": item["page_views_count"],
                     "created_at": created_at.strftime("%Y-%m-%d"),
-                    "tags": tags,
+                    "tags": ", ".join([tag["name"] for tag in item["tags"]]),
                 }
             )
 
         if len(items) < PER_PAGE:
             break  # 最後のページであればループを終了
         page += 1
+        time.sleep(1)
 
     return articles, all_views, all_likes, all_stocks, items_count
 ```

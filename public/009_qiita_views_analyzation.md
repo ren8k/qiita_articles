@@ -4,7 +4,7 @@ tags:
   - Python
   - API
   - Qiita
-private: true
+private: false
 updated_at: ""
 id: null
 organization_url_name: null

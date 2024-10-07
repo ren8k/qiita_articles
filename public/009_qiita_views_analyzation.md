@@ -1,5 +1,5 @@
 ---
-title: Qiita 投稿記事の閲覧数・いいね数の分析
+title: Qiita API を利用した投稿記事の閲覧数・いいね数の分析
 tags:
   - Python
   - API
@@ -303,7 +303,7 @@ if __name__ == "__main__":
 [`GET /api/v2/authenticated_user/items`](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems) で記事の ID を取得し，それを基に [`GET /api/v2/items/:item_id`](https://qiita.com/api/v2/docs#get-apiv2itemsitem_id) で閲覧数を取得している他の記事もありましたが，前者の API のみで得られる情報は包含されています．
 :::
 
-## コード簡易説明
+## コードの簡易説明
 
 本実装では，`analyzer.py` で定義している関数 `get_article_stats` にて，Qiita API を利用した集計処理を行っています．アルゴリズムとしては以下です．
 

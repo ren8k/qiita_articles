@@ -14,8 +14,7 @@ ignorePublish: false
 
 ## はじめに
 
-<!--
-株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です． -->
+株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
 会社の技術ブログ発信の手段として Qiita を利用している場合，技術ブログを成果として報告する際に，期間毎の閲覧数を定量指標として示すことが有効です．また，いいね数や閲覧数などを定量的に分析することで，どのような記事が人気であるかを把握することができます．
 
@@ -369,7 +368,6 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
 
 Qiita API を利用して，指定の期間に投稿した記事の閲覧数・いいね数を取得し，集計する Python スクリプトを作成しました．本稿が，Qiita API を利用した集計を行う際の参考になりましたら幸いです．是非本実装をカスタマイズしてお使い下さい！
 
-<!--
 ## 仲間募集
 
 NTT データ デジタルサクセスコンサルティング事業部 では、以下の職種を募集しています。
@@ -468,4 +466,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://enterprise-aiiot.nttdata.com/service/snowflake
 
-</div></details> -->
+</div></details>

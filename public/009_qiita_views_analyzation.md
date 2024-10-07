@@ -288,7 +288,7 @@ if __name__ == "__main__":
 
 ## 利用している API について
 
-[`GET /api/v2/authenticated_user/items`](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems) により，認証中のユーザーの記事の一覧を作成日時の降順で取得できます．レスポンスには，各記事の以下の情報が含まれます．
+[`GET /api/v2/authenticated_user/items`](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems) により，認証中のユーザーの記事の一覧を作成日時の降順で取得できます．レスポンスには，各記事の以下の情報を含まれます． (以下の情報以外のメタデータも含んでおります．詳細は [API リファレンス](https://qiita.com/api/v2/docs#get-apiv2authenticated_useritems)を参照下さい．)
 
 - id: 記事の ID
 - title: 記事のタイトル
@@ -367,7 +367,7 @@ def get_article_stats() -> Tuple[List[Dict[str, Any]], int, int, int, int]:
 
 ## まとめ
 
-Qiita API を利用して，指定の期間に投稿した記事の閲覧数・いいね数を取得し，集計する Python スクリプトを作成しました．是非カスタマイズしてお使い下さい！
+Qiita API を利用して，指定の期間に投稿した記事の閲覧数・いいね数を取得し，集計する Python スクリプトを作成しました．本稿が，Qiita API を利用した集計を行う際の参考になりましたら幸いです．是非本実装をカスタマイズしてお使い下さい！
 
 <!--
 ## 仲間募集

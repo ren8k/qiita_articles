@@ -1,12 +1,12 @@
 ---
 title: Qiita投稿記事の閲覧数・いいね数の分析
 tags:
+  - Qiita
   - Python
   - API
-  - Qiita
 private: true
-updated_at: ""
-id: null
+updated_at: '2024-10-08T07:31:13+09:00'
+id: bb3f6548cf151f52a2d8
 organization_url_name: null
 slide: false
 ignorePublish: false

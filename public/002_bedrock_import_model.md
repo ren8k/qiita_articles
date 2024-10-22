@@ -44,7 +44,7 @@ https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-previ
 :::
 
 :::note warn
-本記事の内容は執筆時点 (2024/05/25) の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
+本記事の内容の一部は執筆時点 (2024/05/25) の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
 :::
 
 ## Custom model import とは
@@ -57,7 +57,7 @@ Amazon SageMaker や他の機械学習プラットフォームで学習させた
 - Mistral
 - Mixtral
 - FLAN-T5
-- IBM Granite
+- IBM Granite (※公式ブログでは言及されているが，公式ドキュメントには反映されていない)
 
 インポート元として，Amazon SageMaker や Amazon S3 からモデルを選択することが可能です．S3 からモデルをインポートする場合，モデルファイルは Hugging Face の safetensors 形式で保存されている必要があります．
 
@@ -225,6 +225,10 @@ aws bedrock-runtime invoke-model \
   ]
 }
 ```
+
+:::note
+[Amazon Bedrock Converse API による推論も可能です．](https://aws.amazon.com/jp/blogs/machine-learning/amazon-bedrock-custom-model-import-now-generally-available/)
+:::
 
 ## 機能改善のためリクエストしたい点 (2024/05/25 時点)　
 

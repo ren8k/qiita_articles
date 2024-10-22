@@ -7,12 +7,24 @@ tags:
   - LLM
   - Llama3
 private: false
-updated_at: '2024-06-10T11:02:12+09:00'
+updated_at: "2024-06-10T11:02:12+09:00"
 id: 97022fa42dde9c8e8fd8
 organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
+
+:::note info
+2024/10/22 に，[Amazon Bedrock Custom Model Import がついに GA](https://aws.amazon.com/jp/about-aws/whats-new/2024/10/amazon-bedrock-custom-model-import/) となりました！2024/10/22 時点では，バージニア北部リージョンおよびオレゴンリージョンで利用可能で，**Service Quotas の上限緩和申請は不要になりました！** (本記事で言及している申請は不要です．)
+:::
+
+https://aws.amazon.com/jp/blogs/machine-learning/amazon-bedrock-custom-model-import-now-generally-available/
+
+:::note info
+2024/7/18 に，@kmotohas さんと共著で Custom model import の検証記事を AWS 公式ブログに公開しました．是非ご覧下さい！
+:::
+
+https://aws.amazon.com/jp/blogs/psa/serverless-custom-model-import-on-amazon-bedrock-for-70b-japanese-llm/
 
 ## はじめに
 
@@ -32,30 +44,38 @@ https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-previ
 :::
 
 :::note warn
-本記事の内容は執筆時点（2024/05/25）の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
+本記事の内容は執筆時点 (2024/05/25) の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
 :::
 
 ## Custom model import とは
 
 Amazon SageMaker や他の機械学習プラットフォームで学習させたモデルを Amazon Bedrock に取り込み，Bedrock の API を通じてモデルを呼び出し推論することができる機能です．
 
-現時点では，本機能は以下のモデルアーキテクチャーをサポートしています．
+加筆時点 (2024/10/22) では，本機能は以下のモデルアーキテクチャーをサポートしています．
 
-- Llama2 と Llama3
+- Llama2, Llama3, Llama3.1, および Llama3.2
 - Mistral
+- Mixtral
 - FLAN-T5
+- IBM Granite
 
 インポート元として，Amazon SageMaker や Amazon S3 からモデルを選択することが可能です．S3 からモデルをインポートする場合，モデルファイルは Hugging Face の safetensors 形式で保存されている必要があります．
 
+:::note warn
+インポート可能なモデルの重みファイルは，マルチモーダルモデルの場合は 100GB 未満，テキスト生成モデルの場合は 200GB 未満である必要があります．
+:::
+
+https://docs.aws.amazon.com/bedrock/latest/userguide/model-customization-import-model.html
+
 ## 利用手順
 
-現時点（2024/05/25）では，以下のフローで Custom model import を利用することができます．
+執筆時点 (2024/05/25) では，以下のフローで Custom model import を利用することができます．
 
-- Service Quotas の上限緩和申請
+- ~~Service Quotas の上限緩和申請~~ (加筆時点 (2024/10/22) では不要になりました．)
 - S3 へモデルをアップロード
 - Model Import Job の実行
 
-## Service Quotas の上限緩和申請
+## Service Quotas の上限緩和申請 (2024/10/22 以降は不要)
 
 後続の Import job の実行のため，以下の 2 つの Service Quotas の上限緩和申請が必要です．
 
@@ -66,7 +86,7 @@ Amazon SageMaker や他の機械学習プラットフォームで学習させた
 
 ## S3 へモデルをアップロード
 
-バージニア北部の任意の S3 バケットにモデルをアップロードします．本検証では，rinna 社が提供する Llama3 の日本語継続事前学習モデルである [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用しました．Llama 3 Youko 8B は，80 億パラメータの Llama 3 8B に対して，日本語と英語の学習データ 220 億トークンを用いて継続事前学習したモデルです．[[1]](https://rinna.co.jp/news/2024/05/20240507.html)
+バージニア北部リージョンの任意の S3 バケットにモデルをアップロードします．本検証では，rinna 社が提供する Llama3 の日本語継続事前学習モデルである [Llama 3 Youko 8B](https://huggingface.co/rinna/llama-3-youko-8b) を利用しました．Llama 3 Youko 8B は，80 億パラメータの Llama 3 8B に対して，日本語と英語の学習データ 220 億トークンを用いて継続事前学習したモデルです．[[1]](https://rinna.co.jp/news/2024/05/20240507.html)
 
 以下に実行したコマンドを示します．
 
@@ -206,7 +226,7 @@ aws bedrock-runtime invoke-model \
 }
 ```
 
-## 機能改善のためリクエストしたい点
+## 機能改善のためリクエストしたい点 (2024/05/25 時点)　
 
 実際に機能を利用し，個人的に感じた改善点を以下に示します．
 
@@ -217,7 +237,7 @@ aws bedrock-runtime invoke-model \
 - Service Quotas での承認に要する時間の短縮
   - 他の Bedrocker にも利用いただき，多様な観点でのフィードバックを得るためにも，承認時間の短縮は望ましいと考えております．
 
-## 一部不具合の可能性のある点
+## 一部不具合の可能性のある点 (2024/05/25 時点)
 
 以下については，まだ preview 段階であり致し方ないということを前提に，AWS 社にフィードバックを行っております．
 

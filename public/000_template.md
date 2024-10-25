@@ -28,7 +28,7 @@ summary
 
 ## 仲間募集
 
-NTT データ デジタルサクセスコンサルティング事業部 では、以下の職種を募集しています。
+NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
 <details><summary>1. クラウド技術を活用したデータ分析プラットフォームの開発・構築(ITアーキテクト/クラウドエンジニア)</summary>
 
@@ -65,19 +65,26 @@ https://nttdata.jposting.net/u/job.phtml?job_code=898
 <details><summary> Trusted Data Foundationについて</summary><div>
 
 ～データ資産を分析活用するための環境をオールインワンで提供するソリューション～
-https://enterprise-aiiot.nttdata.com/tdf/
+https://www.nttdata.com/jp/ja/lineup/tdf/
 最新のクラウド技術を採用して弊社が独自に設計したリファレンスアーキテクチャ（Datalake+DWH+AI/BI）を顧客要件に合わせてカスタマイズして提供します。
 可視化、機械学習、DeepLearning などデータ資産を分析活用するための環境がオールインワンで用意されており、これまでとは別次元の量と質のデータを用いてアジリティ高く DX 推進を実現できます。
 
 </div></details>
 
-<details><summary> TDF-AM（Trusted Data FoundationⓇ - Analytics Managed Service）について</summary><div>
+<details><summary> TDFⓇ-AM（Trusted Data Foundation - Analytics Managed Service）について</summary><div>
 
 ～データ活用基盤の段階的な拡張支援 (Quick Start) と保守運用のマネジメント（Analytics Managed）をご提供することでお客様の DX を成功に導く、データ活用プラットフォームサービス～
-https://enterprise-aiiot.nttdata.com/service/tdf/tdf_am
+https://www.nttdata.com/jp/ja/lineup/tdf_am/
 TDFⓇ-AM は、データ活用を Quick に始めることができ、データ活用の成熟度に応じて段階的に環境を拡張します。プラットフォームの保守運用は NTT データが一括で実施し、お客様は成果創出に専念することが可能です。また、日々最新のテクノロジーをキャッチアップし、常に活用しやすい環境を提供します。なお、ご要望に応じて上流のコンサルティングフェーズから AI/BI などのデータ活用支援に至るまで、End to End で課題解決に向けて伴走することも可能です。
 
 </div></details>
+
+<details><summary> NTTデータとDatabricksについて </summary>
+NTTデータは、お客様企業のデジタル変革・DXの成功に向けて、「databricks」のソリューションの提供に加え、情報活用戦略の立案から、AI技術の活用も含めたアナリティクス、分析基盤構築・運用、分析業務のアウトソースまで、ワンストップの支援を提供いたします。
+
+https://www.nttdata.com/jp/ja/lineup/databricks/
+
+</details>
 
 <details><summary>NTTデータとTableauについて </summary><div>
 
@@ -85,7 +92,8 @@ TDFⓇ-AM は、データ活用を Quick に始めることができ、データ
 
 これまで Partner of the Year, Japan を 4 年連続で受賞しており、2021 年にはアジア太平洋地域で最もビジネスに貢献したパートナーとして表彰されました。
 また、2020 年度からは、Tableau を活用したデータ活用促進のコンサルティングや導入サービスの他、AI 活用やデータマネジメント整備など、お客さまの企業全体のデータ活用民主化を成功させるためのノウハウ・方法論を体系化した「デジタルサクセス」プログラムを提供開始しています。
-https://enterprise-aiiot.nttdata.com/service/tableau
+
+https://www.nttdata.com/jp/ja/lineup/tableau/
 
 </div></details>
 
@@ -96,7 +104,7 @@ Alteryx 導入の豊富な実績を持つ NTT データは、最高位にあた�
 
 導入時のプロフェッショナル支援など独自メニューを整備し、特定の業種によらない多くのお客さまに、Alteryx を活用したサービスの強化・拡充を提供します。
 
-https://enterprise-aiiot.nttdata.com/service/alteryx
+https://www.nttdata.com/jp/ja/lineup/alteryx/
 
 </div></details>
 
@@ -105,14 +113,15 @@ DataRobotは、包括的なAIライフサイクルプラットフォームです
 
 NTT データは DataRobot 社と戦略的資本業務提携を行い、経験豊富なデータサイエンティストが AI・データ活用を起点にお客様のビジネスにおける価値創出をご支援します。
 
-https://enterprise-aiiot.nttdata.com/service/datarobot
+https://www.nttdata.com/jp/ja/lineup/datarobot/
 
 </div></details>
 
 <details><summary> NTTデータとInformaticaについて</summary><div>
 
 データ連携や処理方式を専門領域として 10 年以上取り組んできたプロ集団である NTT データは、データマネジメント領域でグローバルでの高い評価を得ている Informatica 社とパートナーシップを結び、サービス強化を推進しています。
-https://enterprise-aiiot.nttdata.com/service/informatica
+
+https://www.nttdata.com/jp/ja/lineup/informatica/
 
 </div></details>
 
@@ -122,6 +131,6 @@ NTTデータでは、Snowflake Inc.とソリューションパートナー契約
 NTT データではこれまでも、独自ノウハウに基づき、ビッグデータ・AI など領域に係る市場競争力のあるさまざまなソリューションパートナーとともにエコシステムを形成し、お客さまのビジネス変革を導いてきました。
 Snowflake は、これら先端テクノロジーとのエコシステムの形成に強みがあり、NTT データはこれらを組み合わせることでお客さまに最適なインテグレーションをご提供いたします。
 
-https://enterprise-aiiot.nttdata.com/service/snowflake
+https://www.nttdata.com/jp/ja/lineup/snowflake/
 
 </div></details>

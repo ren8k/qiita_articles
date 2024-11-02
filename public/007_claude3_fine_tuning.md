@@ -7,12 +7,26 @@ tags:
   - 生成AI
   - claude
 private: false
-updated_at: "2024-08-07T10:29:11+09:00"
+updated_at: "2024-08-08T23:10:04+09:00"
 id: 060cc15f10e492b2d987
 organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
+
+:::note info
+2024/11/02 に，[Amazon Bedrock で Anthropic Claude3 Haiku の Fine-Tuning がついに GA](https://aws.amazon.com/jp/about-aws/whats-new/2024/11/fine-tuning-anthropics-claude-3-haiku-amazon-bedrock/) となりました！2024/11/02 時点では，オレゴンリージョンで利用可能で，本記事で言及している**利用申請は不要**になりました！
+
+同時に，[Claude3 Haiku を Fine-Tuning する際のベストプラクティスをまとめた AWS 公式ブログ](https://aws.amazon.com/jp/blogs/machine-learning/best-practices-and-lessons-for-fine-tuning-anthropics-claude-3-haiku-on-amazon-bedrock/)も公開されましたので，本記事でも以下の節で追加でまとめております．是非ご覧下さい！
+
+- Claude3 Haiku の Fine-Tuning で推奨されるユースケース
+- Fine-Tuning 時のベストプラクティス
+
+:::
+
+https://aws.amazon.com/jp/blogs/aws/fine-tuning-for-anthropics-claude-3-haiku-model-in-amazon-bedrock-is-now-generally-available/
+
+https://aws.amazon.com/jp/blogs/machine-learning/best-practices-and-lessons-for-fine-tuning-anthropics-claude-3-haiku-on-amazon-bedrock/
 
 ## はじめに
 
@@ -23,13 +37,71 @@ ignorePublish: false
 
 https://github.com/ren8k/aws-bedrock-claude3-fine-tuning
 
-## LLM を Fine-Tuning するメリット
+## Claude3 Haiku の Fine-Tuning で推奨されるユースケース
 
-Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得することができます．これにより，(RAG と比較した場合，) プロンプトへの参照情報の挿入が不要になり，入力トークンを最小限に抑えることができる結果，API 実行時のコストやレイテンシーを低減することができます．また，参照情報の外部保存や Retrieve が不要になるため，外部 DB の管理コスト削減や，Retrieve に要する時間の短縮にも繋がります．（一方で，Fine-Tuning と RAG を組合せて利用することで，更に精度が向上する可能性もあります．）
+[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/machine-learning/best-practices-and-lessons-for-fine-tuning-anthropics-claude-3-haiku-on-amazon-bedrock/)によると，以下のケースは Fine-Tuning が推奨されるケースとされています．
+
+| ユースケース       | 具体例                                                                                       |
+| ------------------ | -------------------------------------------------------------------------------------------- |
+| 分類タスク         | ドキュメントをカテゴリ分類するケース                                                         |
+| 構造化された形式   | モデルの出力を JSON スキーマのような構造化された形式に従わせるケース                         |
+| 新しいスキルの学習 | API の呼び出し方法を学習させたり，独自のフォーマットのドキュメントから情報抽出させたいケース |
+| 特定のトーンで応答 | カスタマーサービス担当者のような特定のトーンで応答させたいケース                             |
+
+その他，簡潔な回答を出力するように学習データを構築することで，出力トークン数の削減にも大きなメリットがあります．（実験では 35%削減されたようです．）
+
+一方で，モデルに新しい知識を学習させるケースなどでは，Fine-Tuning の成功可能性は低いとされているため，注意が必要です．
+
+[公式ブログ](https://aws.amazon.com/jp/blogs/machine-learning/best-practices-and-lessons-for-fine-tuning-anthropics-claude-3-haiku-on-amazon-bedrock/)では，後述するベストプラクティスに基づき Fine-Tuning を行った場合，Claude3 Haiku は，Claude3 Sonnet，Claude3.5 Sonnet よりも優れたパフォーマンスを発揮することが示されています．
+
+## Fine-Tuning 時のベストプラクティス
+
+データセットの品質と学習時のハイパーパラメータの調整が，Fine-Tuning の成否に大きく影響します．
+
+### データセットの品質
+
+データセットの量より質を重視すべきであり，データのクリーニングと検証を行うことが重要です．データが小規模であれば人間が行い，データが大規模であれば，LLM as a judge で実施すると効果的です．以下に，LLM as a judge のプロンプト例を示します．
+
+<details><summary>LLM as a judge のプロンプト例</summary>
+
+> Your task is to take a question, an answer, and a context which may include multiple documents, and provide a judgment on whether the answer to the question is correct or not. This decision should be based either on the provided context or your general knowledge and memory. If the answer contradicts the information in context, it's incorrect. A correct answer is ideally derived from the given context. If no context is given, a correct answer should be factually true and directly and unambiguously address the question.\n\nProvide a short step-by-step reasoning with a maximum of 4 sentences within the \<reason>\</reason> xml tags and provide a single correct or incorrect response within the \<judgement>\</judgement> xml tags.
+> \<context>
+> ...
+> \</context>
+> \<question>
+> ...
+> \</question>
+> \<answer>
+> ...
+> \</answer>
+
+[AWS 公式ブログ](https://aws.amazon.com/jp/blogs/machine-learning/best-practices-and-lessons-for-fine-tuning-anthropics-claude-3-haiku-on-amazon-bedrock/)より引用
+
+</details>
+
+また，学習データにはシステムプロンプトを含め，モデルの役割とタスクを明確に定義することが推奨されています．さらに，学習データの Ground Truth に XML タグとその中に回答根拠を含めると，与えられたコンテキストからの情報抽出の精度が向上するようです．
+
+### 学習時のハイパーパラメータの調整
+
+学習率乗数とバッチサイズが重要なハイパーパラメーターです．このパラメータの調整により，2 ~ 10%の改善が見込まれると公式ブログには記載されています．
+
+学習率乗数は，デフォルト値の 1.0 から試し，評価結果に基づき調整することが推奨されています．バッチサイズについては，データセットのサイズに基づき以下のように調整するとより良い結果が得られると紹介されています．
+
+| データセットのサイズ | バッチサイズ |
+| -------------------- | ------------ |
+| 1000 以上            | 32~64 程度   |
+| 500~1000             | 16~32 程度   |
+| 500 未満             | 4~16 程度    |
+
+特に，大規模なデータセット (1000~10000) の場合は学習率が，小規模なデータセット (32~100) の場合はバッチサイズがパフォーマンスに大きな影響を与えるようです．また，データセットが少数の場合，epoch 数は 10 程度必要で，データセットが 1000~10000 件程度の場合は，epoch 数は 2~1 程度で十分のようです．
+
+<!-- ## LLM を Fine-Tuning するメリット
+
+Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得することができます．これにより，(RAG と比較した場合，) プロンプトへの参照情報の挿入が不要になり，入力トークンを最小限に抑えることができる結果，API 実行時のコストやレイテンシーを低減することができます．また，参照情報の外部保存や Retrieve が不要になるため，外部 DB の管理コスト削減や，Retrieve に要する時間の短縮にも繋がります．（一方で，Fine-Tuning と RAG を組合せて利用することで，更に精度が向上する可能性もあります．） -->
 
 ## 利用手順と検証内容
 
-- 利用申請
+- ~~利用申請~~ (2024/11/02 時点では不要になりました．)
 - データセットの作成
 - データセットを S3 へアップロード
 - fine-tuning job の実行
@@ -37,7 +109,7 @@ Fine-Tuning により，LLM は特定のドメインや新しい知識を獲得�
 - fine-tuning したモデルの実行
 - モデルの評価
 
-## 利用申請
+## 利用申請 (2024/11/02 以降は不要)
 
 執筆時点（2024/07/27）では，Amazon Bedrock で Claude3 Haiku を fine-tuning するには，[AWS サポートに申請が必要](https://docs.aws.amazon.com/bedrock/latest/userguide/custom-model-supported.html)です．サポートチケット作成時，サービスとして「Bedrock」を選択し，カテゴリとして「Models」を選択して下さい．
 
@@ -420,7 +492,7 @@ python3 preprocess.py \
 fine-tuning には時間や費用がかかるため，事前にデータセットが要件を満たしているかを確認することを推奨します．本検証では，以下で公開されている AWS 公式の Data Validation ツールを利用することで，事前に確認を行っています．
 :::
 
-https://github.com/aws-samples/amazon-bedrock-samples/tree/main/bedrock-fine-tuning/claude-haiku/DataValidation
+https://github.com/aws-samples/amazon-bedrock-samples/tree/main/custom-models/bedrock-fine-tuning/claude-haiku/DataValidation
 
 ## データセットを S3 へアップロード
 

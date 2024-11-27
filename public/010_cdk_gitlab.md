@@ -18,6 +18,17 @@ ignorePublish: true
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
+https://chatgpt.com/c/67472a07-5da0-800a-b9ab-88d4df6eb2ad
+
+:::warn
+Twitter でご教示いただいたのですが，EFS (やその他の Cloud File System) は、GitLab が「使わないことを強く推奨」のようです．
+本番環境の際には，EFS ではなく，DB などの永続化ストレージを使うことをお勧めします．
+
+一方，個人用途や少人数での検証用途などであれば，本構成でも問題無いかと思います．
+
+https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems
+:::
+
 ## 目次
 
 ## 内容 1

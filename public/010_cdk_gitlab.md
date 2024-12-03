@@ -18,7 +18,13 @@ ignorePublish: true
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
-https://chatgpt.com/c/67472a07-5da0-800a-b9ab-88d4df6eb2ad
+初めて CDK を使ってみた．加えて，TypeScript での開発も初めて．入門記事です．
+
+苦戦した部分も沢山あるので，備忘録として記事に残します．
+
+ECS で EFS をマウントするケースで CDK 化する際の参考となれば幸いです！
+
+---
 
 :::warn
 Twitter でご教示いただいたのですが，EFS (やその他の Cloud File System) は、GitLab が「使わないことを強く推奨」のようです．
@@ -29,13 +35,82 @@ Twitter でご教示いただいたのですが，EFS (やその他の Cloud Fil
 https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems
 :::
 
-## 目次
+https://chatgpt.com/c/67472a07-5da0-800a-b9ab-88d4df6eb2ad
 
-## 内容 1
+### アーキテクチャの全体構成
+
+### コード (各コンストラクタ) の解説
+
+#### Network (VPC)
+
+#### Storage (EFS)
+
+#### Security (Secrets Manager, IAM Role)
+
+あと，ECS から EFS へのマウントに必要なポリシーもなかなか記載が見つからないので有益だと思われる
+
+https://aws.amazon.com/jp/blogs/news/developers-guide-to-using-amazon-efs-with-amazon-ecs-and-aws-fargate-part-2/
+
+https://github.com/aws/aws-cdk/issues/13442
+
+うーん，やっぱ read write のポリシーを明示する必要があるっぽい
+
+```
+ResourceInitializationError: failed to invoke EFS utils commands to set up EFS volumes: stderr: b'mount.nfs4: access denied by server while mounting 127.0.0.1:/srv/gitlab/data' Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 52, in <module> return_code = subprocess.check_call(["mount", "-t", "efs", "-o", opts, args.fs_id_with_path, args.dir_in_container], shell=False) File "/usr/lib64/python3.9/subprocess.py", line 373, in check_call raise CalledProcessError(retcode, cmd) subprocess.CalledProcessError: Command '['mount', '-t', 'efs', '-o', 'noresvport,tls,iam,awscredsuri=/v2/credentials/3f626a1f-4f38-4a0c-8a8a-d12e68b2995d', 'fs-0486fc40aef1fa1a5:/srv/gitlab/data', '/efs-vols/data']' returned non-zero exit status 32. During handling of the above exception, another exception occurred: Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 56, in <module> "message": err.message, AttributeError: 'CalledProcessError' object has n: unsuccessful EFS utils comma
+```
+
+あと，ECS にログインするためのポリシーも付与している．
+ECS へのログインはこのシェルでできますよ．
+
+#### LoadBalancer (ALB, DNS)
+
+#### EFS Initialization (Lambda)
+
+#### Computing (ECS, Fargate)
+
+- FileSystem.connections を使用して ECS サービスからのインバウンドを許可するようにしましょう。
+
+#### Stack
+
+dependencies を明示しなければ，スタック削除時にエラーが発生
+
+Lambda と VPC の削除順序を制御できていない．
+Lambda と VPC の削除が同時に行われているように見える．
+
+### Gitlab 特有の問題 (★ まずはここから書き始めるか)
+
+#### https 化する場合，コンテナの設定が必要
+
+- https://stackoverflow.com/questions/51487180/gitlab-set-external-url-to-https-without-certificate
+  - gitlab は、external url に https を含む url を仕込むと、内部で 443 ポートを自動で利用してしまう可能性あり
+  - https://chatgpt.com/c/67106314-1cf0-800a-a96b-4d84568918f7
+  - https://chatgpt.com/c/671079f4-22e0-800a-8d14-4a42a117f032
+
+```
+ リバースプロキシ（nginxなど）でSSL通信を終端させ、GitLabコンテナとの通信はHTTP（ポート80）で行います。クライアントからのリクエストはHTTPS（ポート443）で受け取り、GitLabにはHTTPでリクエストを転送する形です。
+```
+
+#### アクセスポイントを利用する場合，git clone できない問題
+
+- パーミッションのせい
+
+#### ヘルスチェックパスについて
+
+以下記載のエンドポイントでは，期待するレスポンスが返ってこない
+
+https://docs.gitlab.com/ee/administration/monitoring/health_check.html
+
+現在は，/-users/sign_in に対してヘルスチェックを行っている
+
+#### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
+
+Gitlab のヘルスチェックパスが誤っており、ALB 側のヘルスチェックにも失敗してしまっていたため
 
 ## まとめ
 
 summary
+
+## 謝辞
 
 ## 仲間募集
 

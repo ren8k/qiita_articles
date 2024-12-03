@@ -59,6 +59,9 @@ https://github.com/aws/aws-cdk/issues/13442
 ResourceInitializationError: failed to invoke EFS utils commands to set up EFS volumes: stderr: b'mount.nfs4: access denied by server while mounting 127.0.0.1:/srv/gitlab/data' Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 52, in <module> return_code = subprocess.check_call(["mount", "-t", "efs", "-o", opts, args.fs_id_with_path, args.dir_in_container], shell=False) File "/usr/lib64/python3.9/subprocess.py", line 373, in check_call raise CalledProcessError(retcode, cmd) subprocess.CalledProcessError: Command '['mount', '-t', 'efs', '-o', 'noresvport,tls,iam,awscredsuri=/v2/credentials/3f626a1f-4f38-4a0c-8a8a-d12e68b2995d', 'fs-0486fc40aef1fa1a5:/srv/gitlab/data', '/efs-vols/data']' returned non-zero exit status 32. During handling of the above exception, another exception occurred: Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 56, in <module> "message": err.message, AttributeError: 'CalledProcessError' object has n: unsuccessful EFS utils comma
 ```
 
+あと，ECS にログインするためのポリシーも付与している．
+ECS へのログインはこのシェルでできますよ．
+
 #### LoadBalancer (ALB, DNS)
 
 #### EFS Initialization (Lambda)
@@ -90,6 +93,14 @@ Lambda と VPC の削除が同時に行われているように見える．
 #### アクセスポイントを利用する場合，git clone できない問題
 
 - パーミッションのせい
+
+#### ヘルスチェックパスについて
+
+以下記載のエンドポイントでは，期待するレスポンスが返ってこない
+
+https://docs.gitlab.com/ee/administration/monitoring/health_check.html
+
+現在は，/-users/sign_in に対してヘルスチェックを行っている
 
 #### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
 

@@ -24,28 +24,82 @@ ignorePublish: true
 
 ECS で EFS をマウントするケースで CDK 化する際の参考となれば幸いです！
 
----
+なお，CDK の実装は以下のリポジトリに公開しております．
 
-:::warn
-Twitter でご教示いただいたのですが，EFS (やその他の Cloud File System) は、GitLab が「使わないことを強く推奨」のようです．
-本番環境の際には，EFS ではなく，DB などの永続化ストレージを使うことをお勧めします．
+https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
-一方，個人用途や少人数での検証用途などであれば，本構成でも問題無いかと思います．
+## TL;DR
 
-https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems
+- CodeCommit の代替として，Gitlab のセルフホスティングを検討
+- AWS CDK を利用した GitLab on ECS を一撃でデプロイする実装の解説
+  - ECS から EFS へマウントする際の Tip
+- Gitlab をコンテナホストする際の Tips を共有
+
+## 背景
+
+新規 AWS アカウント上で，[SageMaker AI Project Templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) を利用する必要がありました．SageMaker AI Project Templates とは，SageMaker AI を利用した MLOps を迅速に実現するために，以下の AWS リソースを CloudFormation で一括構築することができるテンプレートです．
+
+![mlops-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c66a4c7e-c4f8-db14-996d-38e09ed36d5b.png)
+
+> SageMaker AI Project Templates を利用することで，モデルの学習〜デプロイ〜モデル・データの品質モニタリングまでの一連のプロセスを自動化する MLOps アーキテクチャを構築することができます．なお，Training Pipeline 部は一部省略しています．
+
+SageMaker AI Project Templates では，MLOps の CI/CD パイプライン用のリポジトリとして，CodeCommit または 3rd party 製の Git リポジトリサービスが利用可能です．しかし，2024/7/25 以降，新規 AWS アカウントにおいて，[CodeCommit は利用不可能](https://aws.amazon.com/jp/blogs/devops/how-to-migrate-your-aws-codecommit-repository-to-another-git-provider/)なため，3rd party 製の Git リポジトリサービスを利用する必要がありました．
+
+そこで，CodeCommit の代替として GitLab をセルフホスティングすることを検討しました．本検討の理由は以下です．
+
+- セキュリティ要件により、インターネット上の Git リポジトリサービスの利用には制限がある
+  - 一定の承認プロセスを経れば利用可能だが、社内手続きが複雑でかなり時間がかかる
+- GitLab は，Issue 管理，Wiki などの機能が豊富である
+
+ただし，利用する AWS サービスの選定や，アーキテクチャの検討，CDK での IaC 化を行う際に色々苦戦した部分が多かったので，本稿ではその解説や Tips の共有を行います．
+
+:::note
+筆者は Data Scientist であり，CDK に関しては初学者でしたので，余計に苦戦しました．
 :::
 
-https://chatgpt.com/c/67472a07-5da0-800a-b9ab-88d4df6eb2ad
+## ソリューション（アーキテクチャ）
 
-### アーキテクチャの全体構成
+GitLab の運用に必要なインフラストラクチャの管理工数を最小限に抑えるため，ECS on Fargate + EFS の構成を採用しました．
 
-### コード (各コンストラクタ) の解説
+![gitlab_architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/166eb897-c701-6690-1e21-4321679840a1.png)
 
-#### Network (VPC)
+本ソリューションの特徴は以下です．
 
-#### Storage (EFS)
+- **メンテナンスの労力が少ないフルマネージドサービスを採用**
+  - ECS Fargate, EFS を使用
+    - ECS，EFS は共に Private Subnet に配置し，Public Subnet に配置した ALB を経由して外部からのアクセスを許可
+    - GitLab リポジトリのデータ永続化のために EFS を利用
+    - GitLab の root ユーザーのパスワードは AWS Secrets Manager に保存
+- **コスト効率の良いアーキテクチャ設計**
+  - NAT Gateway の代わりに NAT インスタンスを使用可能
+- **既存の AWS リソースとの連携**
+  - 既存の VPC 内で GitLab をホスト可能
+  - 既存のドメインの使用が可能
 
-#### Security (Secrets Manager, IAM Role)
+:::note warn
+X でご教示いただいたのですが，GitLab では，EFS やその他の [Cloud File System の利用を推奨していません](https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems)．I/O レイテンシによるパフォーマンスの低下のためです．具体的には，Git による多数の小規模ファイルの逐次書き込みという処理特性が，クラウドベースのファイルシステムと相性が悪いためです．
+
+本番運用の場合や，大規模な利用を想定する場合には，ECS on EC2 (+EBS) の利用や，EC2 への GitLab のインストールを検討した方が良いと考えられます．一方，個人用途や少人数での検証用途などであれば，本構成でも問題無いとも考えております．（実際 3~4 名で 1~2 ヶ月利用していますが，今の所問題は生じておりません．）
+:::
+
+## コード (各コンストラクタ) の解説
+
+利用する AWS サービス毎に，以下のコンストラクタを用意しました．
+
+- Network (VPC)
+- Storage (EFS)
+- Security (Secrets Manager, IAM Role)
+- LoadBalancer (ALB, DNS)
+- EFS Initialization (Lambda)
+- Computing (ECS, Fargate)
+
+以降，各コンストラクタの実装について解説します．
+
+### Network (VPC)
+
+### Storage (EFS)
+
+### Security (Secrets Manager, IAM Role)
 
 あと，ECS から EFS へのマウントに必要なポリシーもなかなか記載が見つからないので有益だと思われる
 
@@ -62,24 +116,28 @@ ResourceInitializationError: failed to invoke EFS utils commands to set up EFS v
 あと，ECS にログインするためのポリシーも付与している．
 ECS へのログインはこのシェルでできますよ．
 
-#### LoadBalancer (ALB, DNS)
+### LoadBalancer (ALB, DNS)
 
-#### EFS Initialization (Lambda)
+### EFS Initialization (Lambda)
 
-#### Computing (ECS, Fargate)
+### Computing (ECS, Fargate)
 
 - FileSystem.connections を使用して ECS サービスからのインバウンドを許可するようにしましょう。
 
-#### Stack
+### (その他)Stack
 
 dependencies を明示しなければ，スタック削除時にエラーが発生
 
 Lambda と VPC の削除順序を制御できていない．
 Lambda と VPC の削除が同時に行われているように見える．
 
-### Gitlab 特有の問題 (★ まずはここから書き始めるか)
+## Gitlab セルフホスティングの Tips
 
-#### https 化する場合，コンテナの設定が必要
+本節では，実際に Gitlab セルフホスティングを構築する際に詰まった点や，ポイントについて共有します．
+
+### Gitlab の外部 URL (https) の設定
+
+https 化する場合，コンテナの設定が必要
 
 - https://stackoverflow.com/questions/51487180/gitlab-set-external-url-to-https-without-certificate
   - gitlab は、external url に https を含む url を仕込むと、内部で 443 ポートを自動で利用してしまう可能性あり
@@ -90,11 +148,11 @@ Lambda と VPC の削除が同時に行われているように見える．
  リバースプロキシ（nginxなど）でSSL通信を終端させ、GitLabコンテナとの通信はHTTP（ポート80）で行います。クライアントからのリクエストはHTTPS（ポート443）で受け取り、GitLabにはHTTPでリクエストを転送する形です。
 ```
 
-#### アクセスポイントを利用する場合，git clone できない問題
+### アクセスポイントを利用する場合，git clone できない問題
 
 - パーミッションのせい
 
-#### ヘルスチェックパスについて
+### ヘルスチェックパスについて
 
 以下記載のエンドポイントでは，期待するレスポンスが返ってこない
 
@@ -102,9 +160,23 @@ https://docs.gitlab.com/ee/administration/monitoring/health_check.html
 
 現在は，/-users/sign_in に対してヘルスチェックを行っている
 
-#### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
+### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
 
 Gitlab のヘルスチェックパスが誤っており、ALB 側のヘルスチェックにも失敗してしまっていたため
+
+## 利用手順
+
+### AWS CDK コマンドの場合
+
+### AWS CloudShell の場合
+
+## GitLab の初回サインイン方法
+
+![gitlab_signin.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a960c7ed-c682-e29c-fea4-2287b2051081.png)
+
+https://qiita.com/takoikakani/items/936faf23ee6bc286a270
+
+https://zenn.dev/tech4anyone/articles/62f360ccea30ca
 
 ## まとめ
 
@@ -112,7 +184,7 @@ summary
 
 ## 謝辞
 
-## 仲間募集
+<!-- ## 仲間募集
 
 NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
@@ -219,4 +291,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
-</div></details>
+</div></details> -->

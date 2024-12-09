@@ -131,22 +131,49 @@ dependencies を明示しなければ，スタック削除時にエラーが発�
 Lambda と VPC の削除順序を制御できていない．
 Lambda と VPC の削除が同時に行われているように見える．
 
-## Gitlab セルフホスティングの Tips
+## GitLab セルフホスティングの Tips
 
-本節では，実際に Gitlab セルフホスティングを構築する際に詰まった点や，ポイントについて共有します．
+本節では，[Docker コンテナ上で GitLab をセルフホスト](https://docs.gitlab.com/ee/install/docker/installation.html)する際に詰まった点や，ポイントについて共有します．
 
 ### Gitlab の外部 URL (https) の設定
 
-https 化する場合，コンテナの設定が必要
+GitLab コンテナを ALB などのリバースプロキシの背後に配置する場合，GitLab の外部 URL を設定する際，GitLab 内部の Nginx に対し，以下のように明示的に HTTPS を利用しないように設定する必要がありました．以下の設定は，ECS タスクのコンテナ定義における環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定しています．
 
-- https://stackoverflow.com/questions/51487180/gitlab-set-external-url-to-https-without-certificate
-  - gitlab は、external url に https を含む url を仕込むと、内部で 443 ポートを自動で利用してしまう可能性あり
-  - https://chatgpt.com/c/67106314-1cf0-800a-a96b-4d84568918f7
-  - https://chatgpt.com/c/671079f4-22e0-800a-8d14-4a42a117f032
+- `nginx['listen_port'] = 80`
+- `nginx['listen_https'] = false;`
 
+これは，GitLab の `external_url` に `https://` を指定すると，GitLab の Listen Port が 443 となり，内部の Nginx が HTTPS 通信を行うようになるためです． 本ソリューションの構成では， ALB が SSL 通信を行うため，GitLab 側は SSL (HTTPS) 通信を行わず，HTTP を利用して ALB と通信する必要があります．そのため，外部 URL に `https://` を指定する場合は，内部の Nginx の Listen port の設定を明示的に 80 に設定する必要があります．
+
+参考: https://stackoverflow.com/questions/51487180/
+
+<details open><summary>コードの該当箇所</summary>
+
+```typescript
+const container = taskDefinition.addContainer("GitlabContainer", {
+  image: ecs.ContainerImage.fromRegistry(
+    `gitlab/gitlab-ce:${props.gitlabImageTag}`
+  ),
+  portMappings: [{ containerPort: 80 }],
+  secrets: {
+    GITLAB_ROOT_PASSWORD: ecs.Secret.fromSecretsManager(
+      props.gitlabSecret,
+      "password"
+    ),
+    GITLAB_ROOT_EMAIL: ecs.Secret.fromSecretsManager(
+      props.gitlabSecret,
+      "email"
+    ),
+  },
+  environment: {
+    GITLAB_OMNIBUS_CONFIG: props.useHttps
+      ? `external_url '${props.externalUrl}'; nginx['listen_port'] = 80; nginx['listen_https'] = false;`
+      : `external_url '${props.externalUrl}'`,
+  },
+  logging: ecs.LogDrivers.awsLogs({ streamPrefix: "gitlab" }),
+});
 ```
- リバースプロキシ（nginxなど）でSSL通信を終端させ、GitLabコンテナとの通信はHTTP（ポート80）で行います。クライアントからのリクエストはHTTPS（ポート443）で受け取り、GitLabにはHTTPでリクエストを転送する形です。
-```
+
+</details>
 
 ### アクセスポイントを利用する場合，git clone できない問題
 

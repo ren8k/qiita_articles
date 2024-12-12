@@ -124,6 +124,29 @@ ECS へのログインはこのシェルでできますよ．
 
 - FileSystem.connections を使用して ECS サービスからのインバウンドを許可するようにしましょう。
 
+- ECS EXEC もできるようにしております
+
+- ECS へのログイン
+  - Session Manager プラグインのインストール
+    - https://qiita.com/kooohei/items/190802d07655809bd1bd
+    - https://dev.classmethod.jp/articles/202310-ecs-efs-01/
+  - ECS Exec の有効化
+    - https://dev.classmethod.jp/articles/tsnote-ecs-update-service-fails-with-invalidparameterexception-in-ecs-exec/
+  - 以下を実行
+
+```bash
+CLUSTER_NAME=XXX
+TASK_ID=arn:XXX
+CONTAINER_NAME=XXX
+
+aws ecs execute-command \
+    --cluster $CLUSTER_NAME \
+    --task  $TASK_ID\
+    --container $CONTAINER_NAME \
+    --interactive \
+    --command "/bin/bash"
+```
+
 ### (その他)Stack
 
 dependencies を明示しなければ，スタック削除時にエラーが発生
@@ -137,7 +160,7 @@ Lambda と VPC の削除が同時に行われているように見える．
 
 ### Gitlab の外部 URL (https) の設定
 
-GitLab コンテナを ALB などのリバースプロキシの背後に配置する場合，GitLab の外部 URL を設定する際，GitLab 内部の Nginx に対し，以下のように明示的に HTTPS を利用しないように設定する必要がありました．以下の設定は，ECS タスクのコンテナ定義における環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定しています．
+GitLab コンテナを ALB (リバースプロキシ) の背後に配置する場合，GitLab の外部 URL を設定する際に，GitLab 内部の Nginx に対し，以下のように明示的に HTTPS を利用しないように設定する必要がありました．以下の設定は，ECS タスクのコンテナ定義における環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定しています．
 
 - `nginx['listen_port'] = 80`
 - `nginx['listen_https'] = false;`
@@ -175,9 +198,33 @@ const container = taskDefinition.addContainer("GitlabContainer", {
 
 </details>
 
-### アクセスポイントを利用する場合，git clone できない問題
+### EFS アクセスポイントを利用する場合，git clone できない問題
 
-- パーミッションのせい
+GitLab コンテナは，起動時にコンテナ内に `/var/opt/gitlab`, `/var/log/gitlab`, `/etc/gitlab` ディレクトリを作成します．これらのディレクトリは，GitLab のアプリケーションデータ，ログ，設定ファイルを保存するためのディレクトリです．これらのディレクトリをローカルボリュームにマウントすることで，GitLab のデータを永続化することができます．
+
+| ローカルパス          | コンテナパス      | 用途                         |
+| --------------------- | ----------------- | ---------------------------- |
+| `$GITLAB_HOME/data`   | `/var/opt/gitlab` | アプリケーションデータを保存 |
+| `$GITLAB_HOME/logs`   | `/var/log/gitlab` | ログを保存                   |
+| `$GITLAB_HOME/config` | `/etc/gitlab`     | GitLab の設定ファイルを保存  |
+
+> [公式ドキュメント](https://docs.gitlab.com/ee/install/docker/installation.html#create-a-directory-for-the-volumes)では，`$GITLAB_HOME = /srv/gitlab` としています．
+
+ソリューション開発当初，GitLab のデータ永続化のためのボリュームマウント先として，EFS アクセスポイントを利用することを検討しました．ここで，アクセスポイントとは，EFS 上の指定したディレクトリに対し，指定した POSIX ユーザー ID (UID) とグループ ID (GID) でマウントすることができる機能です．また，指定したディレクトリが存在しない場合，自動でディレクトリを作成することができます．
+
+ECS と EFS アクセスポイントを組み合わせることで，指定したディレクトリを EFS 上に自動作成し， ECS タスクにマウントすることができます．当初は，POSIX UID と GID を 0:0 に設定し，root ユーザーとして EFS 上のディレクトリをマウントしていました．この理由は，GitLab コンテナは，初回起動時に root ユーザーで必要なファイルやディレクトリを作成する必要があるためです．
+
+GitLab コンテナが正常に起動し，動作確認のためリポジトリを作成して `git clone` を実行すると以下のエラーが発生しました．この原因は，`/var/opt/gitlab/git-data/repositories` 内の一部のファイルの所有者が git ユーザー (UID: 998) である必要があるためです．(本エラーに関する情報が少なく，原因究明に時間を要しました．)
+
+```
+Error while processing content unencoding: invalid stored block lengths
+```
+
+つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，マウント先の全てのディレクトリ内のファイルの所有者が root となっていたため，本事象が発生していました．
+
+そこで，本ソリューションでは，EFS アクセスポイントを利用せず，Lambda から直接 EFS にマウントし，ディレクトリを作成後，ECS タスクにマウントするようにしています．CDK の実装では，CustomResource を利用して，Lambda の操作を行っております．
+
+参考: https://gitlab.com/gitlab-org/charts/gitlab/-/issues/5546#note_2017038672
 
 ### ヘルスチェックパスについて
 

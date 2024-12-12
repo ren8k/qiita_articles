@@ -198,7 +198,7 @@ const container = taskDefinition.addContainer("GitlabContainer", {
 
 </details>
 
-### EFS アクセスポイントを利用する場合，git clone できない問題
+### EFS アクセスポイントでの git clone 権限エラーとその解決
 
 GitLab コンテナは，起動時にコンテナ内に `/var/opt/gitlab`, `/var/log/gitlab`, `/etc/gitlab` ディレクトリを作成します．これらのディレクトリは，GitLab のアプリケーションデータ，ログ，設定ファイルを保存するためのディレクトリです．これらのディレクトリをローカルボリュームにマウントすることで，GitLab のデータを永続化することができます．
 
@@ -214,13 +214,14 @@ GitLab コンテナは，起動時にコンテナ内に `/var/opt/gitlab`, `/var
 
 ECS と EFS アクセスポイントを組み合わせることで，指定したディレクトリを EFS 上に自動作成し， ECS タスクにマウントすることができます．当初は，POSIX UID と GID を 0:0 に設定し，root ユーザーとして EFS 上のディレクトリをマウントしていました．この理由は，GitLab コンテナは，初回起動時に root ユーザーで必要なファイルやディレクトリを作成する必要があるためです．
 
-GitLab コンテナが正常に起動し，動作確認のためリポジトリを作成して `git clone` を実行すると以下のエラーが発生しました．この原因は，`/var/opt/gitlab/git-data/repositories` 内の一部のファイルの所有者が git ユーザー (UID: 998) である必要があるためです．(本エラーに関する情報が少なく，原因究明に時間を要しました．)
+GitLab コンテナが正常に起動し，動作確認のためリポジトリを作成して `git clone` を実行すると，以下のエラーが発生しました．この原因は，`/var/opt/gitlab/git-data/repositories` 内の一部のファイルの所有者が git ユーザー (UID: 998) である必要があるためです．(本エラーに関する情報が少なく，原因究明に時間を要しました．)
 
 ```
+fatal: unable to access 'https://gitlab.example.com/root/test-pj.git/':
 Error while processing content unencoding: invalid stored block lengths
 ```
 
-つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，マウント先の全てのディレクトリ内のファイルの所有者が root となっていたため，本事象が発生していました．
+つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，その結果，マウント先の全てのディレクトリ内のファイルの所有者が root となっていたため，本事象が発生していました．
 
 そこで，本ソリューションでは，EFS アクセスポイントを利用せず，Lambda から直接 EFS にマウントし，ディレクトリを作成後，ECS タスクにマウントするようにしています．CDK の実装では，CustomResource を利用して，Lambda の操作を行っております．
 
@@ -228,11 +229,9 @@ Error while processing content unencoding: invalid stored block lengths
 
 ### ヘルスチェックパスについて
 
-以下記載のエンドポイントでは，期待するレスポンスが返ってこない
+ALB のターゲットグループのヘルスチェックのために，公式ドキュメントに記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，現在は，`/-users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
 
 https://docs.gitlab.com/ee/administration/monitoring/health_check.html
-
-現在は，/-users/sign_in に対してヘルスチェックを行っている
 
 ### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
 

@@ -221,7 +221,7 @@ fatal: unable to access 'https://gitlab.example.com/root/test-pj.git/':
 Error while processing content unencoding: invalid stored block lengths
 ```
 
-つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，その結果，マウント先の全てのディレクトリ内のファイルの所有者が root となっていたため，本事象が発生していました．
+つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，その結果，マウント先のディレクトリ内の全てのファイルの所有者が root となっていたため，本事象が発生していました．
 
 そこで，本ソリューションでは，EFS アクセスポイントを利用せず，Lambda から直接 EFS にマウントし，ディレクトリを作成後，ECS タスクにマウントするようにしています．CDK の実装では，CustomResource を利用して，Lambda の操作を行っております．
 

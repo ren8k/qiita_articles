@@ -229,9 +229,7 @@ Error while processing content unencoding: invalid stored block lengths
 
 ### ヘルスチェックパスについて
 
-ALB のターゲットグループのヘルスチェックのために，公式ドキュメントに記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，現在は，`/-users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
-
-https://docs.gitlab.com/ee/administration/monitoring/health_check.html
+ALB のターゲットグループのヘルスチェックのために，[公式ドキュメント](https://docs.gitlab.com/ee/administration/monitoring/health_check.html)に記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，現在は，`/-/users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
 
 ### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
 

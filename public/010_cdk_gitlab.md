@@ -77,9 +77,9 @@ GitLab の運用に必要なインフラストラクチャの管理工数を最�
   - 既存のドメインの使用が可能
 
 :::note warn
-X でご教示いただいたのですが，GitLab では，EFS やその他の [Cloud File System の利用を推奨していません](https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems)．I/O レイテンシによるパフォーマンスの低下のためです．具体的には，Git による多数の小規模ファイルの逐次書き込みという処理特性が，クラウドベースのファイルシステムと相性が悪いためです．
+X でご教示いただいたのですが，GitLab では，EFS やその他の [Cloud File System の利用を推奨していません](https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems)．I/O レイテンシによるパフォーマンスの低下のためです．具体的には，Git による多数の小規模ファイルの逐次書き込みの処理特性が，クラウドベースのファイルシステムと相性が悪いためです．
 
-本番運用の場合や，大規模な利用を想定する場合には，ECS on EC2 (+EBS) の利用や，EC2 への GitLab のインストールを検討した方が良いと考えられます．一方，個人用途や少人数での検証用途などであれば，本構成でも問題無いとも考えております．（実際 3~4 名で 1~2 ヶ月利用していますが，今の所問題は生じておりません．）
+本番運用の場合や，大規模な利用を想定する場合には，ECS on EC2 (+EBS) の利用や，EC2 への GitLab のインストールを検討した方が良いと考えられます．一方で，個人用途や少人数での検証用途などであれば，本構成でも問題無いとも考えております．（実際 3~4 名で 1~2 ヶ月利用していますが，今の所問題は生じておりません．）
 :::
 
 ## コード (各コンストラクタ) の解説
@@ -95,17 +95,29 @@ X でご教示いただいたのですが，GitLab では，EFS やその他の 
 
 以降，各コンストラクタの実装について解説します．
 
-### Network (VPC)
+:::note
+ECS に EFS をマウントする際，以下の設定が必要です．
 
-<details open><summary>実装</summary>
+- grantReadWrite で ECS タスクに対して EFS への読み書き権限を付与
+  - マウントに必要なポリシーについて: https://docs.aws.amazon.com/ja_jp/AmazonECS/latest/developerguide/tutorial-efs-volumes.html
+  - "elasticfilesystem:ClientMount"
+  - "elasticfilesystem:ClientRootAccess"
+  - "elasticfilesystem:ClientWrite"
+- EFS からのインバウンドを許可
+
+:::
+
+### Network (VPC)
 
 Network コンストラクタでは VPC を定義しています．props にて，以下の引数を定義しています．
 
-- `vpcCidr`: VPC の CIDR ブロック（IP アドレス範囲）を指定
+- `vpcCidr`: VPC の CIDR ブロック（IP アドレス範囲）
 - `useNatInstance`: NAT Instance を使用するかどうかのフラグ
-- `vpcId`: 既存の VPC ID を指定
+- `vpcId`: 既存の VPC ID
 
 本コンストラクタでは，`vpcId` が指定された場合は既存の VPC を参照し，指定が無い場合は新規 VPC を作成します．また，`useNatInstance` が指定された場合は NAT Instance を作成し，指定が無い場合は NAT Gateway を作成します．
+
+<details open><summary>実装</summary>
 
 ```typescript
 import * as ec2 from "aws-cdk-lib/aws-ec2";
@@ -173,38 +185,149 @@ export class Network extends Construct {
 
 ### Storage (EFS)
 
+Storage コンストラクタでは EFS を定義しています．props にて，以下の引数を定義しています．
+
+- `vpc`: EFS を配置する VPC
+
+本コンストラクタでは，指定された VPC のプライベートサブネット内に EFS を作成します．また，自動バックアップを有効化し，スタック削除時に EFS を削除するように設定しています．
+
 <details open><summary>実装</summary>
 
 ```typescript
+import * as cdk from "aws-cdk-lib";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as efs from "aws-cdk-lib/aws-efs";
+import { Construct } from "constructs";
 
+export interface StorageProps {
+  readonly vpc: ec2.IVpc;
+}
+
+export class Storage extends Construct {
+  public readonly fileSystem: efs.FileSystem;
+
+  constructor(scope: Construct, id: string, props: StorageProps) {
+    super(scope, id);
+
+    this.fileSystem = new efs.FileSystem(this, "Default", {
+      vpc: props.vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      enableAutomaticBackups: true,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+  }
+}
 ```
 
 </details>
 
 ### Security (Secrets Manager, IAM Role)
 
+Security コンストラクタでは，Secret Manager と IAM Role を定義しています．props にて，以下の引数を定義しています．
+
+- `gitlabRootEmail`: GitLab の root ユーザーのメールアドレス
+- `fileSystem`: マウントする EFS
+
+本コンストラクタでは，GitLab のルートユーザーのメールアドレスとパスワードを保存するための Secrets Manager を作成しています．また，ECS タスクロールを定義し，以下の権限を付与しています．
+
+- (1) EFS への read/write 権限
+- (2) ECS Exec を有効化するための権限
+
+#### (1) EFS への read/write 権限
+
+ECS タスクロールに以下のポリシーを付与することで，ECS に EFS をマウントすることが可能になります．
+
+- `elasticfilesystem:ClientMount`
+- `elasticfilesystem:ClientWrite`
+
+CDK の実装では，メソッド `grantReadWrite` を使用して，ECS タスクロールに EFS への read/write 権限を付与しています．
+
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-best-practices.html
+
+<!-- https://github.com/aws/aws-cdk/issues/13442#issuecomment-1321150902 -->
+
+#### (2) ECS Exec を有効化するための権限
+
+ECS タスクロールに以下のポリシーを付与することで，ECS Exec を有効化することが可能になります．ECS Exec とは，SSM Session Manager を使用して ECS タスクにログインするための機能です．
+
+- `ssmmessages:CreateControlChannel`
+- `ssmmessages:CreateDataChannel`
+- `ssmmessages:OpenControlChannel`
+- `ssmmessages:OpenDataChannel`
+
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecs-exec-required-iam-permissions
+
+これにより，以下のようなコマンドで ECS Fargate のコンテナにログインすることができます．（開発段階において，コンテナにログインして状況確認する際に重宝しました．）なお，ログイン端末上で `session-manager-plugin` をインストールする必要があります．
+
+```sh
+#/bin/bash
+CLUSTER_NAME=XXXXXXXXXXXXXXXXXXX
+TASK_ID=arn:aws:ecs:ap-northeast-1:123456789123:task/XXXXXXXXXXXXXXXXXXXXXXXXXX
+CONTAINER_NAME=GitlabContainer
+
+aws ecs execute-command \
+    --cluster $CLUSTER_NAME \
+    --task  $TASK_ID\
+    --container $CONTAINER_NAME \
+    --interactive \
+    --command "/bin/bash"
+```
+
+<!-- https://dev.classmethod.jp/articles/tsnote-ecs-update-service-fails-with-invalidparameterexception-in-ecs-exec/ -->
+
 <details open><summary>実装</summary>
 
 ```typescript
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
+import * as iam from "aws-cdk-lib/aws-iam";
+import * as efs from "aws-cdk-lib/aws-efs";
+import { Construct } from "constructs";
 
+export interface SecurityProps {
+  readonly gitlabRootEmail: string;
+  readonly fileSystem: efs.IFileSystem;
+}
+
+export class Security extends Construct {
+  public readonly gitlabSecret: secretsmanager.ISecret;
+  public readonly taskRole: iam.Role;
+
+  constructor(scope: Construct, id: string, props: SecurityProps) {
+    super(scope, id);
+
+    this.gitlabSecret = new secretsmanager.Secret(this, "Default", {
+      description: "Gitlab root credentials",
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({ email: props.gitlabRootEmail }),
+        generateStringKey: "password",
+      },
+    });
+
+    this.taskRole = new iam.Role(this, "EcsTaskRole", {
+      assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
+    });
+
+    // Allow ECS tasks to mount EFS
+    props.fileSystem.grantReadWrite(this.taskRole);
+
+    // Allow ECS tasks to login via SSM
+    this.taskRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "ssmmessages:CreateDataChannel",
+          "ssmmessages:OpenDataChannel",
+          "ssmmessages:OpenControlChannel",
+          "ssmmessages:CreateControlChannel",
+        ],
+        resources: ["*"],
+      })
+    );
+  }
+}
 ```
 
 </details>
-
-あと，ECS から EFS へのマウントに必要なポリシーもなかなか記載が見つからないので有益だと思われる
-
-https://aws.amazon.com/jp/blogs/news/developers-guide-to-using-amazon-efs-with-amazon-ecs-and-aws-fargate-part-2/
-
-https://github.com/aws/aws-cdk/issues/13442
-
-うーん，やっぱ read write のポリシーを明示する必要があるっぽい
-
-```
-ResourceInitializationError: failed to invoke EFS utils commands to set up EFS volumes: stderr: b'mount.nfs4: access denied by server while mounting 127.0.0.1:/srv/gitlab/data' Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 52, in <module> return_code = subprocess.check_call(["mount", "-t", "efs", "-o", opts, args.fs_id_with_path, args.dir_in_container], shell=False) File "/usr/lib64/python3.9/subprocess.py", line 373, in check_call raise CalledProcessError(retcode, cmd) subprocess.CalledProcessError: Command '['mount', '-t', 'efs', '-o', 'noresvport,tls,iam,awscredsuri=/v2/credentials/3f626a1f-4f38-4a0c-8a8a-d12e68b2995d', 'fs-0486fc40aef1fa1a5:/srv/gitlab/data', '/efs-vols/data']' returned non-zero exit status 32. During handling of the above exception, another exception occurred: Traceback (most recent call last): File "/usr/sbin/supervisor_mount_efs", line 56, in <module> "message": err.message, AttributeError: 'CalledProcessError' object has n: unsuccessful EFS utils comma
-```
-
-あと，ECS にログインするためのポリシーも付与している．
-ECS へのログインはこのシェルでできますよ．
 
 ### LoadBalancer (ALB, DNS)
 
@@ -237,6 +360,8 @@ ECS へのログインはこのシェルでできますよ．
 </details>
 
 - FileSystem.connections を使用して ECS サービスからのインバウンドを許可するようにしましょう。
+
+  - https://zenn.dev/geniee/articles/0ea34c630e1f24#%E6%9C%80%E5%BE%8C%E3%81%AB
 
 - ECS EXEC もできるようにしております
 
@@ -326,7 +451,7 @@ GitLab コンテナは，起動時にコンテナ内に `/var/opt/gitlab`, `/var
 
 ソリューション開発当初，GitLab のデータ永続化のためのボリュームマウント先として，EFS アクセスポイントを利用することを検討しました．ここで，アクセスポイントとは，EFS 上の指定したディレクトリに対し，指定した POSIX ユーザー ID (UID) とグループ ID (GID) でマウントすることができる機能です．また，指定したディレクトリが存在しない場合，自動でディレクトリを作成することができます．
 
-ECS と EFS アクセスポイントを組み合わせることで，指定したディレクトリを EFS 上に自動作成し， ECS タスクにマウントすることができます．当初は，POSIX UID と GID を 0:0 に設定し，root ユーザーとして EFS 上のディレクトリをマウントしていました．この理由は，GitLab コンテナは，初回起動時に root ユーザーで必要なファイルやディレクトリを作成する必要があるためです．
+ECS と EFS アクセスポイントを組み合わせることで，指定したディレクトリを EFS 上に自動作成し， ECS タスクに EFS 上のディレクトリをマウントすることができます．当初は，POSIX UID と GID を 0:0 に設定し，root ユーザーとして EFS 上のディレクトリをマウントしていました．この理由は，GitLab コンテナは，初回起動時に root ユーザーで必要なファイルやディレクトリを作成する必要があるためです．
 
 GitLab コンテナが正常に起動し，動作確認のためリポジトリを作成して `git clone` を実行すると，以下のエラーが発生しました．この原因は，`/var/opt/gitlab/git-data/repositories` 内の一部のファイルの所有者が git ユーザー (UID: 998) である必要があるためです．(本エラーに関する情報が少なく，原因究明に時間を要しました．)
 
@@ -337,7 +462,7 @@ Error while processing content unencoding: invalid stored block lengths
 
 つまり，GitLab コンテナの起動には EFS アクセスポイントの POSIX UID と GID を 0:0 にする必要があり，その結果，マウント先のディレクトリ内の全てのファイルの所有者が root となっていたため，本事象が発生していました．
 
-そこで，本ソリューションでは，EFS アクセスポイントを利用せず，Lambda から直接 EFS にマウントし，ディレクトリを作成後，ECS タスクにマウントするようにしています．CDK の実装では，CustomResource を利用して，Lambda の操作を行っております．
+そこで，本ソリューションでは，EFS アクセスポイントを利用せず，Lambda から直接 EFS にマウントしてディレクトリを作成後，ECS タスクに EFS 上のディレクトリをマウントするようにしています．CDK の実装では，CustomResource を利用して，Lambda の操作を行っております．
 
 参考: https://gitlab.com/gitlab-org/charts/gitlab/-/issues/5546#note_2017038672
 

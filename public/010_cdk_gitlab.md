@@ -30,9 +30,9 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 ## TL;DR
 
-- CodeCommit の代替として，Gitlab のセルフホスティングを検討
+- CodeCommit の代替として Gitlab のセルフホスティングを検討
 - AWS CDK を利用した GitLab on ECS を一撃でデプロイする実装の解説
-  - ECS から EFS へマウントする際の Tip
+  - ECS に EFS をマウントする際の Tips や CDK 実装例を提示
 - Gitlab をコンテナホストする際の Tips を共有
 
 ## 背景
@@ -115,7 +115,9 @@ Network コンストラクタでは VPC を定義しています．props にて�
 - `useNatInstance`: NAT Instance を使用するかどうかのフラグ
 - `vpcId`: 既存の VPC ID
 
-本コンストラクタでは，`vpcId` が指定された場合は既存の VPC を参照し，指定が無い場合は新規 VPC を作成します．また，`useNatInstance` が指定された場合は NAT Instance を作成し，指定が無い場合は NAT Gateway を作成します．
+Network クラスでは，`vpcId` が指定された場合は既存の VPC を参照し，指定が無い場合は新規 VPC を作成します．なお，パブリックサブネット，プライベートサブネット共に 2 つずつ作成します．
+
+`useNatInstance` が指定された場合は NAT Instance を作成し，指定が無い場合は NAT Gateway を作成します．
 
 <details open><summary>実装</summary>
 
@@ -189,7 +191,7 @@ Storage コンストラクタでは EFS を定義しています．props にて�
 
 - `vpc`: EFS を配置する VPC
 
-本コンストラクタでは，指定された VPC のプライベートサブネット内に EFS を作成します．また，自動バックアップを有効化し，スタック削除時に EFS を削除するように設定しています．
+Storage クラスでは，指定された VPC のプライベートサブネット内に EFS を作成します．また，自動バックアップを有効化し，スタック削除時に EFS を削除するように設定しています．
 
 <details open><summary>実装</summary>
 
@@ -223,74 +225,24 @@ export class Storage extends Construct {
 
 ### Security (Secrets Manager, IAM Role)
 
-Security コンストラクタでは，Secret Manager と IAM Role を定義しています．props にて，以下の引数を定義しています．
+Security コンストラクタでは，Secret Manager を定義しています．props にて，以下の引数を定義しています．
 
 - `gitlabRootEmail`: GitLab の root ユーザーのメールアドレス
-- `fileSystem`: マウントする EFS
 
-本コンストラクタでは，GitLab のルートユーザーのメールアドレスとパスワードを保存するための Secrets Manager を作成しています．また，ECS タスクロールを定義し，以下の権限を付与しています．
-
-- (1) EFS への read/write 権限
-- (2) ECS Exec を有効化するための権限
-
-#### (1) EFS への read/write 権限
-
-ECS タスクロールに以下のポリシーを付与することで，ECS に EFS をマウントすることが可能になります．
-
-- `elasticfilesystem:ClientMount`
-- `elasticfilesystem:ClientWrite`
-
-CDK の実装では，メソッド `grantReadWrite` を使用して，ECS タスクロールに EFS への read/write 権限を付与しています．
-
-https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-best-practices.html
-
-<!-- https://github.com/aws/aws-cdk/issues/13442#issuecomment-1321150902 -->
-
-#### (2) ECS Exec を有効化するための権限
-
-ECS タスクロールに以下のポリシーを付与することで，ECS Exec を有効化することが可能になります．ECS Exec とは，SSM Session Manager を使用して ECS タスクにログインするための機能です．
-
-- `ssmmessages:CreateControlChannel`
-- `ssmmessages:CreateDataChannel`
-- `ssmmessages:OpenControlChannel`
-- `ssmmessages:OpenDataChannel`
-
-https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecs-exec-required-iam-permissions
-
-これにより，以下のようなコマンドで ECS Fargate のコンテナにログインすることができます．（開発段階において，コンテナにログインして状況確認する際に重宝しました．）なお，ログイン端末上で `session-manager-plugin` をインストールする必要があります．
-
-```sh
-#/bin/bash
-CLUSTER_NAME=XXXXXXXXXXXXXXXXXXX
-TASK_ID=arn:aws:ecs:ap-northeast-1:123456789123:task/XXXXXXXXXXXXXXXXXXXXXXXXXX
-CONTAINER_NAME=GitlabContainer
-
-aws ecs execute-command \
-    --cluster $CLUSTER_NAME \
-    --task  $TASK_ID\
-    --container $CONTAINER_NAME \
-    --interactive \
-    --command "/bin/bash"
-```
-
-<!-- https://dev.classmethod.jp/articles/tsnote-ecs-update-service-fails-with-invalidparameterexception-in-ecs-exec/ -->
+Security クラスでは，GitLab のルートユーザーのメールアドレスとパスワードを保存するための Secrets Manager を作成しています．なお，パスワードは Secret Manager で自動生成させています．
 
 <details open><summary>実装</summary>
 
 ```typescript
 import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
-import * as iam from "aws-cdk-lib/aws-iam";
-import * as efs from "aws-cdk-lib/aws-efs";
 import { Construct } from "constructs";
 
 export interface SecurityProps {
   readonly gitlabRootEmail: string;
-  readonly fileSystem: efs.IFileSystem;
 }
 
 export class Security extends Construct {
   public readonly gitlabSecret: secretsmanager.ISecret;
-  public readonly taskRole: iam.Role;
 
   constructor(scope: Construct, id: string, props: SecurityProps) {
     super(scope, id);
@@ -302,27 +254,6 @@ export class Security extends Construct {
         generateStringKey: "password",
       },
     });
-
-    this.taskRole = new iam.Role(this, "EcsTaskRole", {
-      assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
-    });
-
-    // Allow ECS tasks to mount EFS
-    props.fileSystem.grantReadWrite(this.taskRole);
-
-    // Allow ECS tasks to login via SSM
-    this.taskRole.addToPolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: [
-          "ssmmessages:CreateDataChannel",
-          "ssmmessages:OpenDataChannel",
-          "ssmmessages:OpenControlChannel",
-          "ssmmessages:CreateControlChannel",
-        ],
-        resources: ["*"],
-      })
-    );
   }
 }
 ```
@@ -331,10 +262,114 @@ export class Security extends Construct {
 
 ### LoadBalancer (ALB, DNS)
 
+LoadBalancer コンストラクタでは，ALB を定義しています．props にて，以下の引数を定義しています．
+
+- `vpc`: ALB を配置する VPC
+- `allowedCidrs`: ALB へのアクセスを許可する CIDR リスト
+- `domainName`: ドメイン名 (option)
+- `subDomain`: サブドメイン (option)
+- `hostedZoneId`: ホストゾーン ID (option)
+- `useHttps`: HTTPS を使用するかどうかのフラグ
+
+LoadBalancer クラスでは，ALB を作成し，指定された VPC のパブリックサブネットに配置します．`useHttps` が `true` の場合，以下の処理を行い，HTTPS を使用するように設定します．
+
+- ACM 証明書を作成
+- Route53 に A レコード（サブドメインから ALB へのエイリアスレコード）を作成
+- ALB のリスナーと証明書の関連付けを行います．
+
+また，ALB へのアクセスは，指定された CIDR からのアクセスに制限しています．最終的な GitLab の URL は，`https://<subDomain>.<domainName>` または `http://<ALBのDNS名>` となります．
+
 <details open><summary>実装</summary>
 
 ```typescript
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as elbv2 from "aws-cdk-lib/aws-elasticloadbalancingv2";
+import * as acm from "aws-cdk-lib/aws-certificatemanager";
+import * as route53 from "aws-cdk-lib/aws-route53";
+import * as route53targets from "aws-cdk-lib/aws-route53-targets";
+import { Construct } from "constructs";
 
+export interface LoadBalancerProps {
+  readonly vpc: ec2.IVpc;
+  readonly allowedCidrs: string[];
+  readonly domainName?: string;
+  readonly subDomain?: string;
+  readonly hostedZoneId?: string;
+  readonly useHttps: boolean;
+}
+
+export class LoadBalancer extends Construct {
+  public readonly alb: elbv2.IApplicationLoadBalancer;
+  public readonly targetGroup: elbv2.IApplicationTargetGroup;
+  public readonly url: string;
+
+  constructor(scope: Construct, id: string, props: LoadBalancerProps) {
+    super(scope, id);
+
+    this.alb = new elbv2.ApplicationLoadBalancer(this, "Default", {
+      vpc: props.vpc,
+      internetFacing: true,
+      vpcSubnets: props.vpc.selectSubnets({ subnets: props.vpc.publicSubnets }),
+    });
+
+    this.targetGroup = new elbv2.ApplicationTargetGroup(
+      this,
+      "GitlabTargetGroup",
+      {
+        vpc: props.vpc,
+        port: 80,
+        protocol: elbv2.ApplicationProtocol.HTTP,
+        targetType: elbv2.TargetType.IP,
+        healthCheck: {
+          path: "/users/sign_in",
+          port: "80",
+        },
+      }
+    );
+
+    let certificate: acm.ICertificate | undefined;
+    if (props.useHttps) {
+      const hostedZone = route53.PublicHostedZone.fromHostedZoneAttributes(
+        this,
+        "HostedZone",
+        {
+          zoneName: props.domainName!,
+          hostedZoneId: props.hostedZoneId!,
+        }
+      );
+
+      certificate = new acm.Certificate(this, "GitlabCertificate", {
+        domainName: `${props.subDomain}.${props.domainName}`,
+        validation: acm.CertificateValidation.fromDns(hostedZone),
+      });
+
+      new route53.ARecord(this, "GitlabDnsRecord", {
+        zone: hostedZone,
+        recordName: props.subDomain,
+        target: route53.RecordTarget.fromAlias(
+          new route53targets.LoadBalancerTarget(this.alb)
+        ),
+      });
+    }
+
+    const listener = this.alb.addListener("GitlabListener", {
+      protocol: props.useHttps
+        ? elbv2.ApplicationProtocol.HTTPS
+        : elbv2.ApplicationProtocol.HTTP,
+      open: false,
+      certificates: props.useHttps ? [certificate!] : undefined,
+      defaultTargetGroups: [this.targetGroup],
+    });
+
+    props.allowedCidrs.forEach((cidr) =>
+      listener.connections.allowDefaultPortFrom(ec2.Peer.ipv4(cidr))
+    );
+
+    this.url = props.useHttps
+      ? `https://${props.subDomain}.${props.domainName}`
+      : `http://${this.alb.loadBalancerDnsName}`;
+  }
+}
 ```
 
 </details>
@@ -385,6 +420,63 @@ aws ecs execute-command \
     --interactive \
     --command "/bin/bash"
 ```
+
+:::note
+
+#### 補足
+
+ECS タスクロールを定義し，以下の権限を付与しています．
+
+- (1) EFS への read/write 権限
+- (2) ECS Exec を有効化するための権限
+
+**(1) EFS への read/write 権限**
+
+ECS タスクロールに以下のポリシーを付与することで，ECS に EFS をマウントすることが可能になります．
+
+- `elasticfilesystem:ClientMount`
+- `elasticfilesystem:ClientWrite`
+
+CDK の実装では，メソッド `grantReadWrite` を使用して，ECS タスクロールに EFS への read/write 権限を付与しています．
+
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-best-practices.html
+
+<!-- https://github.com/aws/aws-cdk/issues/13442#issuecomment-1321150902 -->
+
+**※どうやら，EXEC の有効化を ECS 側で明示すると，以下の権限付与は自動でやってくれるらしい．．（便利すぎんか）**
+
+`enableExecuteCommand: true` を明示することで，上記できた．
+
+**(2) ECS Exec を有効化するための権限**
+
+ECS タスクロールに以下のポリシーを付与することで，ECS Exec を有効化することが可能になります．ECS Exec とは，SSM Session Manager を使用して ECS タスクにログインするための機能です．
+
+- `ssmmessages:CreateControlChannel`
+- `ssmmessages:CreateDataChannel`
+- `ssmmessages:OpenControlChannel`
+- `ssmmessages:OpenDataChannel`
+
+https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecs-exec-required-iam-permissions
+
+これにより，以下のようなコマンドで ECS Fargate のコンテナにログインすることができます．（開発段階において，コンテナにログインして状況確認する際に重宝しました．）なお，ログイン端末上で `session-manager-plugin` をインストールする必要があります．
+
+```sh
+#/bin/bash
+CLUSTER_NAME=XXXXXXXXXXXXXXXXXXX
+TASK_ID=arn:aws:ecs:ap-northeast-1:123456789123:task/XXXXXXXXXXXXXXXXXXXXXXXXXX
+CONTAINER_NAME=GitlabContainer
+
+aws ecs execute-command \
+    --cluster $CLUSTER_NAME \
+    --task  $TASK_ID\
+    --container $CONTAINER_NAME \
+    --interactive \
+    --command "/bin/bash"
+```
+
+<!-- https://dev.classmethod.jp/articles/tsnote-ecs-update-service-fails-with-invalidparameterexception-in-ecs-exec/ -->
+
+:::
 
 ### (その他)Stack
 

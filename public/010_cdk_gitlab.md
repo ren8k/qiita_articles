@@ -160,7 +160,7 @@ Lambda と VPC の削除が同時に行われているように見える．
 
 ### Gitlab の外部 URL (https) の設定
 
-GitLab コンテナを ALB (リバースプロキシ) の背後に配置する場合，GitLab 内部の Nginx に対し，以下のように HTTPS を利用しないように設定する必要があります．以下の設定は，ECS タスクにおける環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定しています．(CDK コードの該当箇所は下記に記載しています．)
+GitLab コンテナを ALB (リバースプロキシ) の背後に配置する場合，GitLab 内部の Nginx に対し，以下のように HTTPS を利用しないように設定する必要があります．以下の設定は，docker run 実行時の環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定することができます．(CDK コードにおける該当箇所は下部に記載しています．)
 
 - `nginx['listen_port'] = 80`
 - `nginx['listen_https'] = false;`
@@ -208,7 +208,7 @@ GitLab コンテナは，起動時にコンテナ内に `/var/opt/gitlab`, `/var
 | `$GITLAB_HOME/logs`   | `/var/log/gitlab` | ログを保存                   |
 | `$GITLAB_HOME/config` | `/etc/gitlab`     | GitLab の設定ファイルを保存  |
 
-> [公式ドキュメント](https://docs.gitlab.com/ee/install/docker/installation.html#create-a-directory-for-the-volumes)では，`$GITLAB_HOME = /srv/gitlab` としています．
+> [公式ドキュメント](https://docs.gitlab.com/ee/install/docker/installation.html#create-a-directory-for-the-volumes)では，`$GITLAB_HOME=/srv/gitlab` としています．
 
 ソリューション開発当初，GitLab のデータ永続化のためのボリュームマウント先として，EFS アクセスポイントを利用することを検討しました．ここで，アクセスポイントとは，EFS 上の指定したディレクトリに対し，指定した POSIX ユーザー ID (UID) とグループ ID (GID) でマウントすることができる機能です．また，指定したディレクトリが存在しない場合，自動でディレクトリを作成することができます．
 
@@ -233,7 +233,7 @@ ALB のターゲットグループのヘルスチェックのために，[公式
 
 ### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
 
-Gitlab のヘルスチェックパスが誤っており、ALB 側のヘルスチェックにも失敗してしまっていたため
+GitLab コンテナは，初回起動時に利用できるまでに約 5~6 分程度要します．そのため，ECS のヘルスチェックの猶予期間を長めに見積もり 9 分 (540 秒) に設定しています．ヘルスチェックの猶予期間が短い場合，GitLab コンテナの起動中に行われたヘルスチェック結果により，コンテナが正常でないと判断される結果，コンテナの再生成が繰り返されてしまいます．
 
 ## 利用手順
 

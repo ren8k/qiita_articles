@@ -97,9 +97,99 @@ X でご教示いただいたのですが，GitLab では，EFS やその他の 
 
 ### Network (VPC)
 
+<details open><summary>実装</summary>
+
+Network コンストラクタでは VPC を定義しています．props にて，以下の引数を定義しています．
+
+- `vpcCidr`: VPC の CIDR ブロック（IP アドレス範囲）を指定
+- `useNatInstance`: NAT Instance を使用するかどうかのフラグ
+- `vpcId`: 既存の VPC ID を指定
+
+本コンストラクタでは，`vpcId` が指定された場合は既存の VPC を参照し，指定が無い場合は新規 VPC を作成します．また，`useNatInstance` が指定された場合は NAT Instance を作成し，指定が無い場合は NAT Gateway を作成します．
+
+```typescript
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import { Construct } from "constructs";
+
+export interface NetworkProps {
+  readonly vpcCidr?: string;
+  readonly useNatInstance?: boolean;
+  readonly vpcId?: string;
+}
+
+export class Network extends Construct {
+  public readonly vpc: ec2.IVpc;
+
+  constructor(scope: Construct, id: string, props: NetworkProps) {
+    super(scope, id);
+
+    if (props.vpcId) {
+      this.vpc = ec2.Vpc.fromLookup(this, "Default", {
+        vpcId: props.vpcId,
+      });
+    } else {
+      const natInstance = props.useNatInstance
+        ? ec2.NatProvider.instanceV2({
+            instanceType: ec2.InstanceType.of(
+              ec2.InstanceClass.T4G,
+              ec2.InstanceSize.NANO
+            ),
+            defaultAllowedTraffic: ec2.NatTrafficDirection.OUTBOUND_ONLY,
+          })
+        : undefined;
+
+      this.vpc = new ec2.Vpc(this, "Default", {
+        natGatewayProvider: natInstance ? natInstance : undefined,
+        natGateways: 1,
+        ipAddresses: props.vpcCidr
+          ? ec2.IpAddresses.cidr(props.vpcCidr)
+          : undefined,
+        maxAzs: 2,
+        subnetConfiguration: [
+          {
+            name: "Public",
+            subnetType: ec2.SubnetType.PUBLIC,
+          },
+          {
+            name: "Private",
+            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+          },
+        ],
+      });
+
+      if (natInstance) {
+        natInstance.connections.allowFrom(
+          ec2.Peer.ipv4(this.vpc.vpcCidrBlock),
+          ec2.Port.tcp(443),
+          "Allow HTTPS from VPC"
+        ); // for SecretManager
+      }
+    }
+  }
+}
+```
+
+</details>
+
 ### Storage (EFS)
 
+<details open><summary>実装</summary>
+
+```typescript
+
+```
+
+</details>
+
 ### Security (Secrets Manager, IAM Role)
+
+<details open><summary>実装</summary>
+
+```typescript
+
+```
+
+</details>
 
 あと，ECS から EFS へのマウントに必要なポリシーもなかなか記載が見つからないので有益だと思われる
 
@@ -118,9 +208,33 @@ ECS へのログインはこのシェルでできますよ．
 
 ### LoadBalancer (ALB, DNS)
 
+<details open><summary>実装</summary>
+
+```typescript
+
+```
+
+</details>
+
 ### EFS Initialization (Lambda)
 
+<details open><summary>実装</summary>
+
+```typescript
+
+```
+
+</details>
+
 ### Computing (ECS, Fargate)
+
+<details open><summary>実装</summary>
+
+```typescript
+
+```
+
+</details>
 
 - FileSystem.connections を使用して ECS サービスからのインバウンドを許可するようにしましょう。
 
@@ -231,7 +345,7 @@ Error while processing content unencoding: invalid stored block lengths
 
 ALB のターゲットグループのヘルスチェックのために，[公式ドキュメント](https://docs.gitlab.com/ee/administration/monitoring/health_check.html)に記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，現在は，`/-/users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
 
-### コンテナ起動後の Gitlab の起動に時間がかかり、ヘルスチェックを開始するタイミングをずらす必要がある
+### Gitlab の初回の起動時間について
 
 GitLab コンテナは，初回起動時に利用できるまでに約 5~6 分程度要します．そのため，ECS のヘルスチェックの猶予期間を長めに見積もり 9 分 (540 秒) に設定しています．ヘルスチェックの猶予期間が短い場合，GitLab コンテナの起動中に行われたヘルスチェック結果により，コンテナが正常でないと判断される結果，コンテナの再生成が繰り返されてしまいます．
 

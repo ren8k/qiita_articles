@@ -53,7 +53,7 @@ SageMaker AI Project Templates では，MLOps の CI/CD パイプライン用の
 
 ただし，利用する AWS サービスの選定や，アーキテクチャの検討，CDK での IaC 化を行う際に色々苦戦した部分が多かったので，本稿ではその解説や Tips の共有を行います．
 
-:::note
+:::note info
 筆者は Data Scientist であり，CDK に関しては初学者でしたので，余計に苦戦しました．
 :::
 
@@ -88,14 +88,14 @@ X でご教示いただいたのですが，GitLab では，EFS やその他の 
 
 - Network (VPC)
 - Storage (EFS)
-- Security (Secrets Manager, IAM Role)
+- Security (Secrets Manager)
 - LoadBalancer (ALB, DNS)
 - EFS Initialization (Lambda)
 - Computing (ECS, Fargate)
 
 以降，各コンストラクタの実装について解説します．
 
-:::note
+:::note info
 ECS に EFS をマウントする際，以下の設定が必要です．
 
 - grantReadWrite で ECS タスクに対して EFS への読み書き権限を付与
@@ -225,7 +225,7 @@ export class Storage extends Construct {
 
 ### Security (Secrets Manager, IAM Role)
 
-Security コンストラクタでは，Secret Manager を定義しています．props にて，以下の引数を定義しています．
+Security コンストラクタでは Secret Manager を定義しています．props にて，以下の引数を定義しています．
 
 - `gitlabRootEmail`: GitLab の root ユーザーのメールアドレス
 
@@ -262,7 +262,7 @@ export class Security extends Construct {
 
 ### LoadBalancer (ALB, DNS)
 
-LoadBalancer コンストラクタでは，ALB を定義しています．props にて，以下の引数を定義しています．
+LoadBalancer コンストラクタでは ALB を定義しています．props にて，以下の引数を定義しています．
 
 - `vpc`: ALB を配置する VPC
 - `allowedCidrs`: ALB へのアクセスを許可する CIDR リスト
@@ -376,10 +376,122 @@ export class LoadBalancer extends Construct {
 
 ### EFS Initialization (Lambda)
 
+EfsInitLambda コンストラクタでは EFS の初期化を行う Lambda 関数を定義しています．props にて，以下の引数を定義しています．
+
+- `vpc`: Lambda 関数を配置する VPC
+- `fileSystem`: 初期化対象の EFS
+
+EfsInitLambda クラスでは，Lambda 関数を作成し，指定された EFS のルートディレクトリに `data`, `logs`, `config` のディレクトリを作成します．また，EFS のマウントポイントを `/mnt/efs` に設定し，Lambda 関数の環境変数として EFS の FileSystem ID を渡しています．
+
+:::note info
+
+#### アクセスポイントを利用していない理由
+
+[後述の節](./###EFS-アクセスポイントでの-git-clone-権限エラーとその解決) で詳細に述べておりますが，
+:::
+
 <details open><summary>実装</summary>
 
 ```typescript
+import * as cdk from "aws-cdk-lib";
+import * as ec2 from "aws-cdk-lib/aws-ec2";
+import * as efs from "aws-cdk-lib/aws-efs";
+import * as lambda from "aws-cdk-lib/aws-lambda";
+import * as cr from "aws-cdk-lib/custom-resources";
+import * as logs from "aws-cdk-lib/aws-logs";
+import { Construct } from "constructs";
 
+export interface EfsInitLambdaProps {
+  readonly vpc: ec2.IVpc;
+  readonly fileSystem: efs.FileSystem;
+}
+
+export class EfsInitLambda extends Construct {
+  public readonly initFunction: lambda.IFunction;
+
+  // Define Lambda function to initialize EFS.
+  // This function makes 3 directories in EFS root: data, logs, config.
+  constructor(scope: Construct, id: string, props: EfsInitLambdaProps) {
+    super(scope, id);
+
+    this.initFunction = new lambda.Function(this, "Default", {
+      runtime: lambda.Runtime.PYTHON_3_9,
+      handler: "index.handler",
+      code: lambda.Code.fromAsset("lambda"),
+      vpc: props.vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      timeout: cdk.Duration.minutes(1),
+      allowAllOutbound: false,
+      filesystem: lambda.FileSystem.fromEfsAccessPoint(
+        props.fileSystem.addAccessPoint("LambdaAccessPoint", {
+          createAcl: {
+            ownerGid: "0",
+            ownerUid: "0",
+            permissions: "755",
+          },
+          posixUser: {
+            uid: "0",
+            gid: "0",
+          },
+          path: "/",
+        }),
+        "/mnt/efs"
+      ),
+      environment: {
+        EFS_ID: props.fileSystem.fileSystemId,
+      },
+    });
+
+    const efsInitProvider = new cr.Provider(this, "EfsInitProvider", {
+      onEventHandler: this.initFunction,
+      logRetention: logs.RetentionDays.ONE_WEEK,
+    });
+
+    new cdk.CustomResource(this, "EfsInitializer", {
+      serviceToken: efsInitProvider.serviceToken,
+    });
+  }
+}
+```
+
+```python:lambda/index.py
+import logging
+import os
+from typing import Any, Dict
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+MOUNT_POINT = "/mnt/efs"
+
+GITLAB_DIRS = [
+    "/srv/gitlab/data",
+    "/srv/gitlab/logs",
+    "/srv/gitlab/config",
+]
+
+
+def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    try:
+        # check if the EFS mount point exists
+        if not os.path.exists(MOUNT_POINT):
+            logger.error(f"EFS mount point {MOUNT_POINT} does not exist")
+            raise FileNotFoundError(f"EFS mount point {MOUNT_POINT} does not exist")
+
+        # make 3 directories
+        for dir_path in GITLAB_DIRS:
+            full_path = os.path.join(MOUNT_POINT, dir_path.lstrip("/"))
+            os.makedirs(full_path, exist_ok=True)
+            logger.info(f"Successfully created directory: {full_path}")
+
+        return {
+            "StatusCode": 200,
+            "Message": "Successfully initialized EFS directories",
+        }
+
+    except Exception as e:
+        logger.error(f"Error during EFS initialization: {str(e)}")
+        raise e
 ```
 
 </details>
@@ -421,7 +533,7 @@ aws ecs execute-command \
     --command "/bin/bash"
 ```
 
-:::note
+:::note info
 
 #### 補足
 

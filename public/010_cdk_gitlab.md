@@ -22,7 +22,7 @@ ignorePublish: false
 
 苦戦した部分も沢山あるので，備忘録として記事に残します．
 
-ECS で EFS をマウントするケースで CDK 化する際の参考となれば幸いです！
+ECS に EFS をマウントするケースで CDK 化する際の参考となれば幸いです！
 
 なお，CDK の実装は以下のリポジトリに公開しております．
 
@@ -32,8 +32,10 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 - CodeCommit の代替として Gitlab のセルフホスティングを実現
 - AWS CDK を利用した GitLab on ECS を一撃でデプロイする実装の解説
-  - ECS に EFS をマウントする際の Tips や CDK 実装例を提示
-- Gitlab をコンテナホストする際の Tips を共有
+  - [ECS タスクに EFS をマウントする際の Tips や CDK 実装例を提示](#ecs-に-efs-をマウントする際の-tips)
+  - [ECS Exec の有効化の Tips](#ecs-exec-の有効化の-tips)
+- [Gitlab をコンテナホストする際の Tips を共有](#gitlab-セルフホスティングの-tips)
+- [ローカル/CloudShell からの CDK のデプロイ方法の解説](#利用手順)
 
 ## 背景
 
@@ -51,13 +53,13 @@ SageMaker AI Project Templates では，MLOps の CI/CD パイプライン用の
   - 一定の承認プロセスを経れば利用可能だが、社内手続きが複雑でかなり時間がかかる
 - GitLab は，Issue 管理，Wiki などの機能が豊富である
 
-ただし，利用する AWS サービスの選定や，アーキテクチャの検討，CDK での IaC 化を行う際に色々苦戦した部分が多かったので，本稿ではその解説や Tips の共有を行います．
+ただし，利用する AWS サービスの選定やアーキテクチャの検討，CDK での IaC 化を行う際に色々苦戦した部分が多かったので，本稿ではその解説や Tips の共有を行います．
 
 :::note info
 筆者は Data Scientist であり，CDK に関しては初学者でしたので，余計に苦戦しました．
 :::
 
-## ソリューション（アーキテクチャ）
+## ソリューション
 
 GitLab の運用に必要なインフラストラクチャの管理工数を最小限に抑えるため，ECS on Fargate + EFS の構成を採用しました．
 
@@ -84,16 +86,17 @@ X でご教示いただいたのですが，GitLab では，EFS やその他の 
 
 ## コード (各コンストラクト) の解説
 
-利用する AWS サービス毎に，以下のコンストラクトを用意しました．
+利用する AWS サービス毎に，以下のコンストラクトやスタックを実装しました．
 
-- Network (VPC)
-- Storage (EFS)
-- Security (Secrets Manager)
-- LoadBalancer (ALB, DNS)
-- EFS Initialization (Lambda)
-- Computing (ECS, Fargate)
+- [Network (VPC)](#network-vpc)
+- [Storage (EFS)](#storage-efs)
+- [Security (Secrets Manager)](#security-secrets-manager)
+- [LoadBalancer (ALB, DNS)](#loadbalancer-alb-dns)
+- [EFS Initialization (Lambda)](#efs-initialization-lambda)
+- [Computing (ECS, Fargate)](#computing-ecs-fargate)
+- [GitlabServerlessStack](#gitlabserverlessstack)
 
-以降，各コンストラクトの実装について解説します．
+以降，各実装について解説します．
 
 ### Network (VPC)
 
@@ -504,9 +507,9 @@ Fargate のコンテナ環境は，VPC のプライベートサブネットに�
 
 :::note info
 
-#### ECS に EFS をマウントする際の Tips
+#### ECS タスクに EFS をマウントする際の Tips
 
-ECS に EFS をマウントするためには，以下に示す ECS タスクロールの権限設定と EFS のセキュリティグループ (SG) の設定が必要です．
+ECS タスクに EFS をマウントするためには，以下に示す ECS タスクロールの権限設定と EFS のセキュリティグループ (SG) の設定が必要です．
 
 - (1) ECS タスクロールに EFS への read/write 権限の付与
 - (2) EFS の SG で ECS からのインバウンドトラフィックの許可
@@ -747,7 +750,7 @@ aws ecs execute-command \
     --command "/bin/bash"
 ```
 
-CDK の実装では，FargateService の定義時に `enableExecuteCommand: true` を指定することで，ECS Exec を有効化しています．なお，**この 1 行の設定追記だけで，CDK 側で上述のポリシーが ECS タスクロールに自動で付与されます．**
+CDK の実装では，FargateService の定義時に `enableExecuteCommand: true` を指定することで，ECS Exec を有効化することができます．なお，**この 1 行の設定追記だけで，CDK 側で上述のポリシーが ECS タスクロールに自動で付与されます．**
 
 #### 参考
 
@@ -757,12 +760,174 @@ CDK の実装では，FargateService の定義時に `enableExecuteCommand: true
 
 :::
 
-### (その他)Stack
+### GitlabServerlessStack
 
-dependencies を明示しなければ，スタック削除時にエラーが発生
+GitlabServerlessStack は，GitLab をサーバーレスで実行するための AWS リソースを統合的に管理するメインスタックです．前述のコンストラクトを順次作成し，GitLab の実行環境を構築します．
 
-Lambda と VPC の削除順序を制御できていない．
-Lambda と VPC の削除が同時に行われているように見える．
+なお，リソースの依存関係を適切に制御するため，以下の順序制約を設定しています．これは，CDK スタックの削除時，リソースの削除順序を制御するためです．（）
+
+- VPC -> Lambda: ネットワーク構成完了後に Lambda を実行
+- Lambda -> ECS: EFS 初期化完了後にコンテナを起動
+
+最後に，構築された GitLab の URL を CloudFormation の出力値として設定し，デプロイ完了後にアクセス URL を確認できるようにしています．
+
+<details open><summary>実装</summary>
+
+```typescript
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
+import { Network } from "./constructs/network";
+import { Storage } from "./constructs/storage";
+import { LoadBalancer } from "./constructs/loadbalancer";
+import { Security } from "./constructs/security";
+import { Computing } from "./constructs/computing";
+import { EfsInitLambda } from "./constructs/efs-init-lambda";
+
+export interface GitlabServerlessStackProps extends cdk.StackProps {
+  /**
+   * The IP address ranges in CIDR notation that have access to GitLab.
+   * You can restrict access to specific IP ranges for security.
+   * @example ["1.1.1.1/32", "2.2.2.2/24"]
+   */
+  readonly allowedCidrs: string[];
+
+  /**
+   * The CIDR block for the VPC where GitLab will be deployed.
+   * Ignored when you import an existing VPC.
+   * @example "10.0.0.0/16"
+   */
+  readonly vpcCidr?: string;
+
+  /**
+   * Use t4g.nano NAT instances instead of NAT Gateway.
+   * Set to true to minimize AWS costs.
+   * Ignored when you import an existing VPC.
+   * @default false
+   */
+  readonly useNatInstance?: boolean;
+
+  /**
+   * If set, it imports the existing VPC instead of creating a new one.
+   * The VPC must have public and private subnets.
+   * @default create a new VPC
+   */
+  readonly vpcId?: string;
+
+  /**
+   * The domain name for GitLab's service URL.
+   * You must own a Route53 public hosted zone for the domain in your account.
+   * @default undefined - No custom domain is used
+   */
+  readonly domainName?: string;
+
+  /**
+   * The subdomain to use for GitLab.
+   * This will be combined with the domain name to form the complete URL.
+   * @example "gitlab" will result in "gitlab.yourdomain.com"
+   * @default undefined
+   */
+  readonly subDomain?: string;
+
+  /**
+   * The ID of Route53 hosted zone for the domain.
+   * Required if domainName is specified.
+   * @default undefined
+   */
+  readonly hostedZoneId?: string;
+
+  /**
+   * The email address for the GitLab root user.
+   * This will be used to create the initial admin account.
+   * @default "admin@example.com"
+   */
+  readonly gitlabRootEmail?: string;
+
+  /**
+   * The version tag of the GitLab container image to deploy.
+   * The image will be pulled from [here](https://hub.docker.com/r/gitlab/gitlab-ce)
+   * @example "17.5.0-ce.0"
+   * @default "latest"
+   */
+  readonly gitlabImageTag?: string;
+}
+
+export class GitlabServerlessStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props: GitlabServerlessStackProps) {
+    super(scope, id, props);
+
+    const {
+      gitlabRootEmail: rootEmail = "admin@example.com",
+      gitlabImageTag: imageTag = "latest",
+    } = props;
+
+    if (
+      (props.hostedZoneId != null) !== (props.domainName != null) ||
+      (props.hostedZoneId != null) !== (props.subDomain != null)
+    ) {
+      throw new Error(
+        `You have to set hostedZoneId, domainName, and subDomain together! Or leave them all blank.`
+      );
+    }
+
+    const useHttps = Boolean(
+      props.domainName && props.subDomain && props.hostedZoneId
+    );
+
+    // Network (VPC)
+    const network = new Network(this, "Network", {
+      useNatInstance: props.useNatInstance,
+      vpcId: props.vpcId,
+    });
+
+    // Storage (EFS)
+    const storage = new Storage(this, "Storage", {
+      vpc: network.vpc,
+    });
+
+    // Security (Secrets Manager)
+    const security = new Security(this, "Security", {
+      gitlabRootEmail: rootEmail,
+    });
+
+    // LoadBalancer (ALB, DNS)
+    const loadBalancer = new LoadBalancer(this, "LoadBalancer", {
+      vpc: network.vpc,
+      allowedCidrs: props.allowedCidrs,
+      domainName: props.domainName,
+      subDomain: props.subDomain,
+      hostedZoneId: props.hostedZoneId,
+      useHttps,
+    });
+
+    // EFS Initialization (Lambda)
+    const efsInitializer = new EfsInitLambda(this, "EfsInitLambda", {
+      vpc: network.vpc,
+      fileSystem: storage.fileSystem,
+    });
+
+    // Computing (ECS, Fargate)
+    const computing = new Computing(this, "Computing", {
+      vpc: network.vpc,
+      fileSystem: storage.fileSystem,
+      targetGroup: loadBalancer.targetGroup,
+      gitlabSecret: security.gitlabSecret,
+      gitlabImageTag: imageTag,
+      externalUrl: loadBalancer.url,
+      useHttps,
+    });
+
+    // Dependencies (VPC -> Lambda -> ECS)
+    efsInitializer.initFunction.node.addDependency(network.vpc);
+    computing.node.addDependency(efsInitializer.initFunction);
+
+    new cdk.CfnOutput(this, "GitlabUrl", {
+      value: loadBalancer.url,
+    });
+  }
+}
+```
+
+</details>
 
 ## GitLab セルフホスティングの Tips
 
@@ -775,7 +940,7 @@ GitLab コンテナを ALB (リバースプロキシ) の背後に配置する�
 - `nginx['listen_port'] = 80`
 - `nginx['listen_https'] = false;`
 
-これは，GitLab の `external_url` に `https://` を指定すると，GitLab の Listen Port が 443 となり，内部の Nginx が HTTPS 通信を行うようになるためです． 本ソリューションの構成では， ALB が SSL 通信を行うため，GitLab 側は SSL (HTTPS) 通信を行わず，HTTP を利用して ALB と通信する必要があります．そのため，外部 URL に `https://` を指定する場合は，内部の Nginx の Listen port の設定を明示的に 80 に設定する必要があります．
+これは，GitLab の `external_url` に `https://` を指定すると，GitLab の Listen Port が 443 となり，内部の Nginx が HTTPS 通信を行うようになるためです． 本ソリューションの構成では， ALB とクライアントが SSL 通信を行うため，GitLab 側は SSL (HTTPS) 通信を行わず，HTTP を利用して ALB と通信する必要があります．そのため，外部 URL に `https://` を指定する場合は，内部の Nginx の Listen port の設定を明示的に 80 に設定する必要があります．
 
 参考: https://stackoverflow.com/questions/51487180/
 
@@ -845,25 +1010,125 @@ ALB のターゲットグループのヘルスチェックのために，[公式
 
 GitLab コンテナは，初回起動時に利用できるまでに約 5~6 分程度要します．そのため，ECS のヘルスチェックの猶予期間を長めに見積もり 9 分 (540 秒) に設定しています．ヘルスチェックの猶予期間が短い場合，GitLab コンテナの起動中に行われたヘルスチェック結果により，コンテナが正常でないと判断される結果，コンテナの再生成が繰り返されてしまいます．
 
-## 利用手順
+## デプロイ手順
 
-### AWS CDK コマンドの場合
+ローカル，CloudShell での，[本リポジトリ](https://github.com/ren8k/aws-cdk-gitlab-on-ecs)を利用したデプロイ手順を解説します．
+
+### 前提条件
+
+本アプリをデプロイするには，以下の依存関係がインストールされている必要があります．
+
+- [Node.js](https://nodejs.org/en/download/package-manager) (v22 以降)
+- [AWS CDK](https://docs.aws.amazon.com/cdk/v2/guide/work-with-cdk-typescript.html) (v2 以降)
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) と `Administrator` 相当のポリシーを持つ IAM プロファイル
+
+### ローカルの場合
+
+[`bin/aws-cdk-gitlab-on-ecs.ts`](https://github.com/ren8k/aws-cdk-gitlab-on-ecs/blob/main/bin/aws-cdk-gitlab-on-ecs.ts) を編集することで，AWS リージョンなどの設定パラメータを調整できます．利用可能なすべてのパラメータについては [`GitlabServerlessStackProps`](./lib/aws-cdk-gitlab-on-ecs-stack.ts) インターフェースも確認してください．
+
+その後，以下のコマンドを実行してスタック全体をデプロイできます．なお，コマンドはリポジトリのルートで実行してください．
+
+```sh
+# install npm dependencies
+npm ci
+# bootstrap the AWS account (required only once per account and region)
+npx cdk bootstrap
+# deploy the CDK stack
+npx cdk deploy
+```
+
+初回のデプロイには通常約 20 分かかります．デプロイが成功すると，アプリケーションの URL が表示されます．
+
+```
+ ✅  GitlabServerlessStack
+
+✨  Deployment time: 1003.7s
+
+Outputs:
+GitlabServerlessStack.GitlabUrl = https://gitlab.example.com
+Stack ARN:
+arn:aws:cloudformation:ap-northeast-1:XXXXXXXXXXXX:stack/GitlabServerlessStack/5901fab0-a4e6-11ef-9796-0e94afb0bd61
+
+✨  Total time: 1006.43s
+```
 
 ### AWS CloudShell の場合
 
-## GitLab の初回サインイン方法
+CloudShell には AWS CLI や AWS CDK がプリインストールされているため，CDK アプリケーションを容易にデプロイを行うことができます．クイックにデプロイしてみたい場合にご利用下さい．
+
+#### deploy.sh のダウンロードと実行権限の付与
+
+[CloudShell](https://console.aws.amazon.com/cloudshell/home) を起動し，以下のコマンドを実行します．
+
+```sh
+wget https://raw.githubusercontent.com/ren8k/aws-cdk-gitlab-on-ecs/refs/heads/main/deploy.sh -O deploy.sh
+chmod +x deploy.sh
+```
+
+#### デプロイ
+
+以下のコマンドを実行します．なお，デプロイ時の IP アドレス制限や VPC の CIDR 等の設定を行いたい場合，以下のコマンドを実行せず，本リポジトリを clone 後，[README.md](../README.md/#デプロイ)に記載のデプロイ手順に従って下さい．
+
+```sh
+export UV_USE_IO_URING=0
+./deploy.sh
+```
+
+<details open><summary>deploy.shの内容</summary>
+
+```bash:deploy.sh
+#!/bin/bash
+cd /tmp || exit
+git clone https://github.com/ren8k/aws-cdk-gitlab-on-ecs.git
+cd aws-cdk-gitlab-on-ecs || exit
+npm ci
+npx cdk bootstrap
+npx cdk deploy
+```
+
+</details>
+
+:::note warn
+執筆時点（2024/12/21）では，東京リージョンの CloudShell 環境において，`npm ci` の実行が終了しない事象が発生しています．この原因は，以下の Issue で報告されている通り，東京リージョンの CloudShell 環境で利用されている Amazon Linux 2023 のカーネルバージョン `6.1.115-126.197.amzn2023` に起因するバグのためです．(コマンド `cat /proc/version` より確認することができます．) 具体的には，npm cli 実行時，`io_uring` サプシステムがオーバーフローしてしまう結果，プロセスがハング（応答停止）してしまうためです．
+
+このため，現時点では以下の Issue の記載の通り，`./deploy.sh` 実行前にコマンド `export UV_USE_IO_URING=0` を実行することで，本バグを回避することが可能です．その他，東京リージョン以外のリージョン（例えば大阪リージョン，バージニア北部リージョン）の CloudShell 環境で利用されている Linux カーネルバージョンは `6.1.112-124.190.amzn2023.x86_64` なので，こちらを利用することで，本バグを回避することも可能です．
+
+なお，上記事象は AWS サポートに報告しており，現在修正対応中とのことです．
+
+https://github.com/amazonlinux/amazon-linux-2023/issues/840#issuecomment-2485782075
+:::
+
+## GitLab へのサインイン方法
+
+デフォルトの管理者ユーザー名は`root`です．パスワードは Secrets Manager に保存されており，デプロイ時に生成されたランダムな文字列です．
 
 ![gitlab_signin.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a960c7ed-c682-e29c-fea4-2287b2051081.png)
 
-https://qiita.com/takoikakani/items/936faf23ee6bc286a270
+## リソースの削除方法
 
-https://zenn.dev/tech4anyone/articles/62f360ccea30ca
+以下のコマンドを実行します．EFS（Gitlab のリポジトリ用のストレージ）を含む全てのリソースが削除される点にご注意下さい．
+
+```sh
+npx cdk destroy --force
+```
 
 ## まとめ
 
-summary
+本記事では，CodeCommit が利用できない環境での GitLab 運用を実現するため，AWS CDK を用いたサーバーレス構成での GitLab セルフホスティングのためのソリューションを提案しました．具体的には，ECS Fargate と EFS などを組み合わせたアーキテクチャを設計し，[CDK による IaC 化](https://github.com/ren8k/aws-cdk-gitlab-on-ecs/tree/main)を行いました．
+
+なお，本実装は個人や少人数での検証用途を想定したものです。大規模な本番環境での利用を検討する場合は，ECS on EC2 や EC2 への直接インストールなど，別のアプローチを検討することをお勧めします．本記事が，AWS CDK によるサーバーレス構成での実装や GitLab のセルフホスティングを検討されている方の参考になれば幸いです．
 
 ## 謝辞
+
+本 CDK の実装を行うにあたり，以下のリポジトリや資料を参考にさせていただきました．CDK 初学者でしたので非常に助かりました．末尾ではございますが，感謝申し上げます．
+
+- [aws-samples/dify-self-hosted-on-aws](https://github.com/aws-samples/dify-self-hosted-on-aws)
+- [aws-samples/generative-ai-use-cases-jp](https://github.com/aws-samples/generative-ai-use-cases-jp)
+- [初心者がおさえておきたい AWS CDK のベストプラクティス 2024](https://speakerdeck.com/konokenj/cdk-best-practice-2024)
+- [AWS CDK における「再利用性」を考える](https://speakerdeck.com/gotok365/aws-cdk-reusability)
+- [AWS CDK のあるあるお悩みに答えたい](https://speakerdeck.com/tmokmss/answering-cdk-faqs)
+- [AWS CDK における単体テストの使い所を学ぶ](https://aws.amazon.com/jp/builders-flash/202411/learn-cdk-unit-test/)
+- [AWS CDK でクラウドアプリケーションを開発するためのベストプラクティス](https://aws.amazon.com/jp/blogs/news/best-practices-for-developing-cloud-applications-with-aws-cdk/)
 
 <!-- ## 仲間募集
 

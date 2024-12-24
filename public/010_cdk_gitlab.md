@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
-初めて CDK と TypeScript に挑戦し，GitLab のセルフホスト環境を構築しました．本稿では，構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
+新規 AWS 環境にて MLOps を実現する必要があり，初めて CDK と TypeScript に挑戦し，GitLab のセルフホスト環境を構築しました．本稿では，構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
 
 CDK の実装は以下のリポジトリに公開しておりますので，ぜひご活用ください！
 
@@ -745,7 +745,7 @@ aws ecs execute-command \
     --command "/bin/bash"
 ```
 
-CDK の実装では，FargateService の定義時に `enableExecuteCommand: true` を指定することで，ECS Exec を有効化することができます．なお，**この 1 行の設定追記だけで，CDK 側で上述のポリシーが ECS タスクロールに自動で付与されます．**
+CDK の実装では，FargateService の定義時に `enableExecuteCommand: true` を指定することで，ECS Exec を有効化することができます．なお，**この 1 行の設定追記だけで，上述のポリシーが ECS タスクロールに自動で付与されます．**
 
 **参考**
 

@@ -544,7 +544,7 @@ props.fileSystem.connections.allowDefaultPortFrom(
 );
 ```
 
-#### 参考
+**参考**
 
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/efs-best-practices.html
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/tutorial-efs-volumes.html#efs-security-group
@@ -752,7 +752,7 @@ aws ecs execute-command \
 
 CDK の実装では，FargateService の定義時に `enableExecuteCommand: true` を指定することで，ECS Exec を有効化することができます．なお，**この 1 行の設定追記だけで，CDK 側で上述のポリシーが ECS タスクロールに自動で付与されます．**
 
-#### 参考
+**参考**
 
 - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html#ecs-exec-required-iam-permissions
 
@@ -764,7 +764,7 @@ CDK の実装では，FargateService の定義時に `enableExecuteCommand: true
 
 GitlabServerlessStack は，GitLab をサーバーレスで実行するための AWS リソースを統合的に管理するメインスタックです．前述のコンストラクトを順次作成し，GitLab の実行環境を構築します．
 
-なお，リソースの依存関係を適切に制御するため，以下の順序制約を設定しています．これは，CDK スタックの削除時，リソースの削除順序を制御するためです．（）
+なお，リソースの依存関係を適切に制御するため，以下の順序制約を設定しています．これは，CDK スタックの削除時，リソースの削除順序を制御するためです．
 
 - VPC -> Lambda: ネットワーク構成完了後に Lambda を実行
 - Lambda -> ECS: EFS 初期化完了後にコンテナを起動
@@ -1004,7 +1004,7 @@ Error while processing content unencoding: invalid stored block lengths
 
 ### ヘルスチェックパスについて
 
-ALB のターゲットグループのヘルスチェックのために，[公式ドキュメント](https://docs.gitlab.com/ee/administration/monitoring/health_check.html)に記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，現在は，`/-/users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
+ALB のターゲットグループのヘルスチェックのために，[公式ドキュメント](https://docs.gitlab.com/ee/administration/monitoring/health_check.html)に記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，`/-/users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
 
 ### Gitlab の初回の起動時間について
 
@@ -1116,11 +1116,11 @@ npx cdk destroy --force
 
 本記事では，CodeCommit が利用できない環境での GitLab 運用を実現するため，AWS CDK を用いたサーバーレス構成での GitLab セルフホスティングのためのソリューションを提案しました．具体的には，ECS Fargate と EFS などを組み合わせたアーキテクチャを設計し，[CDK による IaC 化](https://github.com/ren8k/aws-cdk-gitlab-on-ecs/tree/main)を行いました．
 
-なお，本実装は個人や少人数での検証用途を想定したものです。大規模な本番環境での利用を検討する場合は，ECS on EC2 や EC2 への直接インストールなど，別のアプローチを検討することをお勧めします．本記事が，AWS CDK によるサーバーレス構成での実装や GitLab のセルフホスティングを検討されている方の参考になれば幸いです．
+なお，本実装は個人や少人数での検証用途を想定したものです．大規模な本番環境での利用を検討する場合は，ECS on EC2 や EC2 への直接インストールなど，別のアプローチを検討することをお勧めします．本記事が，AWS CDK によるサーバーレス構成での実装や GitLab のセルフホスティングを検討されている方の参考になれば幸いです．
 
 ## 謝辞
 
-本 CDK の実装を行うにあたり，以下のリポジトリや資料を参考にさせていただきました．CDK 初学者でしたので非常に助かりました．末尾ではございますが，感謝申し上げます．
+本 CDK の実装を行うにあたり，以下のリポジトリや資料を参考にさせていただきました．CDK 初学者の私にとって，非常に学びの多い素晴らしい資料でした．末尾ではございますが，感謝申し上げます．
 
 - [aws-samples/dify-self-hosted-on-aws](https://github.com/aws-samples/dify-self-hosted-on-aws)
 - [aws-samples/generative-ai-use-cases-jp](https://github.com/aws-samples/generative-ai-use-cases-jp)

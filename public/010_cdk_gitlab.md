@@ -1049,7 +1049,7 @@ arn:aws:cloudformation:ap-northeast-1:XXXXXXXXXXXX:stack/GitlabServerlessStack/5
 
 ### AWS CloudShell の場合
 
-CloudShell には AWS CLI や AWS CDK がプリインストールされているため，CDK アプリケーションを容易にデプロイを行うことができます．クイックにデプロイしてみたい場合にご利用下さい．
+CloudShell には AWS CLI や AWS CDK がプリインストールされているため，CDK アプリケーションを容易にデプロイを行うことができます．クイックにデプロイしたい場合にご利用下さい．
 
 まず，[CloudShell](https://console.aws.amazon.com/cloudshell/home) を起動します．その後，以下のコマンドを実行することで，deploy.sh をダウンロードし，実行権限を付与します．
 

@@ -1,5 +1,5 @@
 ---
-title: CodeCommit の代替として Gitlab on ECS を CDK で一撃で構築する
+title: CodeCommit の代替として Gitlab on AWS を CDK で一撃で構築する
 tags:
   - AWS
   - GitLab

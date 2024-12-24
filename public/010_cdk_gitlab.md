@@ -1121,7 +1121,7 @@ npx cdk destroy --force
 - [AWS CDK における単体テストの使い所を学ぶ](https://aws.amazon.com/jp/builders-flash/202411/learn-cdk-unit-test/)
 - [AWS CDK でクラウドアプリケーションを開発するためのベストプラクティス](https://aws.amazon.com/jp/blogs/news/best-practices-for-developing-cloud-applications-with-aws-cdk/)
 
-<!-- ## 仲間募集
+## 仲間募集
 
 NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
@@ -1228,4 +1228,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
-</div></details> -->
+</div></details>

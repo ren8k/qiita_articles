@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
-新規 AWS 環境にて MLOps を実現する必要があり，初めて CDK と TypeScript に挑戦し，GitLab のセルフホスト環境を構築しました．本稿では，構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
+新規 AWS 環境にて MLOps を実現する必要があり，AWS 上に GitLab のセルフホスト環境を構築しました．また，初めて CDK と TypeScript に挑戦し，IaC 化を行いました．本稿では，CDK の実装の工夫や，GitLab のセルフホスト環境構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
 
 CDK の実装は以下のリポジトリに公開しておりますので，ぜひご活用ください！
 
@@ -38,7 +38,7 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 ![mlops-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c66a4c7e-c4f8-db14-996d-38e09ed36d5b.png)
 
-> SageMaker AI Project Templates を利用することで，モデルの学習〜デプロイ〜モデル・データの品質モニタリングまでの一連のプロセスを自動化する MLOps アーキテクチャを構築することができます．なお，Training Pipeline 部は一部省略しています．
+> SageMaker AI Project Templates を利用することで，モデルの学習〜デプロイ〜モデル・データの品質モニタリングまでの一連のプロセスを自動化する MLOps アーキテクチャを構築することができます．なお，Training Pipeline は簡略的に図示しています．
 
 SageMaker AI Project Templates では，MLOps の CI/CD パイプライン用のリポジトリとして CodeCommit または 3rd party 製の Git リポジトリサービスが利用可能です．しかし，2024/7/25 以降，新規 AWS アカウントにおいて，[CodeCommit は利用不可能](https://aws.amazon.com/jp/blogs/devops/how-to-migrate-your-aws-codecommit-repository-to-another-git-provider/)なため，3rd party 製の Git リポジトリサービスを利用する必要がありました．
 
@@ -486,7 +486,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
 ### Computing (ECS, Fargate)
 
-Computing コンストラクトは，GitLab を実行するための ECS/Fargate 環境を構築するコンポーネントです．設定に必要な以下のパラメータを props として受け取ります．
+Computing コンストラクトは，GitLab を実行するための ECS on Fargate 環境を構築するコンポーネントです．設定に必要な以下のパラメータを props として受け取ります．
 
 - `vpc`: コンテナを配置する VPC
 - `fileSystem`: GitLab データを保存する EFS

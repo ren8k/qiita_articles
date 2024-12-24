@@ -7,7 +7,7 @@ tags:
   - EFS
   - CDK
 private: false
-updated_at: "2024-12-24T23:33:49+09:00"
+updated_at: '2024-12-25T07:05:44+09:00'
 id: 3724c4dd8e519e8e3bf0
 organization_url_name: null
 slide: false

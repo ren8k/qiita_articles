@@ -17,25 +17,20 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+初めて CDK と TypeScript に挑戦し，GitLab のセルフホスト環境を構築しました．本稿では，構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
 
-初めて CDK を使ってみた．加えて，TypeScript での開発も初めて．入門記事です．
-
-苦戦した部分も沢山あるので，備忘録として記事に残します．
-
-ECS に EFS をマウントするケースで CDK 化する際の参考となれば幸いです！
-
-なお，CDK の実装は以下のリポジトリに公開しております．
+CDK の実装は以下のリポジトリに公開しておりますので，ぜひご活用ください！
 
 https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 ## TL;DR
 
-- CodeCommit の代替として Gitlab のセルフホスティングを実現
-- AWS CDK を利用した GitLab on ECS を一撃でデプロイする実装の解説
-  - [ECS タスクに EFS をマウントする際の Tips や CDK 実装例を提示](#ecs-に-efs-をマウントする際の-tips)
+- [CodeCommit の代替として Gitlab のセルフホスティングを実現](#ソリューション)
+- [GitLab on ECS を一撃でデプロイするための CDK 実装の解説](#コード-各コンストラクト-の解説)
+  - [ECS タスクに EFS をマウントする際の Tips や CDK 実装例を提示](#ecs-タスクに-efs-をマウントする際の-tips)
   - [ECS Exec の有効化の Tips](#ecs-exec-の有効化の-tips)
 - [Gitlab をコンテナホストする際の Tips を共有](#gitlab-セルフホスティングの-tips)
-- [ローカル/CloudShell からの CDK のデプロイ方法の解説](#利用手順)
+- [ローカル/CloudShell からの CDK のデプロイ方法の解説](#デプロイ手順)
 
 ## 背景
 
@@ -1056,18 +1051,14 @@ arn:aws:cloudformation:ap-northeast-1:XXXXXXXXXXXX:stack/GitlabServerlessStack/5
 
 CloudShell には AWS CLI や AWS CDK がプリインストールされているため，CDK アプリケーションを容易にデプロイを行うことができます．クイックにデプロイしてみたい場合にご利用下さい．
 
-#### deploy.sh のダウンロードと実行権限の付与
-
-[CloudShell](https://console.aws.amazon.com/cloudshell/home) を起動し，以下のコマンドを実行します．
+まず，[CloudShell](https://console.aws.amazon.com/cloudshell/home) を起動します．その後，以下のコマンドを実行することで，deploy.sh をダウンロードし，実行権限を付与します．
 
 ```sh
 wget https://raw.githubusercontent.com/ren8k/aws-cdk-gitlab-on-ecs/refs/heads/main/deploy.sh -O deploy.sh
 chmod +x deploy.sh
 ```
 
-#### デプロイ
-
-以下のコマンドを実行します．なお，デプロイ時の IP アドレス制限や VPC の CIDR 等の設定を行いたい場合，以下のコマンドを実行せず，本リポジトリを clone 後，[README.md](../README.md/#デプロイ)に記載のデプロイ手順に従って下さい．
+次に，以下のコマンドを実行し，CDK アプリケーションをデプロイします．なお，デプロイ時の IP アドレス制限や VPC の CIDR 等の設定を行いたい場合，以下のコマンドを実行せず，本リポジトリを clone 後，[`bin/aws-cdk-gitlab-on-ecs.ts`](https://github.com/ren8k/aws-cdk-gitlab-on-ecs/blob/main/bin/aws-cdk-gitlab-on-ecs.ts) を編集して下さい．
 
 ```sh
 export UV_USE_IO_URING=0

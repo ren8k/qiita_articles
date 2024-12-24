@@ -1,13 +1,13 @@
 ---
-title: CodeCommit の代替として GitLab on ECS を CDK で一撃で構築する
+title: CodeCommit の代替として GitLab on AWS を CDK で一撃で構築する
 tags:
   - AWS
   - GitLab
   - ECS
   - EFS
   - CDK
-private: true
-updated_at: "2024-12-25T07:05:12+09:00"
+private: false
+updated_at: "2024-12-25T08:05:12+09:00"
 id: 3724c4dd8e519e8e3bf0
 organization_url_name: null
 slide: false

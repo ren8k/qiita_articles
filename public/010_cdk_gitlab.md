@@ -25,11 +25,11 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 ## TL;DR
 
-- [CodeCommit の代替として Gitlab のセルフホスティングを実現](#ソリューション)
+- [CodeCommit の代替として GitLab のセルフホスティングを実現](#ソリューション)
 - [GitLab on ECS を一撃でデプロイするための CDK 実装の解説](#コード-各コンストラクト-の解説)
   - [ECS タスクに EFS をマウントする際の Tips や CDK 実装例を提示](#ecs-タスクに-efs-をマウントする際の-tips)
   - [ECS Exec の有効化の Tips](#ecs-exec-の有効化の-tips)
-- [Gitlab をコンテナホストする際の Tips を共有](#gitlab-セルフホスティングの-tips)
+- [GitLab をコンテナホストする際の Tips を共有](#gitlab-セルフホスティングの-tips)
 - [ローカル/CloudShell からの CDK のデプロイ方法の解説](#デプロイ手順)
 
 ## 背景
@@ -928,7 +928,7 @@ export class GitlabServerlessStack extends cdk.Stack {
 
 本節では，[Docker コンテナ上で GitLab をセルフホスト](https://docs.gitlab.com/ee/install/docker/installation.html)する際に詰まった点や，ポイントについて共有します．
 
-### Gitlab の外部 URL (https) の設定
+### GitLab の外部 URL (https) の設定
 
 GitLab コンテナを ALB (リバースプロキシ) の背後に配置する場合，GitLab 内部の Nginx に対し，以下のように HTTPS を利用しないように設定する必要があります．以下の設定は，docker run 実行時の環境変数 `GITLAB_OMNIBUS_CONFIG` にて指定することができます．(CDK コードにおける該当箇所は下部に記載しています．)
 
@@ -1001,7 +1001,7 @@ Error while processing content unencoding: invalid stored block lengths
 
 ALB のターゲットグループのヘルスチェックのために，[公式ドキュメント](https://docs.gitlab.com/ee/administration/monitoring/health_check.html)に記載されている GitLab のヘルスチェックのエンドポイント `/-/health` を利用すると，期待するレスポンスを得ることができませんでした．こちらの原因は不明ですが，暫定対処として，`/-/users/sign_in` に対してヘルスチェックを行うことで，サーバーの稼働状況を確認しています．
 
-### Gitlab の初回の起動時間について
+### GitLab の初回の起動時間について
 
 GitLab コンテナは，初回起動時に利用できるまでに約 5~6 分程度要します．そのため，ECS のヘルスチェックの猶予期間を長めに見積もり 9 分 (540 秒) に設定しています．ヘルスチェックの猶予期間が短い場合，GitLab コンテナの起動中に行われたヘルスチェック結果により，コンテナが正常でないと判断される結果，コンテナの再生成が繰り返されてしまいます．
 
@@ -1097,7 +1097,7 @@ https://github.com/amazonlinux/amazon-linux-2023/issues/840#issuecomment-2485782
 
 ## リソースの削除方法
 
-以下のコマンドを実行します．EFS（Gitlab のリポジトリ用のストレージ）を含む全てのリソースが削除される点にご注意下さい．
+以下のコマンドを実行します．EFS（GitLab のリポジトリ用のストレージ）を含む全てのリソースが削除される点にご注意下さい．
 
 ```sh
 npx cdk destroy --force

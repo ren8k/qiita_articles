@@ -17,7 +17,7 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
-新規 AWS 環境にて MLOps を実現する必要があり，CodeCommit が利用できなかったので，AWS 上に GitLab のセルフホスト環境を構築しました．また，初めて CDK と TypeScript に挑戦し，IaC 化を行いました．本稿では，CDK の実装の工夫や，GitLab のセルフホスト環境構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
+新規の AWS アカウント上で MLOps を実現する必要があり，CodeCommit が利用できなかったので，AWS 上に GitLab のセルフホスト環境を構築しました．また，初めて CDK と TypeScript に挑戦し，IaC 化を行いました．本稿では，CDK の実装の工夫や，GitLab のセルフホスト環境構築の際に直面した課題とその解決策を，具体的なコードとともにご紹介します．特に ECS に EFS をマウントする際の実装や Tips は，同じような課題に直面している方の参考になるはずです．
 
 CDK の実装は以下のリポジトリに公開しておりますので，ぜひご活用ください！
 
@@ -34,7 +34,7 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 ## 背景
 
-新規 AWS アカウント上で，[SageMaker AI Project Templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) を利用する必要がありました．SageMaker AI Project Templates とは，SageMaker AI を利用した MLOps を迅速に実現するために，以下の AWS リソースを CloudFormation で一括構築することができるテンプレートです．
+新規の AWS アカウント上で，[SageMaker AI Project Templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) を利用する必要がありました．SageMaker AI Project Templates とは，SageMaker AI を利用した MLOps を迅速に実現するために，以下の AWS リソースを CloudFormation で一括構築することができるテンプレートです．
 
 ![mlops-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c66a4c7e-c4f8-db14-996d-38e09ed36d5b.png)
 
@@ -1105,9 +1105,9 @@ npx cdk destroy --force
 
 ## まとめ
 
-本記事では，CodeCommit が利用できない環境での GitLab 運用を実現するため，AWS CDK を用いたサーバーレス構成での GitLab セルフホスティングのためのソリューションを提案しました．具体的には，ECS Fargate と EFS などを組み合わせたアーキテクチャを設計し，[CDK による IaC 化](https://github.com/ren8k/aws-cdk-gitlab-on-ecs/tree/main)を行いました．
+本記事では，AWS CDK を用いたサーバーレス構成での GitLab セルフホスティングのためのソリューションを提案しました．具体的には，ECS Fargate や EFS などを組み合わせたアーキテクチャを設計し，[CDK による IaC 化](https://github.com/ren8k/aws-cdk-gitlab-on-ecs)を行いました．本ソリューションにより，CodeCommit が利用できない新規の AWS アカウント内でも MLOps，DevOps を完結することが可能になります．
 
-なお，本実装は個人や少人数での検証用途を想定したものです．大規模な本番環境での利用を検討する場合は，ECS on EC2 や EC2 への直接インストールなど，別のアプローチを検討することをお勧めします．本記事が，AWS CDK によるサーバーレス構成での実装や GitLab のセルフホスティングを検討されている方の参考になれば幸いです．
+本記事が，AWS CDK によるサーバーレス構成での実装や GitLab のセルフホスティングを検討されている方の参考になれば幸いです．
 
 ## 謝辞
 

@@ -3,12 +3,12 @@ title: CodeCommit の代替として GitLab on AWS を CDK で一撃で構築す
 tags:
   - AWS
   - GitLab
-  - CDK
   - ECS
   - EFS
+  - CDK
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-12-25T20:03:17+09:00'
+id: 3724c4dd8e519e8e3bf0
 organization_url_name: null
 slide: false
 ignorePublish: false
@@ -28,7 +28,7 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 - [CodeCommit の代替として GitLab のセルフホスティングを実現](#ソリューション)
 - [GitLab on ECS を一撃でデプロイするための CDK 実装の解説](#コード-各コンストラクト-の解説)
   - [ECS タスクに EFS をマウントする際の Tips や CDK 実装例を提示](#ecs-タスクに-efs-をマウントする際の-tips)
-  - [ECS Exec の有効化の Tips](#ecs-exec-の有効化の-tips)
+  - [ECS Exec の有効化の Tips を共有](#ecs-exec-の有効化の-tips)
 - [GitLab をコンテナホストする際の Tips を共有](#gitlab-セルフホスティングの-tips)
 - [ローカル/CloudShell からの CDK のデプロイ方法の解説](#デプロイ手順)
 

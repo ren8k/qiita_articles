@@ -1,14 +1,14 @@
 ---
 title: Amazon Titan Image Generator v2 の全機能を徹底検証：機能解説と実践ガイド
 tags:
+  - Python
   - AWS
   - bedrock
-  - Python
   - 画像生成
   - 生成AI
 private: false
-updated_at: ""
-id: null
+updated_at: '2024-10-04T16:11:10+09:00'
+id: 94b5d9bdc513acde371e
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

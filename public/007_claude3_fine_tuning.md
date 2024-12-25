@@ -7,7 +7,7 @@ tags:
   - 生成AI
   - claude
 private: false
-updated_at: "2024-08-08T23:10:04+09:00"
+updated_at: '2024-11-02T15:16:01+09:00'
 id: 060cc15f10e492b2d987
 organization_url_name: nttdata
 slide: false

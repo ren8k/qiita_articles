@@ -7,7 +7,7 @@ tags:
   - EFS
   - CDK
 private: false
-updated_at: '2024-12-25T20:03:17+09:00'
+updated_at: "2024-12-25T20:03:17+09:00"
 id: 3724c4dd8e519e8e3bf0
 organization_url_name: null
 slide: false
@@ -36,7 +36,7 @@ https://github.com/ren8k/aws-cdk-gitlab-on-ecs
 
 新規の AWS アカウント上で，[SageMaker AI Project Templates](https://docs.aws.amazon.com/sagemaker/latest/dg/sagemaker-projects-templates-sm.html) を利用する必要がありました．SageMaker AI Project Templates とは，SageMaker AI を利用した MLOps を迅速に実現するために，以下の AWS リソースを CloudFormation で一括構築することができるテンプレートです．
 
-![mlops-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c66a4c7e-c4f8-db14-996d-38e09ed36d5b.png)
+![mlops-architecture_modified.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/58d55ce2-7647-0c8b-e5c6-404972840fa8.png)
 
 > SageMaker AI Project Templates を利用することで，モデルの学習〜デプロイ〜モデル・データの品質モニタリングまでの一連のプロセスを自動化する MLOps アーキテクチャを構築することができます．なお，Training Pipeline は簡略的に図示しています．
 

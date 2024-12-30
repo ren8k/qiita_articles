@@ -7,7 +7,7 @@ tags:
   - LLM
   - Llama3
 private: false
-updated_at: '2024-10-22T10:54:59+09:00'
+updated_at: "2024-10-22T10:54:59+09:00"
 id: 97022fa42dde9c8e8fd8
 organization_url_name: nttdata
 slide: false
@@ -44,7 +44,7 @@ https://aws.amazon.com/jp/blogs/aws/import-custom-models-in-amazon-bedrock-previ
 :::
 
 :::note warn
-本記事の内容の一部は執筆時点 (2024/05/25) の情報に基づいており，閲覧日時点での情報と異なる可能性があります．加えて，Custom model import は現在 Public Preview の機能であり，機能や仕様が変更される可能性もある点にご注意下さい．
+本記事の内容の一部は執筆時点 (2024/05/25) の情報に基づいており，閲覧日時点での情報と異なる可能性があります．
 :::
 
 ## Custom model import とは

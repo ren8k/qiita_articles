@@ -108,6 +108,14 @@ LWA の呼び出し元としては以下が利用可能です．本検証では�
 - Lambda Function URL
 - ALB
 
+## 検証の全体像
+
+LWA で FastAPI を Lambda 上で実行し，Lambda Function URL 経由で LangGraph で実装した Agent のストリーミングレスポンスを取得します．なお，Agent で利用する LLM には Amazon Bedrock を利用しており，フロントエンドには Streamlit や React を利用して検証しました．
+
+![serverless-storyteller-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1c969578-b609-49a9-6afe-bab64f86a4e7.png)
+
+> [LWA の AWS 公式サンプル](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming) から引用
+
 ## 利用手順
 
 以下の手順で，LWA を利用して，LangGraph のストリーミング処理を実現します．
@@ -329,166 +337,195 @@ curl -X 'POST' \
 
 ## CDK 実装
 
-上記の ECR へのイメージのプッシュや Lambda の作成を，CDK で実装しました．
+上記の ECR へのイメージのプッシュや Lambda の作成を，CDK で一括で行えるようにしました．`cdk deploy` コマンド終了後，Lambda Function URL がターミナルに表示されます．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/backend
+
+<details open><summary>実装</summary>
+
+```typescript:fastapi-lambda-web-adapter-cdk-stack.ts
+import * as cdk from 'aws-cdk-lib';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import { Construct } from 'constructs';
+
+export class FastapiLambdaWebAdapterCdkStack extends cdk.Stack {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // Lambda関数の作成
+    const fastApiFunction = new lambda.DockerImageFunction(this, 'FastAPIFunction', {
+      code: lambda.DockerImageCode.fromImageAsset('./app', {
+        file: 'Dockerfile',
+      }),
+      memorySize: 512,
+      timeout: cdk.Duration.seconds(300),
+      tracing: lambda.Tracing.ACTIVE,
+    });
+
+    // Bedrock用のIAMポリシーを追加
+    fastApiFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['bedrock:InvokeModel'],
+      resources: ['*'],
+      sid: 'BedrockInvokePolicy',
+    }));
+
+    // Function URLの設定
+    const functionUrl = fastApiFunction.addFunctionUrl({
+      authType: lambda.FunctionUrlAuthType.NONE,
+      invokeMode: lambda.InvokeMode.RESPONSE_STREAM,
+    });
+
+    // 出力の設定
+    new cdk.CfnOutput(this, 'FastAPIFunctionUrl', {
+      description: 'Function URL for FastAPI function',
+      value: functionUrl.url,
+    });
+
+    new cdk.CfnOutput(this, 'FastAPIFunctionArn', {
+      description: 'FastAPI Lambda Function ARN',
+      value: fastApiFunction.functionArn,
+    });
+  }
+}
+```
+
+</details>
 
 ## フロントエンドの実装
 
+Streamlit と React を利用し，実際にアプリケーション上でストリーミングレスポンスを取得できることを確認しました．なお，実装は以下に公開しております．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend
+
 ### Streamlit
+
+変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．
+
+<details open><summary>実装</summary>
+
+```python:frontend.py
+import json
+
+import requests
+import streamlit as st
+
+# APIのエンドポイントURL
+LAMBDA_URL = "https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXX.lambda-url.ap-northeast-1.on.aws/"
+ENDPOINT = "api/stream_graph"
+API_URL = LAMBDA_URL + ENDPOINT
+
+# ページ設定
+st.set_page_config(
+    page_title="商品広告生成アプリ",
+    page_icon="🤖",
+    layout="wide",
+)
+
+# タイトルと説明
+st.title("商品広告生成アプリ")
+st.markdown("本アプリは、製品情報から広告文を生成し、最適なターゲット層を分析します。")
+
+# 製品情報入力欄
+product_detail = st.text_area(
+    "製品情報を入力してください",
+    height=150,
+    placeholder="例：ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。",
+)
+
+# 実行ボタン
+if st.button("Agent 実行開始", type="primary", disabled=not product_detail):
+    # 結果表示用のプレースホルダー
+    copy_placeholder = st.empty()
+    target_placeholder = st.empty()
+
+    try:
+        # APIリクエストを送信
+        with st.spinner("実行中..."):
+            response = requests.post(
+                API_URL,
+                json={"product_detail": product_detail},
+                stream=True,
+                headers={"Accept": "application/json"},
+            )
+
+            if response.status_code == 200:
+                # ストリーミングレスポンスを処理
+                for line in response.iter_lines():
+                    if line:
+                        # JSONデータをデコード
+                        state = json.loads(line.decode("utf-8"))
+
+                        # コピーが生成された場合
+                        if "copy" in state:
+                            with copy_placeholder.container():
+                                st.subheader("📝 生成された広告文")
+                                st.info(state["copy"])
+
+                        # ターゲット層が分析された場合
+                        if "target_audience" in state:
+                            with target_placeholder.container():
+                                st.subheader("🎯 ターゲット層分析")
+                                st.success(state["target_audience"])
+            else:
+                st.error(f"APIエラー: ステータスコード {response.status_code}")
+
+    except requests.exceptions.RequestException as e:
+        st.error(f"接続エラー: {str(e)}")
+    except json.JSONDecodeError as e:
+        st.error(f"JSONデコードエラー: {str(e)}")
+    except Exception as e:
+        st.error(f"予期せぬエラーが発生しました: {str(e)}")
+```
+
+</details>
 
 ### React
 
-```javascript
-import { useState } from "react";
-import "./App.css";
+<details open><summary>実装</summary>
 
-// API設定
-const API_CONFIG = {
-  LAMBDA_URL:
-    "https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXX.lambda-url.ap-northeast-1.on.aws/",
-  ENDPOINT: "api/stream_graph",
-  get API_URL() {
-    return `${this.LAMBDA_URL}${this.ENDPOINT}`;
-  },
-  HEADERS: {
-    "Content-Type": "application/json",
-    Accept: "text/event-stream",
-  },
-};
+```javascript:App.jsx
+import React from 'react';
+import useProductAnalysis from './hooks/useProductAnalysis';
+import ProductForm from './components/ProductForm';
+import ResultCard from './components/Result/ResultCard';
+import './styles/components/App.css';
 
-// カスタムフック: APIとの通信を管理
-const useProductAnalysis = () => {
-  const [copy, setCopy] = useState("");
-  const [targetAudience, setTargetAudience] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const analyzeProduct = async (productDetail) => {
-    setIsLoading(true);
-    setCopy("");
-    setTargetAudience("");
-    setError(null);
-
-    try {
-      const response = await fetch(API_CONFIG.API_URL, {
-        method: "POST",
-        headers: API_CONFIG.HEADERS,
-        credentials: "omit",
-        mode: "cors",
-        body: JSON.stringify({ product_detail: productDetail }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      await processStream(response.body.getReader());
-    } catch (error) {
-      console.error("Error:", error);
-      setError(error.message || "予期せぬエラーが発生しました");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ストリーム処理
-  const processStream = async (reader) => {
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-
-        if (done) {
-          processBuffer(buffer);
-          break;
-        }
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-
-        lines.forEach((line) => processBuffer(line));
-      }
-    } catch (error) {
-      console.error("Stream processing error:", error);
-      throw error;
-    }
-  };
-
-  // 個々のJSONデータを処理
-  const processBuffer = (buffer) => {
-    if (!buffer.trim()) return;
-
-    try {
-      const data = JSON.parse(buffer);
-      if (data.copy) setCopy(data.copy);
-      if (data.target_audience) setTargetAudience(data.target_audience);
-    } catch (error) {
-      console.error("JSON parsing error:", error);
-    }
-  };
-
-  return {
+const App = () => {
+  const {
     copy,
     targetAudience,
     isLoading,
     error,
-    analyzeProduct,
-  };
-};
-
-// 結果表示用コンポーネント
-const ResultCard = ({ title, content, emoji, isTargetAudience }) => (
-  <div className="result-card">
-    <h2 className="result-title">
-      {emoji} {title}
-    </h2>
-    <div
-      className={
-        isTargetAudience ? "target-audience-content" : "result-content"
-      }
-    >
-      <p>{content}</p>
-    </div>
-  </div>
-);
-
-// メインコンポーネント
-const App = () => {
-  const [productDetail, setProductDetail] = useState("");
-  const { copy, targetAudience, isLoading, error, analyzeProduct } =
-    useProductAnalysis();
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    analyzeProduct(productDetail);
-  };
+    analyzeProduct
+  } = useProductAnalysis();
 
   return (
     <div className="container">
       <div className="card">
-        <h1 className="title">商品広告生成アプリ</h1>
+        <h1 className="title">
+          <span className="title-highlight">商品広告生成アプリ</span>
+        </h1>
         <h2 className="subtitle">商品詳細</h2>
 
-        <form onSubmit={handleSubmit} className="form">
-          <textarea
-            value={productDetail}
-            onChange={(e) => setProductDetail(e.target.value)}
-            className="textarea"
-            rows={4}
-            placeholder="例: ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。価格は50g入りで3,800円（税込）です。"
-            required
-          />
-          <button type="submit" disabled={isLoading} className="button">
-            {isLoading ? "実行中..." : "Agent 実行開始"}
-          </button>
-        </form>
+        <ProductForm
+          onSubmit={analyzeProduct}
+          isLoading={isLoading}
+        />
 
-        {error && <div className="error">{error}</div>}
+        {error && (
+          <div className="error">
+            {error}
+          </div>
+        )}
 
         {copy && (
-          <ResultCard title="生成された広告文" content={copy} emoji="📝" />
+          <ResultCard
+            title="生成された広告文"
+            content={copy}
+            emoji="📝"
+          />
         )}
 
         {targetAudience && (
@@ -506,6 +543,8 @@ const App = () => {
 
 export default App;
 ```
+
+</details>
 
 ## まとめ
 

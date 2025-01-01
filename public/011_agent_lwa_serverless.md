@@ -20,17 +20,103 @@ ignorePublish: false
 
 ## 目的
 
-本検証の目的は，Python でのストリーミング処理 を AWS 上でサーバーレスで実現することです．ストリーミング処理として，LangGraph の [stream メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用します．LangGraph のストリーミング処理は，グラフの実行完了を待たずに，逐次的にノードの実行結果を返します．
+本検証の目的は，LangGraph (Python) で実装した Agent のストリーミング処理 を AWS 上でサーバーレスで実現することです．ストリーミング処理として，LangGraph の [`stream` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用します．LangGraph のストリーミング処理は，グラフの実行完了を待たずに，逐次的にノードの実行結果を返します．
 
 AWS Lambda は，サーバーレスコンピューティングサービスとして代表的なサービスですが，執筆時点（2025/01/01）において，Lambda は Node.js のマネージドランタイムでのみレスポンスストリーミングをサポートしています．その他の言語でレスポンスストリーミングを実現する場合は，「カスタムランタイムの作成」か Lambda Web Adapter (LWA)の利用」が必要です．
 
 https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/configuration-response-streaming.html
 
-そこで，本検証では，容易に実装可能な Lambda Web Adapter を利用することで，LangGraph (Python) のストリーミングレスポンスを取得可能かを確認します．
+そこで，本検証では，容易に実装可能な Lambda Web Adapter を利用することで，Lambda から LangGraph (Python) のストリーミングレスポンスを取得可能かを確認します．
 
-## Lambda Web Adapter とは
+<details><summary> 補足説明 </summary><div>
+
+:::note info
+
+通常，Lambda における Python マネージドランタイムでは，以下の形式で一度にすべてのレスポンスを返す必要があります．
+
+```py
+def lambda_handler(event, context):
+    # 処理
+    return {
+        'statusCode': 200,
+        'body': 'レスポンス'
+    }
+```
+
+一方，Python マネージドランタイムは，ストリーミングレスポンスを直接サポートしていません．具体的には，以下のようには実装できません．
+
+```py
+def lambda_handler(event, context):
+    for chunk in generate_response():  # 本来はこのように少しずつデータを返したい
+        yield chunk  # ← これができない
+```
+
+Lambda Web Adapter (LWA) と Web フレームワークを介すことで，ストリーミングを実現できます．
+
+```py
+from fastapi.responses import StreamingResponse
+
+# Lambda Web Adapter + FastAPIを使用した場合
+@app.post("/stream")
+def stream_response():
+    return StreamingResponse(
+        generate_response(),  # yieldを使ったジェネレータ関数
+        media_type="text/event-stream"
+    )
+```
+
+:::
+
+</div></details>
+
+## 検証で利用する Agent
+
+簡単のため，以下のような [workflow 型](https://www.anthropic.com/research/building-effective-agents)の Agent を利用します．
+
+```mermaid
+%%{init: {'flowchart': {'curve': 'linear'}}}%%
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	generate_copy(generate_copy)
+	analysis_target_audience([analysis_target_audience]):::last
+	__start__ --> generate_copy;
+	generate_copy --> analysis_target_audience;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
+```
+
+本 Agent は，与えられた商品情報から「広告文」と「ターゲットとする顧客」を提案する Agent です．Prompt chaining により 以下のステップでノードを連続して実行します．
+
+- step0. 商品情報を入力 (`__start__` ノード)
+- step1. step0. の結果を基に，広告文を生成 (`generate_copy` ノード)
+- step2. step1. の結果を基に，ターゲットとする顧客を分析 (`analysis_target_audience` ノード)
+
+本検証では，LangGraph の [`stream` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用して，`generate_copy` ノード，`analysis_target_audience` ノードの結果をストリーミングで取得します．
+
+## Lambda Web Adapter (LWA) とは
+
+LWA は，Flask，Express.js などの一般的なウェブフレームワークで作られたアプリケーションを Lambda 上で実行できるようにするためのツールです．具体的には，LWA は Lambda で受信したイベントを Web アプリケーションに HTTP で転送するプロキシとして機能します．LWA は単なるアダプター（変換層）であり，実際の HTTP リクエスト/レスポンスの処理機能は持っていません．つまり，Web フレームワークを利用し，HTTP リクエストを処理する Web アプリケーションを用意する必要があります．
+
+![img_lambda-web-adapter.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f74289f7-7b19-d582-778a-a7d89499e2aa.png)
+
+> [Lambda Web Adapter でウェブアプリを (ほぼ) そのままサーバーレス化する](https://aws.amazon.com/jp/builders-flash/202301/lambda-web-adapter/?awsf.filter-name=*all) から引用
+
+LWA の呼び出し元としては以下が利用可能です．本検証では，ストリーミングレスポンスを取得するため，Lambda Function URL を利用します．
+
+- API Gateway
+- Lambda Function URL
+- ALB
 
 ## 手順
+
+- Web アプリケーションの準備
+- Docker ファイルの作成
+- FastAPI でローカル実行
+- ECR に Docker イメージを push
+- Lambda の作成
+
+### Web アプリケーションの準備
 
 ### Docker ファイルの作成
 

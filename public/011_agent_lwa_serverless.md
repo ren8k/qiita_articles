@@ -28,7 +28,7 @@ https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/configuration-response-stream
 
 そこで，本検証では，容易に実装可能な Lambda Web Adapter を利用することで，Lambda から LangGraph (Python) のストリーミングレスポンスを取得可能かを確認します．
 
-<details><summary> 補足説明 </summary><div>
+<details><summary> 補足説明 </summary>
 
 :::note info
 
@@ -67,7 +67,7 @@ def stream_response():
 
 :::
 
-</div></details>
+</details>
 
 ## 検証で利用する Agent
 
@@ -86,7 +86,7 @@ graph TD;
 	classDef last fill:#bfb6fc
 ```
 
-本 Agent は，与えられた商品情報から「広告文」と「ターゲットとする顧客」を提案する Agent です．Prompt chaining により 以下のステップでノードを連続して実行します．
+本 Agent は，与えられた商品情報から「広告コピー文」と「ターゲットとする顧客」を提案する Agent です．Prompt chaining により 以下のステップでノードを連続して実行します．
 
 - step0. 商品情報を入力 (`__start__` ノード)
 - step1. step0. の結果を基に，広告文を生成 (`generate_copy` ノード)
@@ -108,25 +108,228 @@ LWA の呼び出し元としては以下が利用可能です．本検証では�
 - Lambda Function URL
 - ALB
 
-## 手順
+## 利用手順
+
+以下の手順で，LWA を利用して，LangGraph のストリーミング処理を実現します．
 
 - Web アプリケーションの準備
 - Docker ファイルの作成
-- FastAPI でローカル実行
 - ECR に Docker イメージを push
 - Lambda の作成
+- Lambda Function URL 経由でのストリーミングレスポンス取得
 
 ### Web アプリケーションの準備
 
+FastAPI と Uvicorn を利用し，Web アプリケーションを実装します．以下に，FastAPI の簡易実装を示します．関数 `api_stream_graph` にて，`StreamingResponse` を利用してストリーミングレスポンスを返しています．また，Lambda Web Adapter のデフォルトポートは `8080` なので，Uvicorn のポートを `8080` に変更しています．
+
+<details open><summary>実装</summary>
+
+```python:main.py
+import os
+
+import uvicorn
+from agent import stream_graph
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
+app = FastAPI()
+
+# CORSミドルウェアの設定 (本番環境では適切なオリジンを指定してください)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+class Input(BaseModel):
+    product_detail: str
+
+
+@app.post("/api/stream_graph")
+def api_stream_graph(input: Input):
+    return StreamingResponse(
+        stream_graph(input.product_detail), media_type="application/json; charset=utf-8"
+    )
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", "8080"))) # Default port of LWA is 8080
+```
+
+</details>
+
+以下に，Agent の実装を示します．関数 `stream_graph` にて，LangGraph のストリーミング処理を実行しています．LLM としては，Bedrock Claude3.5 Haiku を利用しています．また，最近新しく追加された機能である [`Command`](https://blog.langchain.dev/command-a-new-tool-for-multi-agent-architectures-in-langgraph/) を利用しています．
+
+<details open><summary>実装</summary>
+
+```python:agent.py
+import json
+from typing import Annotated, Any, Generator
+
+from langchain_aws import ChatBedrock
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.graph import START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+from langgraph.types import Command
+from typing_extensions import TypedDict
+
+llm = ChatBedrock(
+    model="us.anthropic.claude-3-5-haiku-20241022-v1:0",
+    region="us-west-2",
+)
+
+
+# Define graph state
+class State(TypedDict):
+    product_detail: Annotated[str, "製品詳細"]
+    copy: Annotated[str, "コピー"]
+    target_audience: Annotated[str, "ターゲット顧客"]
+
+
+# Define the nodes
+def generate_copy(state: State) -> Command:
+    print("Called generate_copy")
+    human_prompt = """
+    以下の製品情報から，商品の広告文を作成しなさい．最終的な広告文を1つのみ出力すること．
+    <product_details>
+    {product_detail}
+    </product_details>
+    """
+    prompt = ChatPromptTemplate([("human", human_prompt)])
+    chain = prompt | llm
+    response = chain.invoke({"product_detail": state["product_detail"]})
+
+    return Command(
+        update={"copy": response.content},
+        goto="analysis_target_audience",
+    )
+
+
+def analysis_target_audience(state: State) -> Command:
+    print("Called analysis_target_audience")
+    human_prompt = """
+    以下の広告文に基づいて，最適なターゲット層を分析してください．最終的なターゲット層のみ出力すること．
+    <copy>
+    {copy}
+    </copy>
+    """
+    prompt = ChatPromptTemplate([("human", human_prompt)])
+    chain = prompt | llm
+    response = chain.invoke({"copy": state["copy"]})
+
+    return Command(
+        update={"target_audience": response.content},
+    )
+
+
+def build_graph() -> CompiledStateGraph:
+    builder = StateGraph(State)
+    builder.add_edge(START, "generate_copy")
+    builder.add_node("generate_copy", generate_copy)
+    builder.add_node("analysis_target_audience", analysis_target_audience)
+    return builder.compile()
+
+
+def stream_graph(input: str) -> Generator[str, Any, None]:
+    print("Starting graph")
+    graph = build_graph()
+    stream = graph.stream(input={"product_detail": input}, stream_mode="values")
+    for state in stream:
+        yield json.dumps(state, ensure_ascii=False) + "\n"
+```
+
+</details>
+
 ### Docker ファイルの作成
 
-### FastAPI でローカル実行
+以下に，Dockerfile の実装を示します．既存のアプリケーション用の Dockerfile に 2 行目の COPY コマンドを追記するだけで，LWA のインストールが可能です．また，LWA でストリーミングレスポンスを処理する場合，環境変数 `AWS_LWA_INVOKE_MODE` を `RESPONSE_STREAM` に設定する必要があります．(本環境変数の設定は，Lambda 側で実施しても問題ないです．)
+
+```bash
+FROM public.ecr.aws/docker/library/python:3.12.0-slim-bullseye
+COPY --from=public.ecr.aws/awsguru/aws-lambda-adapter:0.8.4 /lambda-adapter /opt/extensions/lambda-adapter
+
+WORKDIR /app
+ADD . .
+RUN pip3 install --no-cache-dir -r requirements.txt
+
+ENV AWS_LWA_INVOKE_MODE RESPONSE_STREAM
+CMD ["python", "main.py"]
+```
+
+:::note info
+上記のコンテナイメージは，Lamabda 以外の環境でも利用可能なので，ローカルでの動作確認が容易です．
+:::
 
 ### ECR に Docker イメージを push
 
+上記の Dockerfile をビルドし，ECR にプッシュします．以下の手順を使用して，リポジトリに対してイメージを認証し，プッシュします．
+
+```bash
+# Retrieve an authentication token and authenticate your Docker client to your registry.
+aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com
+
+# Build the Docker image
+docker build -t <name> .
+
+# Tag the image so you can push the image to this repository
+docker tag <name>:latest 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
+
+# Push the image to the repository
+docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
+```
+
 ### Lambda の作成
 
+詳細は述べませんが，以下の点に留意して Lambda を作成します．
+
+- コンテナイメージから関数を作成
+  - ECR にプッシュした Docker イメージを利用します．
+- Bedrock のポリシー付与
+  - `'bedrock:InvokeModel'` に対するポリシーを付与します．
+- 関数 URL の作成
+  - 今回は検証のため，認証タイプ: NONE とします．
+  - 関数 URL の設定で，呼び出しモード: RESPONSE_STREAM にします．
+- Lambda の最大実行時間の変更
+  - 5 分に延長します．
+
+### Lambda Function URL 経由でのストリーミングレスポンス取得
+
+curl などで，Lambda Function URL に対して POST リクエストを送信することで，ストリーミングレスポンスを取取得できます．
+
+```bash
+#!/bin/bash
+LAMBDA_URL="https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXX.lambda-url.ap-northeast-1.on.aws/"
+ENDPOINT="api/stream_graph"
+API_URL="${LAMBDA_URL}${ENDPOINT}"
+PRODUCT_DETAIL="ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。"
+
+curl -X 'POST' \
+  "${API_URL}" \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d "{
+  \"product_detail\": \"${PRODUCT_DETAIL}\"
+}"
+```
+
+上記では，商品情報として，`ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。` という文を与えています．この場合，以下のようなレスポンスをストリーミングで取得できます．
+
+```
+{"product_detail": "ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。"}
+{"product_detail": "ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。", "copy": "乾燥肌にやさしい愛のケア✨ラベンダーとベルガモットの香りに包まれながら、ヒアルロン酸とシアバターが肌に深い潤いを与える、至福の保湿クリーム、あなたの肌を優しく癒します🌿✨"}
+{"product_detail": "ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。", "copy": "乾燥肌にやさしい愛のケア✨ラベンダーとベルガモットの香りに包まれながら、ヒアルロン酸とシアバターが肌に深い潤いを与える、至福の保湿クリーム、あなたの肌を優しく癒します🌿✨", "target_audience": "20代後半から40代前半の女性で、乾燥肌に悩み、自然由来の成分にこだわり、心地よい香りと高い保湿力を求めるライフスタイル重視の美意識の高い層。"}
+```
+
+各行が，`__start__` ノード，`generate_copy` ノード，`analysis_target_audience` ノード終了時点の State を表しています．`copy` キーには，生成された広告文が，`target_audience` キーには，ターゲットとする顧客が格納されています．
+
 ## CDK 実装
+
+上記の ECR へのイメージのプッシュや Lambda の作成を，CDK で実装しました．
 
 ## フロントエンドの実装
 

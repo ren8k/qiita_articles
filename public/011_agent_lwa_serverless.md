@@ -275,7 +275,7 @@ CMD ["python", "main.py"]
 
 ### ECR に Docker イメージを push
 
-上記の Dockerfile をビルドし，ECR にプッシュします．以下の手順を使用して，リポジトリに対してイメージを認証し，プッシュします．
+上記の Dockerfile をビルドし，ECR にプッシュします．以下のコマンドで，リポジトリに対してイメージを認証し，プッシュします．
 
 ```bash
 # Retrieve an authentication token and authenticate your Docker client to your registry.
@@ -293,7 +293,7 @@ docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 
 ### Lambda の作成
 
-詳細は述べませんが，以下の点に留意して Lambda を作成します．
+以下の点に留意して Lambda を作成します．
 
 - コンテナイメージから関数を作成
   - ECR にプッシュした Docker イメージを利用します．

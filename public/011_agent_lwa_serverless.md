@@ -124,11 +124,11 @@ LWA で FastAPI を Lambda 上で実行し，Lambda Function URL 経由で LangG
 - Docker ファイルの作成
 - ECR に Docker イメージを push
 - Lambda の作成
-- Lambda Function URL 経由でのストリーミングレスポンス取得
+- Lambda Function URL 経由でのレスポンスストリーミング
 
 ### Web アプリケーションの準備
 
-FastAPI と Uvicorn を利用し，Web アプリケーションを実装します．以下に，FastAPI の簡易実装を示します．関数 `api_stream_graph` にて，`StreamingResponse` を利用してストリーミングレスポンスを返しています．また，Lambda Web Adapter のデフォルトポートは `8080` なので，Uvicorn のポートを `8080` に変更しています．
+FastAPI と Uvicorn を利用し，Web アプリケーションを実装します．以下に，FastAPI の簡易実装を示します．関数 `api_stream_graph` にて，`StreamingResponse` を利用してレスポンスストリーミングを行います．また，Lambda Web Adapter のデフォルトポートは `8080` なので，Uvicorn のポートを `8080` に変更しています．
 
 <details open><summary>実装</summary>
 
@@ -255,7 +255,7 @@ def stream_graph(input: str) -> Generator[str, Any, None]:
 
 ### Docker ファイルの作成
 
-以下に，Dockerfile の実装を示します．既存のアプリケーション用の Dockerfile に 2 行目の COPY コマンドを追記するだけで，LWA のインストールが可能です．また，LWA でストリーミングレスポンスを処理する場合，環境変数 `AWS_LWA_INVOKE_MODE` を `RESPONSE_STREAM` に設定する必要があります．(本環境変数の設定は，Lambda 側で実施しても問題ないです．)
+以下に，Dockerfile の実装を示します．既存のアプリケーション用の Dockerfile に 2 行目の COPY コマンドを追記するだけで，LWA のインストールが可能です．また，LWA でレスポンスストリーミングを行う場合，環境変数 `AWS_LWA_INVOKE_MODE` を `RESPONSE_STREAM` に設定する必要があります．(本環境変数の設定は，Lambda 側で実施しても問題ないです．)
 
 ```bash
 FROM public.ecr.aws/docker/library/python:3.12.0-slim-bullseye
@@ -270,7 +270,23 @@ CMD ["python", "main.py"]
 ```
 
 :::note info
-上記のコンテナイメージは，Lamabda 以外の環境でも利用可能なので，ローカルでの動作確認が容易です．
+上記のコンテナイメージは， Lamabda 以外の環境でも利用可能なので，ローカルでの動作確認が容易です．例えば，上記のコンテナイメージをビルドし，以下のコマンドでローカルで FastAPI を実行できます．
+
+```bash
+docker build -t <image_name> .
+docker run --rm -it -p 8080:8080 -v /home/<username>/.aws/:/root/.aws <image_name>
+
+# http://localhost:8080/docsにアクセス可能なことを確認
+# 別のターミナルから以下のコマンドでリクエストを送信
+curl -X 'POST' \
+  'http://localhost:8080/api/stream_graph' \
+  -H 'accept: application/json' \
+  -H 'Content-Type: application/json' \
+  -d '{
+  "product_detail": "香りの良い化粧水"
+}'
+```
+
 :::
 
 ### ECR に Docker イメージを push
@@ -305,9 +321,9 @@ docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 - Lambda の最大実行時間の変更
   - 5 分に延長します．
 
-### Lambda Function URL 経由でのストリーミングレスポンス取得
+### Lambda Function URL 経由でのレスポンスストリーミング
 
-curl などで，Lambda Function URL に対して POST リクエストを送信することで，ストリーミングレスポンスを取取得できます．
+curl などで，Lambda Function URL を利用して構築した API エンドポイントへ POST リクエストを送信することで，ストリーミングレスポンスを取得できます．
 
 ```bash
 #!/bin/bash
@@ -325,7 +341,7 @@ curl -X 'POST' \
 }"
 ```
 
-上記では，商品情報として，`ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。` という文を与えています．この場合，以下のようなレスポンスをストリーミングで取得できます．
+上記では，商品情報として，`ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。` という架空の情報を与えています．この場合，以下のようなレスポンスをストリーミングで取得できます．
 
 ```
 {"product_detail": "ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。"}
@@ -337,7 +353,7 @@ curl -X 'POST' \
 
 ## CDK 実装
 
-上記の ECR へのイメージのプッシュや Lambda の作成を，CDK で一括で行えるようにしました．`cdk deploy` コマンド終了後，Lambda Function URL がターミナルに表示されます．
+上記の ECR へのイメージのプッシュや LWA によるレスポンスストリーミングが可能な Lambda の作成を，CDK で一括で行えるようにしました．`cdk deploy` コマンド終了後，Lambda Function URL がターミナルに表示されます．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/backend
 
@@ -395,13 +411,17 @@ export class FastapiLambdaWebAdapterCdkStack extends cdk.Stack {
 
 ## フロントエンドの実装
 
-Streamlit と React を利用し，実際にアプリケーション上でストリーミングレスポンスを取得できることを確認しました．なお，実装は以下に公開しております．
+Streamlit と React を利用し，実際にアプリケーション上でレスポンスストリーミングが可能であることを確認しました．実装は以下に公開しております．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend
 
 ### Streamlit
 
-変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．
+変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．ストリーミングモードを有効化し，API エンドポイント (Lambda Function URL) に POST リクエストを送信しています．実装は GitHub に公開しています．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/blob/main/frontend/streamlit/frontend.py
+
+！！Gif を埋め込み！！
 
 <details open><summary>実装</summary>
 
@@ -483,6 +503,12 @@ if st.button("Agent 実行開始", type="primary", disabled=not product_detail):
 
 ### React
 
+初めて React でアプリケーションを実装しました．簡易実装ですが，参考のため以下に主要なコードを示します．本実装は GitHub に公開しています．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/react
+
+！！Gif を埋め込み！！
+
 <details open><summary>実装</summary>
 
 ```javascript:App.jsx
@@ -544,13 +570,100 @@ const App = () => {
 export default App;
 ```
 
+```javascript:useProductAnalysis.js
+import { useState } from 'react';
+import { API_CONFIG } from '../config/api';
+
+const useProductAnalysis = () => {
+  const [copy, setCopy] = useState('');
+  const [targetAudience, setTargetAudience] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const analyzeProduct = async (productDetail) => {
+    setIsLoading(true);
+    setCopy('');
+    setTargetAudience('');
+    setError(null);
+
+    try {
+      const response = await fetch(API_CONFIG.API_URL, {
+        method: 'POST',
+        headers: API_CONFIG.HEADERS,
+        credentials: 'omit',
+        mode: 'cors',
+        body: JSON.stringify({ product_detail: productDetail })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      await processStream(response.body.getReader());
+    } catch (error) {
+      console.error('Error:', error);
+      setError(error.message || '予期せぬエラーが発生しました');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const processStream = async (reader) => {
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) {
+          processBuffer(buffer);
+          break;
+        }
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        lines.forEach(line => processBuffer(line));
+      }
+    } catch (error) {
+      console.error('Stream processing error:', error);
+      throw error;
+    }
+  };
+
+  const processBuffer = (buffer) => {
+    if (!buffer.trim()) return;
+
+    try {
+      const data = JSON.parse(buffer);
+      if (data.copy) setCopy(data.copy);
+      if (data.target_audience) setTargetAudience(data.target_audience);
+    } catch (error) {
+      console.error('JSON parsing error:', error);
+    }
+  };
+
+  return {
+    copy,
+    targetAudience,
+    isLoading,
+    error,
+    analyzeProduct
+  };
+};
+
+export default useProductAnalysis;
+```
+
 </details>
 
 ## まとめ
 
 summary
 
-## 仲間募集
+<!-- ## 仲間募集
 
 NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
 
@@ -657,4 +770,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
-</div></details>
+</div></details> -->

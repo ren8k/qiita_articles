@@ -2,13 +2,13 @@
 title: workflow 型の Agent (LangGraph) を Lambda Web Adapter でサーバーレスでストリーミング実行する
 tags:
   - AWS
-  - bedrock
-  - Lambda
-  - LangGraph
+  - lambda
   - React
+  - bedrock
+  - langgraph
 private: true
-updated_at: ""
-id: null
+updated_at: '2025-01-02T14:22:16+09:00'
+id: 8525fb170c13ec861857
 organization_url_name: null
 slide: false
 ignorePublish: false

@@ -1,5 +1,5 @@
 ---
-title: workflow 型の Agent (LangGraph) を Lambda Web Adapter でサーバーレスでストリーミング実行する
+title: workflow 型の Agent (LangGraph) を React と Lambda Web Adapter でストリーミング実行する
 tags:
   - AWS
   - bedrock
@@ -21,7 +21,7 @@ AI Agent を Python で実装する際の代表的なフレームワークとし
 
 実装した Agent をアプリケーションに組み込む際，コスト削減のためサーバーレスでの配信を検討することが多いです．AWS では Lambda が代表的なサーバーレスサービスですが，Python で実装した Agent のストリーミング処理を Lambda で実現する場合，工夫が必要です．
 
-本稿では，LangGraph で実装した Agent のストリーミング処理を AWS Lambda で実現するための方法を調査・検証した結果を示します．具体的には，Lambda Web Adapter (LWA) を利用して，LangGraph のレスポンスストリーミングが可能かを確認します．また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
+本稿では，LangGraph で実装した Agent のストリーミング処理を Lambda で実現するための方法を調査・検証した結果を示します．具体的には，Lambda Web Adapter (LWA) を利用して，LangGraph のレスポンスストリーミングが可能かを確認します．また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
 
 ## 目的
 
@@ -58,7 +58,7 @@ def lambda_handler(event, context):
         yield chunk  # ← これができない
 ```
 
-Lambda Web Adapter (LWA) と Web フレームワークを介すことで，レスポンスストリーミングを実現できます．
+Lambda Web Adapter (LWA) と FastAPI のような Web フレームワークを介すことで，レスポンスストリーミングを実現できます．
 
 ```py
 from fastapi.responses import StreamingResponse
@@ -358,7 +358,7 @@ curl -X 'POST' \
 }"
 ```
 
-上記では，商品情報として，`ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。` という架空の情報を与えています．この場合，以下のようなレスポンスをストリーミングで取得できます．
+上記では，商品情報として，`ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。` という架空の商品情報を与えています．この場合，以下のようなレスポンスをストリーミングで取得できます．
 
 ```
 {"product_detail": "ラベンダーとベルガモットのやさしい香りが特徴の保湿クリームで、ヒアルロン酸とシアバターの配合により、乾燥肌に潤いを与えます。"}
@@ -438,7 +438,9 @@ https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/blob/main/frontend/streamlit/frontend.py
 
-！！Gif を埋め込み！！
+以下にアプリケーションの画面録画を示します．ストリーミングで取得したレスポンスを画面上に表示することができています．
+
+![demo_lwa_streamlit.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/c860f16d-37c7-5eb1-32b0-7d79dc171720.gif)
 
 <details open><summary>実装</summary>
 
@@ -524,7 +526,9 @@ if st.button("Agent 実行開始", type="primary", disabled=not product_detail):
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/react
 
-！！Gif を埋め込み！！
+以下にアプリケーションの画面録画を示します．ストリーミングで取得したレスポンスを画面上に表示することができています．
+
+![demo_lwa_react.gif](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/ee589e4c-7441-b04e-8811-5c70a53b8c67.gif)
 
 <details open><summary>実装</summary>
 
@@ -714,6 +718,10 @@ export default useProductAnalysis;
 
 ### CDK 実装
 
+上記の S3 や CloudFront の作成を，CDK で一括で行えるようにしました．前提として，React プロジェクトのディレクトリ内でビルドしておく必要があります．`cdk deploy` コマンド終了後，ディストリビューションドメイン名がターミナルに表示されます．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/cdk-cloudfront-s3
+
 <details open><summary>実装</summary>
 
 ```typescript:cdk-cloudfront-s3-stack.ts
@@ -780,13 +788,13 @@ export class ReactAppStack extends cdk.Stack {
 
 ## まとめ
 
-本稿では，Lambda Web Adapter を利用することで，LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅にコスト削減が可能です．
+本稿では，Lambda Web Adapter を利用することで，LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．また，React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション上でレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅にコスト削減が可能です．
 
-今後の課題として，本検証では Lambda Function URL を利用する際に認証タイプを None にしましたが，本番運用を想定する場合は AWS_IAM 認証を
+今後の課題として，Lambda Function URL を利用する際の認証タイプとして `AWS_IAM` を利用することが挙げられます．本検証では，認証タイプ: `NONE` で実装しましたが，本番環境ではセキュリティ上のリスクがあるため，`AWS_IAM` 認証を利用することが推奨されます．この場合，CloudFront で Lambda@Edge を利用した Cognito 認証が必要になります．本対応で参考になりそうなリンクを以下に示します．
 
-#### memo
-
----
+- [AWS Lambda Web Adapter を活用する新しいサーバーレスの実装パターン](https://speakerdeck.com/tmokmss/aws-lambda-web-adapterwohuo-yong-suruxin-siisabaresunoshi-zhuang-patan)
+- [CloudFront + Lambda 関数 URL 構成で POST/PUT リクエストを行うため Lambda@Edge でコンテンツハッシュを計算する](https://dev.classmethod.jp/articles/cloudfront-lambda-url-with-post-put-request/)
+- [Lambda@Edge を使用した CloudFront の Cognito 認証を試してみた](https://dev.classmethod.jp/articles/cloud-front-cognito-auth/)
 
 <!-- ## 仲間募集
 

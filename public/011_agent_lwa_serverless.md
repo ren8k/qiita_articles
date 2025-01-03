@@ -29,7 +29,7 @@ https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/
 
 ## 目的
 
-本検証の目的は，LangGraph (Python) で実装した Agent のストリーミング処理 を AWS 上でサーバーレスで実現することです．ストリーミング処理として，LangGraph の [`stream` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用します．LangGraph のストリーミング処理は，グラフの実行完了を待たずに，逐次的にノードの実行結果を返します．
+本検証の目的は，LangGraph (Python) で実装した Agent のストリーミング処理 を AWS 上でサーバーレスで実現することです．ストリーミング処理として，LangGraph の [`stream()` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用します．LangGraph のストリーミング処理は，グラフの実行完了を待たずに，逐次的にノードの実行結果を返します．
 
 AWS Lambda は，サーバーレスコンピューティングサービスとして代表的なサービスですが，執筆時点（2025/01/01）において，Lambda は Node.js のマネージドランタイムでのみレスポンスストリーミングをサポートしています．その他の言語でレスポンスストリーミングを実現する場合は，「カスタムランタイムの作成」か Lambda Web Adapter (LWA)の利用」が必要です．
 
@@ -111,7 +111,7 @@ graph TD;
 - step1. step0. の結果を基に，広告文を生成 (`generate_copy` ノード)
 - step2. step1. の結果を基に，ターゲットとする顧客を分析 (`analysis_target_audience` ノード)
 
-本検証では，LangGraph の [`stream` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用して，`generate_copy` ノード，`analysis_target_audience` ノードの結果をストリーミングで取得します．
+本検証では，LangGraph の [`stream()` メソッド](https://langchain-ai.github.io/langgraph/concepts/streaming/)を利用して，`generate_copy` ノード，`analysis_target_audience` ノードの結果をストリーミングで取得します．
 
 ## Lambda Web Adapter (LWA) とは
 
@@ -290,6 +290,8 @@ ENV AWS_LWA_INVOKE_MODE RESPONSE_STREAM
 CMD ["python", "main.py"]
 ```
 
+> [awslabs のリポジトリ](https://github.com/awslabs/aws-lambda-web-adapter/blob/main/examples/fastapi-response-streaming/app/Dockerfile) を参考にしています．
+
 :::note info
 上記のコンテナイメージは， Lamabda 以外の環境でも利用可能なので，ローカルでの動作確認が容易です．例えば，上記のコンテナイメージをビルドし，以下のコマンドでローカルで FastAPI を実行できます．
 
@@ -432,13 +434,13 @@ export class FastapiLambdaWebAdapterCdkStack extends cdk.Stack {
 
 ## フロントエンドの実装
 
-Streamlit と React を利用し，実際にローカル上のアプリケーションでレスポンスストリーミングが可能であることを確認します．また，React と CloudFront + S3 で SPA をホスティングすることで，実際の Web アプリケーションでレスポンスストリーミングが可能であることを確認します．実装は以下に公開しております．
+Streamlit と React を利用し，ローカル上のアプリケーションでレスポンスストリーミングが可能であることを確認します．また，CloudFront + S3 で React アプリ (SPA) をホスティングし，実際の Web アプリケーションとしてレスポンスストリーミングが可能であることを確認します．検証に利用した実装は以下に公開しております．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend
 
 ### Streamlit
 
-変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．ストリーミングモードを有効化し，API エンドポイント (Lambda Function URL) に POST リクエストを送信しています．実装は GitHub に公開しています．
+変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．`requests.post()` メソッドでストリーミングモードを有効化し，API エンドポイント (Lambda Function URL) に POST リクエストを送信しています．実装は GitHub に公開しています．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/blob/main/frontend/streamlit/frontend.py
 
@@ -790,9 +792,11 @@ export class ReactAppStack extends cdk.Stack {
 
 </details>
 
+ディストリビューションドメイン名をコピーし，ブラウザで開くことで，React アプリケーションにアクセスすることができます．ストリーミングで取得したレスポンスを画面上にリアルタイムで表示できることを確認します．
+
 ## まとめ
 
-本稿では，Lambda Web Adapter を利用することで，LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．また，React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション上でレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅にコスト削減が可能です．
+本稿では，Lambda Web Adapter を利用することで，Lambda 上で LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．また，React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション上でのレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅なコスト削減が可能です．
 
 今後の課題として，Lambda Function URL を利用する際の認証タイプとして `AWS_IAM` を利用することが挙げられます．本検証では，認証タイプ: `NONE` で実装しましたが，本番環境ではセキュリティ上のリスクがあるため，`AWS_IAM` 認証を利用することが推奨されます．この場合，CloudFront で Lambda@Edge を利用した Cognito 認証が必要になります．本対応で参考になりそうなリンクを以下に示します．
 

@@ -1,5 +1,5 @@
 ---
-title: workflow 型の Agent (LangGraph) を React と Lambda Web Adapter でストリーミング実行する
+title: workflow 型の Agent (LangGraph) を Lambda でストリーミング実行し，Reactアプリで表示する
 tags:
   - AWS
   - bedrock
@@ -22,6 +22,10 @@ AI Agent を Python で実装する際の代表的なフレームワークとし
 実装した Agent をアプリケーションに組み込む際，コスト削減のためサーバーレスでの配信を検討することが多いです．AWS では Lambda が代表的なサーバーレスサービスですが，Python で実装した Agent のストリーミング処理を Lambda で実現する場合，工夫が必要です．
 
 本稿では，LangGraph で実装した Agent のストリーミング処理を Lambda で実現するための方法を調査・検証した結果を示します．具体的には，Lambda Web Adapter (LWA) を利用して，LangGraph のレスポンスストリーミングが可能かを確認します．また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
+
+なお，検証で実装したコードは以下のリポジトリに公開しています．
+
+https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/
 
 ## 目的
 
@@ -78,7 +82,7 @@ def stream_response():
 
 ## 検証の全体像
 
-バックエンドでは，Lambda Web Adapter (LWA) で FastAPI を Lambda 上で実行し，LangGraph で実装した Agent のレスポンスストリーミングを実現します．なお，Agent で利用する LLM には Amazon Bedrock Claude 3.5 Haiku を利用しています．また，ストリーミングレスポスは，Lambda Function URL 経由で取得します．
+バックエンドでは，Lambda Web Adapter (LWA) で FastAPI を Lambda 上で実行し，LangGraph で実装した Agent のレスポンスストリーミングをサーバーレスで実現します．なお，Agent で利用する LLM には Amazon Bedrock Claude 3.5 Haiku を利用しています．また，ストリーミングレスポスは，Lambda Function URL 経由で取得します．
 
 フロントエンドでは React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
 
@@ -718,7 +722,7 @@ export default useProductAnalysis;
 
 ### CDK 実装
 
-上記の S3 や CloudFront の作成を，CDK で一括で行えるようにしました．前提として，React プロジェクトのディレクトリ内でビルドしておく必要があります．`cdk deploy` コマンド終了後，ディストリビューションドメイン名がターミナルに表示されます．
+上記の S3 や CloudFront の作成を，CDK で一括で行えるようにしました．前提として，．`config/api.js` の変数 `LAMBDA_URL` に Lambda Function URL を設定後，React プロジェクトのディレクトリ内でビルドしておく必要があります．`cdk deploy` コマンド終了後，ディストリビューションドメイン名がターミナルに表示されます．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/cdk-cloudfront-s3
 

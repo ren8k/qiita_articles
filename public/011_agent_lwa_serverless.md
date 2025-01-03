@@ -17,13 +17,14 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
-AI Agent を Python で実装する際の代表的なフレームワークとして，[LangGraph や CrewAI が挙げられます](https://aws.amazon.com/jp/blogs/machine-learning/design-multi-agent-orchestration-with-reasoning-using-amazon-bedrock-and-open-source-frameworks/)．これらのフレームワークではストリーミング出力を行う機能があり，ユーザービリティを高めること可能です．
+
+AI Agent を Python で実装する際の代表的なフレームワークとして，[LangGraph や CrewAI などが挙げられます](https://aws.amazon.com/jp/blogs/machine-learning/design-multi-agent-orchestration-with-reasoning-using-amazon-bedrock-and-open-source-frameworks/)．これらのフレームワークではストリーミング出力を行う機能があり，ユーザービリティを高めること可能です．
 
 実装した Agent をアプリケーションに組み込む際，コスト削減のためサーバーレスでの配信を検討することが多いです．AWS では Lambda が代表的なサーバーレスサービスですが，Python で実装した Agent のストリーミング処理を Lambda で実現する場合，工夫が必要です．
 
 本稿では，LangGraph で実装した Agent のストリーミング処理を Lambda で実現するための方法を調査・検証した結果を示します．具体的には，Lambda Web Adapter (LWA) を利用して，LangGraph のレスポンスストリーミングが可能かを確認します．また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
 
-なお，検証で実装したコードは以下のリポジトリに公開しています．
+検証で実装したコードは以下のリポジトリに公開しています．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/
 

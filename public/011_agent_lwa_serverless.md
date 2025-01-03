@@ -17,6 +17,11 @@ ignorePublish: false
 ## はじめに
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+AI Agent を Python で実装する際の代表的なフレームワークとして，[LangGraph や CrewAI が挙げられます](https://aws.amazon.com/jp/blogs/machine-learning/design-multi-agent-orchestration-with-reasoning-using-amazon-bedrock-and-open-source-frameworks/)．これらのフレームワークではストリーミング出力を行う機能があり，ユーザービリティを高めること可能です．
+
+実装した Agent をアプリケーションに組み込む際，コスト削減のためサーバーレスでの配信を検討することが多いです．AWS では Lambda が代表的なサーバーレスサービスですが，Python で実装した Agent のストリーミング処理を Lambda で実現する場合，工夫が必要です．
+
+本稿では，LangGraph で実装した Agent のストリーミング処理を AWS Lambda で実現するための方法を調査・検証した結果を示します．具体的には，Lambda Web Adapter (LWA) を利用して，LangGraph のレスポンスストリーミングが可能かを確認します．また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
 
 ## 目的
 
@@ -27,6 +32,8 @@ AWS Lambda は，サーバーレスコンピューティングサービスとし
 https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/configuration-response-streaming.html
 
 そこで，本検証では，容易に実装可能な Lambda Web Adapter を利用することで，Lambda から LangGraph (Python) のストリーミングレスポンスを取得可能かを確認します．
+
+また，React で実装したアプリケーションを CloudFront+S3 でホスティングし，Web アプリケーション上で Lambda Function URL 経由でレスポンスストリーミングが可能かを確認します．
 
 <details><summary> 補足説明 </summary>
 
@@ -43,7 +50,7 @@ def lambda_handler(event, context):
     }
 ```
 
-一方，Python マネージドランタイムは，ストリーミングレスポンスを直接サポートしていません．具体的には，以下のようには実装できません．
+一方，Lambda における Python マネージドランタイムは，ストリーミングレスポンスを直接サポートしていません．具体的には，以下のようには実装できません．
 
 ```py
 def lambda_handler(event, context):
@@ -51,7 +58,7 @@ def lambda_handler(event, context):
         yield chunk  # ← これができない
 ```
 
-Lambda Web Adapter (LWA) と Web フレームワークを介すことで，ストリーミングを実現できます．
+Lambda Web Adapter (LWA) と Web フレームワークを介すことで，レスポンスストリーミングを実現できます．
 
 ```py
 from fastapi.responses import StreamingResponse
@@ -68,6 +75,14 @@ def stream_response():
 :::
 
 </details>
+
+## 検証の全体像
+
+バックエンドでは，Lambda Web Adapter (LWA) で FastAPI を Lambda 上で実行し，LangGraph で実装した Agent のレスポンスストリーミングを実現します．なお，Agent で利用する LLM には Amazon Bedrock Claude 3.5 Haiku を利用しています．また，ストリーミングレスポスは，Lambda Function URL 経由で取得します．
+
+フロントエンドでは React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
+
+![architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/800cd619-3a8b-dee5-a982-2648307cfe7e.png)
 
 ## 検証で利用する Agent
 
@@ -102,29 +117,31 @@ LWA は，Flask，Express.js などの一般的なウェブフレームワーク
 
 > [Lambda Web Adapter でウェブアプリを (ほぼ) そのままサーバーレス化する](https://aws.amazon.com/jp/builders-flash/202301/lambda-web-adapter/?awsf.filter-name=*all) から引用
 
-LWA の呼び出し元としては以下が利用可能です．本検証では，ストリーミングレスポンスを取得するため，Lambda Function URL を利用します．
+LWA の呼び出し元として，以下が利用可能です．本検証では，ストリーミングレスポンスを取得するため，Lambda Function URL を利用します．
 
 - API Gateway
 - Lambda Function URL
 - ALB
 
-## 検証の全体像
-
-LWA で FastAPI を Lambda 上で実行し，Lambda Function URL 経由で LangGraph で実装した Agent のストリーミングレスポンスを取得します．なお，Agent で利用する LLM には Amazon Bedrock を利用しており，フロントエンドには Streamlit や React を利用して検証しました．
-
-![serverless-storyteller-architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/1c969578-b609-49a9-6afe-bab64f86a4e7.png)
-
-> [LWA の AWS 公式サンプル](https://github.com/awslabs/aws-lambda-web-adapter/tree/main/examples/fastapi-response-streaming) から引用
-
-## 利用手順
+## 検証手順
 
 以下の手順で，LWA を利用して，LangGraph のストリーミング処理を実現します．
 
-- Web アプリケーションの準備
-- Docker ファイルの作成
-- ECR に Docker イメージを push
-- Lambda の作成
-- Lambda Function URL 経由でのレスポンスストリーミング
+- バックエンドの実装
+  - Web アプリケーションの準備
+  - Docker ファイルの作成
+  - ECR に Docker イメージを push
+  - Lambda の作成
+  - Lambda Function URL 経由でのレスポンスストリーミング
+  - CDK 実装
+- フロントエンドの実装
+  - Streamlit / React の実装
+  - CloudFront + S3 でのホスティング
+  - CDK 実装
+
+## バックエンドの実装
+
+LWA を利用し，Lambda Function URL 経由でレスポンスストリーミングを実現するための手順を示します．
 
 ### Web アプリケーションの準備
 
@@ -147,7 +164,7 @@ app = FastAPI()
 # CORSミドルウェアの設定 (本番環境では適切なオリジンを指定してください)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -316,8 +333,8 @@ docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 - Bedrock のポリシー付与
   - `'bedrock:InvokeModel'` に対するポリシーを付与します．
 - 関数 URL の作成
-  - 今回は検証のため，認証タイプ: NONE とします．
-  - 関数 URL の設定で，呼び出しモード: RESPONSE_STREAM にします．
+  - 今回は検証のため，認証タイプ: `NONE` とします．
+  - 関数 URL の設定で，呼び出しモード: `RESPONSE_STREAM` にします．
 - Lambda の最大実行時間の変更
   - 5 分に延長します．
 
@@ -351,7 +368,7 @@ curl -X 'POST' \
 
 各行が，`__start__` ノード，`generate_copy` ノード，`analysis_target_audience` ノード終了時点の State を表しています．`copy` キーには，生成された広告文が，`target_audience` キーには，ターゲットとする顧客が格納されています．
 
-## CDK 実装
+### CDK 実装
 
 上記の ECR へのイメージのプッシュや LWA によるレスポンスストリーミングが可能な Lambda の作成を，CDK で一括で行えるようにしました．`cdk deploy` コマンド終了後，Lambda Function URL がターミナルに表示されます．
 
@@ -411,7 +428,7 @@ export class FastapiLambdaWebAdapterCdkStack extends cdk.Stack {
 
 ## フロントエンドの実装
 
-Streamlit と React を利用し，実際にアプリケーション上でレスポンスストリーミングが可能であることを確認しました．実装は以下に公開しております．
+Streamlit と React を利用し，実際にローカル上のアプリケーションでレスポンスストリーミングが可能であることを確認します．また，React と CloudFront + S3 で SPA をホスティングすることで，実際の Web アプリケーションでレスポンスストリーミングが可能であることを確認します．実装は以下に公開しております．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend
 
@@ -503,13 +520,28 @@ if st.button("Agent 実行開始", type="primary", disabled=not product_detail):
 
 ### React
 
-初めて React でアプリケーションを実装しました．簡易実装ですが，参考のため以下に主要なコードを示します．本実装は GitHub に公開しています．
+当方 React 初学者のため簡易実装ですが，参考のため以下に主要なコードを示します．`config/api.js` の変数 `LAMBDA_URL` に Lambda Function URL を設定することで利用可能です．本実装は GitHub にも公開しています．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/react
 
 ！！Gif を埋め込み！！
 
 <details open><summary>実装</summary>
+
+```javascript:config/api.js
+// API設定
+export const API_CONFIG = {
+    LAMBDA_URL: "https://XXXXXXXXXXXXXXXXXXXXXXXXXXXXX.lambda-url.ap-northeast-1.on.aws/",
+    ENDPOINT: "api/stream_graph",
+    get API_URL() {
+      return `${this.LAMBDA_URL}${this.ENDPOINT}`;
+    },
+    HEADERS: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream'
+    }
+  };
+```
 
 ```javascript:App.jsx
 import React from 'react';
@@ -570,7 +602,7 @@ const App = () => {
 export default App;
 ```
 
-```javascript:useProductAnalysis.js
+```javascript:hooks/useProductAnalysis.js
 import { useState } from 'react';
 import { API_CONFIG } from '../config/api';
 
@@ -659,9 +691,102 @@ export default useProductAnalysis;
 
 </details>
 
+### CloudFront + S3 でのホスティング
+
+以下の手順で，React による SPA を CloudFront + S3 でホスティングすることができます．
+
+- React プロジェクトのディレクトリ内でビルドし，静的ファイルを生成する
+  - `npm run build`
+- S3 バケットを作成し，ビルドした静的ファイルをアップロードする
+  - `aws s3 sync build/ s3://<bucket-name>`
+- CloudFront ディストリビューションを作成
+  - オリジンドメイン: 先ほど作成した S3 バケット名が含まれるドメイン名を選択
+  - オリジンアクセス: Origin access control settings を選択
+    - Origin access control では，Create new OAC を選択
+    - ※OAC: S3 には CloudFront からのアクセスのみ許可する設定
+  - 設定 の デフォルトルートオブジェクト: `index.html` を入力
+  - その他の設定はデフォルトで問題ない
+  - 「ディストリビューションを作成」を押下
+  - `The S3 bucket policy needs to be updated` と表示されるので，`Copy policy` を押下し，クリップボードにコピー
+- S3 バケットのポリシーを更新
+  - S3 バケットの「アクセス許可」 の 「バケットポリシー」を編集
+  - クリップボードにコピーしたポリシーを貼り付け
+
+### CDK 実装
+
+<details open><summary>実装</summary>
+
+```typescript:cdk-cloudfront-s3-stack.ts
+import * as cdk from 'aws-cdk-lib';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as cloudfront_origins from 'aws-cdk-lib/aws-cloudfront-origins';
+import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
+import * as path from 'path';
+import { RemovalPolicy } from 'aws-cdk-lib';
+
+export class ReactAppStack extends cdk.Stack {
+  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+    super(scope, id, props);
+
+    // S3バケットの作成
+    const websiteBucket = new s3.Bucket(this, 'ReactAppBucket', {
+      removalPolicy: RemovalPolicy.DESTROY, // 本番では RETAIN にすべき
+      autoDeleteObjects: true, // 本番では false にすべき
+    });
+
+    // CloudFront Distributionの作成
+    const distribution = new cloudfront.Distribution(this, 'ReactAppDistribution', {
+      defaultBehavior: {
+        origin:
+          // S3 バケットへの OAC によるアクセス制御を設定
+          cloudfront_origins.S3BucketOrigin.withOriginAccessControl(
+            websiteBucket
+          ),
+      },
+      defaultRootObject: 'index.html',
+      errorResponses: [
+        {
+          httpStatus: 403,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+        {
+          httpStatus: 404,
+          responseHttpStatus: 200,
+          responsePagePath: '/index.html',
+        },
+      ],
+    });
+
+    // S3へのデプロイ
+    new s3deploy.BucketDeployment(this, 'DeployReactApp', {
+      sources: [s3deploy.Source.asset(path.join(__dirname, '../../react/build'))],
+      destinationBucket: websiteBucket,
+      distribution,
+      distributionPaths: ['/*'],
+    });
+
+    // CloudFront URLの出力
+    new cdk.CfnOutput(this, 'DistributionDomainName', {
+      value: distribution.distributionDomainName,
+      description: 'CloudFront Distribution Domain Name',
+    });
+  }
+}
+```
+
+</details>
+
 ## まとめ
 
-summary
+本稿では，Lambda Web Adapter を利用することで，LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅にコスト削減が可能です．
+
+今後の課題として，本検証では Lambda Function URL を利用する際に認証タイプを None にしましたが，本番運用を想定する場合は AWS_IAM 認証を
+
+#### memo
+
+---
 
 <!-- ## 仲間募集
 

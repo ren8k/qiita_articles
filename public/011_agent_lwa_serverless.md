@@ -318,16 +318,16 @@ curl -X 'POST' \
 上記の Dockerfile をビルドし，ECR にプッシュします．以下のコマンドで，リポジトリに対してイメージを認証し，プッシュします．
 
 ```bash
-# Retrieve an authentication token and authenticate your Docker client to your registry.
+# Retrieve an authentication token and authenticate your Docker client to your registry
 aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com
 
 # Build the Docker image
 docker build -t <name> .
 
-# Tag the image so you can push the image to this repository
+# Tag the image so you can push the image to your registry
 docker tag <name>:latest 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 
-# Push the image to the repository
+# Push the image to your registry
 docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 ```
 

@@ -277,7 +277,7 @@ def stream_graph(input: str) -> Generator[str, Any, None]:
 
 ### Docker ファイルの作成
 
-以下に，Dockerfile の実装を示します．既存のアプリケーション用の Dockerfile に 2 行目の COPY コマンドを追記するだけで，LWA のインストールが可能です．また，LWA でレスポンスストリーミングを行う場合，環境変数 `AWS_LWA_INVOKE_MODE` を `RESPONSE_STREAM` に設定する必要があります．(本環境変数の設定は，Lambda 側で実施しても問題ないです．)
+以下に，Dockerfile の実装を示します．既存のアプリケーション用の Dockerfile に 2 行目の COPY コマンドを追記するだけで，LWA のインストールが可能です．また，LWA でレスポンスストリーミングを行う場合，環境変数 `AWS_LWA_INVOKE_MODE` を `RESPONSE_STREAM` に設定する必要があります．(環境変数の設定は，Lambda 側で実施しても問題ないです．)
 
 ```bash
 FROM public.ecr.aws/docker/library/python:3.12.0-slim-bullseye
@@ -318,16 +318,16 @@ curl -X 'POST' \
 上記の Dockerfile をビルドし，ECR にプッシュします．以下のコマンドで，リポジトリに対してイメージを認証し，プッシュします．
 
 ```bash
-# Retrieve an authentication token and authenticate your Docker client to your registry.
+# Retrieve an authentication token and authenticate your Docker client to your registry
 aws ecr get-login-password --region ap-northeast-1 | docker login --username AWS --password-stdin 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com
 
 # Build the Docker image
 docker build -t <name> .
 
-# Tag the image so you can push the image to this repository
+# Tag the image so you can push the image to your registry
 docker tag <name>:latest 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 
-# Push the image to the repository
+# Push the image to your registry
 docker push 12345678910.dkr.ecr.ap-northeast-1.amazonaws.com/<name>:latest
 ```
 
@@ -799,7 +799,7 @@ export class ReactAppStack extends cdk.Stack {
 
 本稿では，Lambda Web Adapter を利用することで，Lambda 上で LangGraph (Python) で実装した Agent のレスポンスストリーミングが可能であることを確認しました．また，React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション上でのレスポンスストリーミングが可能であることを確認しました．LangGraph などの Agent フレームワークを利用する場合，ECS や EC2 で実行する例が多いですが，Lambda を利用しサーバーレス化することで，大幅なコスト削減が可能です．
 
-今後の課題として，Lambda Function URL を利用する際の認証タイプとして `AWS_IAM` を利用することが挙げられます．本検証では，認証タイプ: `NONE` で実装しましたが，本番環境ではセキュリティ上のリスクがあるため，`AWS_IAM` 認証を利用することが推奨されます．この場合，CloudFront で Lambda@Edge を利用した Cognito 認証が必要になります．本対応で参考になりそうなリンクを以下に示します．
+今後の課題として，Lambda Function URL を利用する際の認証タイプとして `AWS_IAM` を利用することが挙げられます．本検証では，認証タイプ: `NONE` で実装しましたが，本番環境ではセキュリティ上のリスクがあるため，`AWS_IAM` 認証を利用することが推奨されます．この場合，CloudFront で Lambda@Edge を利用した Cognito 認証が必要になります．最後に，本対応で参考になりそうなリンクを以下に示します．
 
 - [AWS Lambda Web Adapter を活用する新しいサーバーレスの実装パターン](https://speakerdeck.com/tmokmss/aws-lambda-web-adapterwohuo-yong-suruxin-siisabaresunoshi-zhuang-patan)
 - [CloudFront + Lambda 関数 URL 構成で POST/PUT リクエストを行うため Lambda@Edge でコンテンツハッシュを計算する](https://dev.classmethod.jp/articles/cloudfront-lambda-url-with-post-put-request/)

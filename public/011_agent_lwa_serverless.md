@@ -7,7 +7,7 @@ tags:
   - bedrock
   - langgraph
 private: false
-updated_at: '2025-01-04T10:15:52+09:00'
+updated_at: "2025-01-04T10:15:52+09:00"
 id: 8525fb170c13ec861857
 organization_url_name: null
 slide: false
@@ -38,7 +38,7 @@ https://docs.aws.amazon.com/ja_jp/lambda/latest/dg/configuration-response-stream
 
 そこで，本検証では，容易に実装可能な Lambda Web Adapter を利用することで，Lambda から LangGraph (Python) のストリーミングレスポンスを取得可能かを確認します．
 
-また，React で実装したアプリケーションを CloudFront+S3 でホスティングし，Web アプリケーション上で Lambda Function URL 経由でレスポンスストリーミングが可能かを確認します．
+また，React で実装したアプリケーションを CloudFront + S3 でホスティングし，Web アプリケーション上で Lambda Function URL 経由でレスポンスストリーミングが可能かを確認します．
 
 <details><summary> 補足説明 </summary>
 
@@ -85,7 +85,7 @@ def stream_response():
 
 バックエンドでは，Lambda Web Adapter (LWA) で FastAPI を Lambda 上で実行し，LangGraph で実装した Agent のレスポンスストリーミングをサーバーレスで実現します．なお，Agent で利用する LLM には Amazon Bedrock Claude 3.5 Haiku を利用しています．また，ストリーミングレスポスは，Lambda Function URL 経由で取得します．
 
-フロントエンドでは React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
+フロントエンドでは， React による SPA を CloudFront + S3 でホスティングし，Web アプリケーション経由でレスポンスストリーミングが可能かを確認します．
 
 ![architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/800cd619-3a8b-dee5-a982-2648307cfe7e.png)
 
@@ -116,7 +116,7 @@ graph TD;
 
 ## Lambda Web Adapter (LWA) とは
 
-LWA は，Flask，Express.js などの一般的なウェブフレームワークで作られたアプリケーションを Lambda 上で実行できるようにするためのツールです．具体的には，LWA は Lambda で受信したイベントを Web アプリケーションに HTTP で転送するプロキシとして機能します．LWA は単なるアダプター（変換層）であり，実際の HTTP リクエスト/レスポンスの処理機能は持っていません．つまり，Web フレームワークを利用し，HTTP リクエストを処理する Web アプリケーションを用意する必要があります．
+LWA は，Flask，Express.js などの一般的な Web フレームワークで作られたアプリケーションを Lambda 上で実行できるようにするためのツールです．具体的には，LWA は Lambda で受信したイベントを Web アプリケーションに HTTP で転送するプロキシとして機能します．LWA は単なるアダプター（変換層）であり，実際の HTTP リクエスト/レスポンスの処理機能は持っていません．つまり，Web フレームワークを利用し，HTTP リクエストを処理する Web アプリケーションを用意する必要があります．
 
 ![img_lambda-web-adapter.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/f74289f7-7b19-d582-778a-a7d89499e2aa.png)
 

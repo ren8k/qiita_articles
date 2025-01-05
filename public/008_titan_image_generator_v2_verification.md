@@ -7,12 +7,23 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2024-10-04T16:11:10+09:00'
+updated_at: "2024-10-04T16:11:10+09:00"
 id: 94b5d9bdc513acde371e
 organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---
+
+:::note info
+2024/12/02 に，[Amazon Nova Canvas という Amazon が開発した画像生成 AI がリリース](https://aws.amazon.com/jp/blogs/aws/introducing-amazon-nova-frontier-intelligence-and-industry-leading-price-performance/)されました．利用可能な機能や API 利用時の引数の設定は，Amazon Titan Image Generator v2 と全く同じであり，**本記事の内容は Amazon Nova Canvas のキャッチアップにも利用可能です．**（AWS 公式からは明言はありませんが，Amazon Nova Canvas は Amazon Titan Image Generator v2 の上位互換であると認識しております．）
+
+追記時点 (2025/01/05) では，モデル ID とリージョンを以下のように設定することで，本記事で紹介しているコードベースで，Amazon Nova Canvas が利用可能です．
+
+- モデル ID: `amazon.nova-canvas-v1:0`
+- リージョン: `us-east-1`
+
+その他，Amazon Titan Image Generator v2 からの変更点として，出力画像の解像度や API で設定可能なパラメータ (`cfgScale`) のデフォルト値が挙げられます．こちらについては，[記事内](#amazon-nova-canvas-の出力画像の解像度や-api-で設定可能なパラメータについて)で追加で紹介します．
+:::
 
 ## はじめに
 
@@ -149,6 +160,33 @@ https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/noteboo
 タスクタイプが `TEXT_IMAGE`，`COLOR_GUIDED_GENERATION` の場合，つまり，**text2img** のタスクの場合，1024x1024 や 1280x768 ，512×512 などの許容されている**特定のアスペクト比を指定することができます**．一方，タスクタイプが前述以外の場合，つまり，**img2img** のタスクの場合，**出力画像の解像度は入力画像の解像度と同一**になりますが，入力画像の幅と高さはそれぞれ **1408 pixel 以内**である必要がある点に注意が必要です．（本情報は公式ドキュメントには明示されておらず，実際に検証して確認しました．）
 
 text2img のタスクで指定可能な解像度については[公式ドキュメント](https://docs.aws.amazon.com/bedrock/latest/userguide/model-parameters-titan-image.html)をご参照下さい．
+:::
+
+:::note
+
+### Amazon Nova Canvas の出力画像の解像度や API で設定可能なパラメータについて
+
+解像度は，[各辺 320 ~ 4096 ピクセルの範囲で自由に設定可能です．ただし，以下の条件を満たす必要があります](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-access.html#image-gen-resolutions)．以下の制約は入力画像にも適用されますが，入力画像の辺は 16 で割り切れる必要は無いです．
+
+- 各辺は 16 で割り切れる必要がある
+- アスペクト比は 1:4 から 4:1 の間である必要がある
+  - 片側の長さがもう片側の 4 倍を超えてはならない
+- 総ピクセル数は 4,194,304 未満である必要がある
+
+API で設定可能なパラメータについては，Amazon Titan Image Generator v2 と変更はありません．ただし，`cfgScale` のデフォルト値が 8.0 から 6.5 に変更されています．また，設定可能な `seed` の範囲に[若干の変更](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)があります．
+
+その他，Amazon Nova Canvas のドキュメントでは，画像の解像度 (`width` と `height`)，`numberOfImages`，`quality` の各パラメータは，画像生成に要する時間に影響を与えるため，boto3 での呼び出し時， `read_timeout` を少なくとも 300 秒に設定することを推奨しています．
+
+```py
+import boto3
+from botocore.config import Config
+
+bedrock = boto3.client(
+    service_name='bedrock-runtime',
+    config=Config(read_timeout=300)
+)
+```
+
 :::
 
 ### 画像生成

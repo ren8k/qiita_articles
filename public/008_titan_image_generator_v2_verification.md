@@ -7,7 +7,7 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2025-01-05T21:49:57+09:00'
+updated_at: "2025-01-05T21:49:57+09:00"
 id: 94b5d9bdc513acde371e
 organization_url_name: nttdata
 slide: false
@@ -143,6 +143,7 @@ def generate_image(
   },
   "imageGenerationConfig": {
     "numberOfImages": "int",
+    "quality": "standard" | "premium",
     "height": "int",
     "width": "int",
     "cfgScale": "float",
@@ -173,9 +174,17 @@ text2img のタスクで指定可能な解像度については[公式ドキュ�
   - 片側の長さがもう片側の 4 倍を超えてはならない
 - 総ピクセル数は 4,194,304 未満である必要がある
 
-API で設定可能なパラメータについては，Amazon Titan Image Generator v2 と変更はありません．ただし，`cfgScale` のデフォルト値が 8.0 から 6.5 に変更されています．また，設定可能な `seed` の範囲に[若干の変更](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)があります．
+[API で設定可能なパラメータ](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)について，Amazon Titan Image Generator v2 からの変更点は以下の通りです．
 
-その他，Amazon Nova Canvas のドキュメントでは，画像の解像度 (`width` と `height`)，`numberOfImages`，`quality` の各パラメータは，画像生成に要する時間に影響を与えるため，boto3 での呼び出し時， `read_timeout` を少なくとも 300 秒に設定することを推奨しています．
+- 入力可能なプロンプト（テキストプロンプト，ネガティブプロンプト）長が最大 1024 文字に増加
+- `cfgScale` のデフォルト値が 8.0 から 6.5 に変更
+- `seed` の設定可能な範囲に若干の変更あり
+
+また，Amazon Nova Canvas のドキュメントでは，以下のパラメータが画像生成時間に影響を与えるため，boto3 での呼び出し時， `read_timeout` を少なくとも 300 秒に設定することを推奨しています．
+
+- 画像の解像度 (`width` と `height`)
+- `numberOfImages`
+- `quality`
 
 ```py
 import boto3
@@ -186,6 +195,17 @@ bedrock = boto3.client(
     config=Config(read_timeout=300)
 )
 ```
+
+:::
+
+:::note
+
+### Amazon Nova Canvas の料金について
+
+premium の品質で画像生成する場合，[Amazon Nova Canvas の料金は Amazon Titan Image Generator v2 の 5 倍](https://aws.amazon.com/bedrock/pricing/?nc1=h_ls)となっている点に注意が必要です．以下に，各モデルにおいて，1024×1024 の画像を生成させる際の料金を示します．
+
+- Amazon Titan Image Generator v2: 0.012 USD
+- Amazon Nova Canvas: 0.06 USD
 
 :::
 

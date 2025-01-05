@@ -76,6 +76,8 @@ LWA は，HTTP リクエストを受け取り，それを Web アプリケーシ
 - https://zenn.dev/nyarufoy/articles/ef433a40d9b209
 - https://github.com/aws-samples/react-cors-spa
 - https://docs.aws.amazon.com/ja_jp/prescriptive-guidance/latest/patterns/deploy-a-react-based-single-page-application-to-amazon-s3-and-cloudfront.html
+- https://qiita.com/nuco_YM/items/b4259d838be53a6f44ee
+- https://qiita.com/Sicut_study/items/d520f9a858506b81e874
 
 ### Lambda@Edge
 

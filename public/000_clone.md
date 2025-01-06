@@ -7,7 +7,7 @@ tags:
   - bedrock
   - langgraph
 private: true
-updated_at: '2025-01-06T08:45:00+09:00'
+updated_at: '2025-01-06T11:29:35+09:00'
 id: e2521412a468e6735353
 organization_url_name: null
 slide: false

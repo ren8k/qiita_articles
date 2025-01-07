@@ -9,7 +9,7 @@ tags:
 private: false
 updated_at: "2025-01-04T10:15:52+09:00"
 id: 8525fb170c13ec861857
-organization_url_name: null
+organization_url_name: nttdata
 slide: false
 ignorePublish: false
 ---

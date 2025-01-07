@@ -725,7 +725,7 @@ export default useProductAnalysis;
 
 ### CDK 実装
 
-上記の S3 や CloudFront の作成を，CDK で一括で行えるようにしました．前提として，．`config/api.js` の変数 `LAMBDA_URL` に Lambda Function URL を設定後，React プロジェクトのディレクトリ内でビルドしておく必要があります．`cdk deploy` コマンド終了後，ディストリビューションドメイン名がターミナルに表示されます．
+上記の S3 や CloudFront の作成を，CDK で一括で行えるようにしました．前提として，`config/api.js` の変数 `LAMBDA_URL` に Lambda Function URL を設定後，React プロジェクトのディレクトリ内でビルドしておく必要があります．`cdk deploy` コマンド終了後，ディストリビューションドメイン名がターミナルに表示されます．
 
 https://github.com/ren8k/aws-cdk-langgraph-lambda-web-adapter/tree/main/frontend/cdk-cloudfront-s3
 

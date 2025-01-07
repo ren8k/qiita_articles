@@ -7,7 +7,7 @@ tags:
   - bedrock
   - langgraph
 private: false
-updated_at: '2025-01-07T13:39:37+09:00'
+updated_at: '2025-01-07T13:43:32+09:00'
 id: 8525fb170c13ec861857
 organization_url_name: nttdata
 slide: false

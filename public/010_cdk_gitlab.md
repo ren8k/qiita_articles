@@ -7,7 +7,7 @@ tags:
   - EFS
   - CDK
 private: false
-updated_at: '2024-12-26T12:12:56+09:00'
+updated_at: "2024-12-26T12:12:56+09:00"
 id: 3724c4dd8e519e8e3bf0
 organization_url_name: nttdata
 slide: false
@@ -76,7 +76,7 @@ GitLab の運用に必要なインフラストラクチャの管理工数を最�
 :::note warn
 X でご教示いただいたのですが，GitLab では，EFS やその他の [Cloud File System の利用を推奨していません](https://docs.gitlab.com/ee/administration/nfs.html#avoid-using-cloud-based-file-systems)．I/O レイテンシによるパフォーマンスの低下のためです．具体的には，Git による多数の小規模ファイルの逐次書き込みの処理特性が，クラウドベースのファイルシステムと相性が悪いためです．
 
-本番運用の場合や，大規模な利用を想定する場合には，ECS on EC2 (+EBS) の利用や，EC2 への GitLab のインストールを検討した方が良いと考えられます．一方で，個人用途や少人数での検証用途などであれば，本構成でも問題無いとも考えております．（実際 3~4 名で 1~2 ヶ月利用していますが，今の所問題は生じておりません．）
+本番運用の場合や，大規模な利用を想定する場合には，ECS on EC2 (+EBS) の利用や，EC2 への GitLab のインストールを検討した方が良いと考えられます．一方で，個人用途や少人数での検証用途などであれば，本構成でも問題無いとも考えております．（実際 3~4 名で 1~2 ヶ月利用していますが，今の所問題は生じておりません．また，一時的なスループットピークが頻繁に発生する場合を想定し，EFS の **Elastic Throughput モード**を利用しています．）
 :::
 
 ## コード (各コンストラクト) の解説
@@ -179,6 +179,10 @@ Storage コンストラクトでは EFS を定義しています．EFS は，Git
 
 指定した VPC のプライベートサブネット内に EFS が作成され，セキュアな環境を実現します．また，データの災害復旧のため，自動バックアップ機能を有効化するとともに，スタック削除時には EFS が自動的に削除されるよう設定しています．
 
+:::note
+GitLab では，高い I/O スループットが必要となるため，Elastic Throughput モードを指定しています．
+:::
+
 <details open><summary>実装</summary>
 
 ```typescript
@@ -202,6 +206,7 @@ export class Storage extends Construct {
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       enableAutomaticBackups: true,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+      throughputMode: efs.ThroughputMode.ELASTIC, // GitLab requires high I/O throughput
     });
   }
 }

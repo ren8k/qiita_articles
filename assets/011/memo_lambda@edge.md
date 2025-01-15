@@ -21,7 +21,7 @@ https://qiita.com/itkz1016/items/b6920ac6b41906ff21e8
 
 ## メモ
 
-- Lambda@Edge により SHA256 でコンテンツハッシュを計算し，Lambda Function URL の POST リクエスト時に，x-amz-content-sha256 ヘッダーでハッシュ値を含める必要がある．
+- Lambda@Edge により SHA256 でコンテンツハッシュを計算し，Lambda Function URL の POST リクエスト時に，x-amz-content-sha256 ヘッダーでハッシュ値を含める必要がある．（かも？）
 
   - https://dev.classmethod.jp/articles/cloudfront-lambda-url-with-post-put-request/
   - sigv4 は OAC で署名すれば問題ないらしい
@@ -57,7 +57,11 @@ https://qiita.com/itkz1016/items/b6920ac6b41906ff21e8
 
 ## 結論
 
-Lambda Web Adapter による LangGraph のレスポンスストリーミングが可能であることを検証した．検証では，Lambda Function URL を認証無しで利用したが，本番運用時には，IAM 認証を利用することが望ましい．IAM 認証を利用する場合，CloudFront 側で以下の処理を実行する必要がある．
+Lambda Web Adapter による LangGraph のレスポンスストリーミングが可能であることを検証した．
+
+https://qiita.com/ren8k/items/8525fb170c13ec861857
+
+検証では，Lambda Function URL を認証無しで利用したが，本番運用時には，IAM 認証を利用することが望ましい．IAM 認証を利用する場合，CloudFront 側で以下の処理を実行する必要がある．
 
 - 1. Lambda@Edge により，Cognito で認証．認証後，JWT トークンを発行し，Cookie に保存．
 - 2. Lambda@Edge により SHA256 でコンテンツハッシュを計算
@@ -74,3 +78,10 @@ Lambda Web Adapter による LangGraph のレスポンスストリーミング�
 - ログアウト機能: ユーザーのログアウト処理を実行
 - セキュリティヘッダー設定: Web サイトのセキュリティを強化
 - URL リライト機能: URL の末尾がスラッシュの場合のファイル指定を補完
+
+### 参考
+
+- https://github.com/aws-samples/cloudfront-authorization-at-edge
+- https://speakerdeck.com/tmokmss/aws-lambda-web-adapterwohuo-yong-suruxin-siisabaresunoshi-zhuang-patan
+- https://dev.classmethod.jp/articles/cloudfront-lambda-url-with-post-put-request/
+- https://dev.classmethod.jp/articles/cloud-front-cognito-auth/

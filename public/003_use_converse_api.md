@@ -7,7 +7,7 @@ tags:
   - Streamlit
   - 生成AI
 private: false
-updated_at: '2024-06-10T11:02:12+09:00'
+updated_at: "2024-06-10T11:02:12+09:00"
 id: 0191f5e3f02b5b824df0
 organization_url_name: nttdata
 slide: false
@@ -278,7 +278,7 @@ def generate_response(messages):
 
 
 def display_history(messages):
-    for message in st.session_state.messages:
+    for message in messages:
         display_msg_content(message)
 
 

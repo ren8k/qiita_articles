@@ -52,7 +52,7 @@ Mon Jun  2 11:08:52 2025
 |  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
 |        ID   ID                                                               Usage      |
 |=========================================================================================|
-|   No running processes found                                                            |
+|    0   N/A  N/A            2405      G   /usr/lib/xorg/Xorg                      480MiB |
 +-----------------------------------------------------------------------------------------+
 ```
 
@@ -69,9 +69,9 @@ sudo apt-get --purge remove cuda-*
 
 ### NVIDIA Driver のインストール
 
-NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を取得します．NVIDIA 公式の [CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) のコマンドを利用することで，自身の環境に合わせた最新のドライバーを自動でインストールできます．
+NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を取得します．NVIDIA 公式の [CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) に表示されるコマンドの最後の行 `sudo apt-get -y install cuda-toolkit-12-9` を `sudo apt-get -y install cuda-drivers` に変更するだけで，最新の NVIDIA Driver を自動でインストールできます．
 
-以下に，私が実行したコマンドを示します．[CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local)に表示されるコマンドの最後の行 `sudo apt-get -y install cuda-toolkit-12-9` を，`sudo apt-get -y install cuda-drivers` と変更するだけで，最新の NVIDIA Driver をインストールできます．(ダウンロードページの Target Platform には，Ubuntu 22.04，Installer Type として deb (local) を選んでおります．)
+以下に，私が実行したコマンドを示します．なお，ダウンロードページの Target Platform には，Ubuntu 22.04，Installer Type として deb (local) を選択しています．
 
 ```sh
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-ubuntu2204.pin
@@ -83,10 +83,13 @@ sudo apt-get update
 sudo apt-get -y install cuda-drivers
 ```
 
-:::note
-上記のインストール方法は，NVIDIA の SA の方のブログ “[NVIDIA Docker って今どうなってるの？ (20.09 版)](https://medium.com/nvidiajapan/nvidia-docker-%E3%81%A3%E3%81%A6%E4%BB%8A%E3%81%A9%E3%81%86%E3%81%AA%E3%81%A3%E3%81%A6%E3%82%8B%E3%81%AE-20-09-%E7%89%88-558fae883f44)” で紹介されております．
+上記のインストール方法は，NVIDIA の SA の方のブログ “[NVIDIA Docker って今どうなってるの？ (20.09 版)](https://medium.com/nvidiajapan/nvidia-docker-%E3%81%A3%E3%81%A6%E4%BB%8A%E3%81%A9%E3%81%86%E3%81%AA%E3%81%A3%E3%81%A6%E3%82%8B%E3%81%AE-20-09-%E7%89%88-558fae883f44)” で紹介されております．以下の公式ドキュメントでも同様に，cuda-drivers パッケージをインストールする方法を推奨しているようです．
 
-NVIDIA の公式の [Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) にも異なる手順が記載されていますが，自身の環境に合わせて変数を設定する必要があり，少々面倒です．
+- [NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+- [Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu)
+
+:::warn
+[Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) には若干異なる手順が記載されていますが，自身の環境に合わせて変数を複数設定する必要があり，少々面倒です．
 :::
 
 インストール後，再起動して下さい．
@@ -95,7 +98,41 @@ NVIDIA の公式の [Driver Installation Guide](https://docs.nvidia.com/datacent
 sudo reboot
 ```
 
+再起動後，以下のコマンドで NVIDIA Driver が正しくインストールされていることを確認します．
+
+```sh
+nvidia-smi
+```
+
+以下に，私の環境で確認した結果を示します．最新の NVIDIA Driver (575.51.03) がインストールされていることが確認できます．
+
+```sh
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 575.51.03              Driver Version: 575.51.03      CUDA Version: 12.9     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 3090        Off |   00000000:01:00.0  On |                  N/A |
+|  0%   42C    P8             36W /  350W |    1344MiB /  24576MiB |     23%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A            2405      G   /usr/lib/xorg/Xorg                      480MiB |
++-----------------------------------------------------------------------------------------+
+```
+
 ### NVIDIA Container Toolkit のインストール
+
+[NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian)を参考に，nvidia-container-toolkit をインストールします．
+
+以下に，私が実行したコマンドを示します．
 
 ```sh
 # Configure the production repository
@@ -113,11 +150,13 @@ sudo apt-get install -y nvidia-container-toolkit
 
 ### Docker コンテナ内で GPU が利用できることを確認
 
-https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch
+[NGC Catalog の PyTorch コンテナイメージ](https://catalog.ngc.nvidia.com/orgs/nvidia/containers/pytorch)を利用し，コンテナ内で GPU が利用できることを確認します．以下のコマンドを実行して，PyTorch のコンテナを起動します．
 
 ```sh
 docker run --gpus all -it --rm nvcr.io/nvidia/pytorch:25.05-py3
 ```
+
+コンテナ内で `ipython` を起動し，以下のコマンドを実行することで，PyTorch が GPU を認識しているかを確認できます．
 
 ```sh
 root@b3095d447671:/workspace# ipython
@@ -132,18 +171,9 @@ In [2]: torch.cuda.is_available()
 Out[2]: True
 ```
 
-```sh
-root@b3095d447671:/workspace#  nvcc -V
-nvcc: NVIDIA (R) Cuda compiler driver
-Copyright (c) 2005-2025 NVIDIA Corporation
-Built on Wed_Apr__9_19:24:57_PDT_2025
-Cuda compilation tools, release 12.9, V12.9.41
-Build cuda_12.9.r12.9/compiler.35813241_0
-```
-
 ## まとめ
 
-summary
+基本的には公式ドキュメントに従った方法で，NVIDIA Driver を更新（再インストール）することができました．ただし，NVIDIA Container Toolkit のインストールを忘れないように注意が必要です．
 
 ## 仲間募集
 
@@ -253,4 +283,3 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
 </div></details>
-```

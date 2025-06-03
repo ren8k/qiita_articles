@@ -83,7 +83,7 @@ sudo apt-get update
 sudo apt-get -y install cuda-drivers
 ```
 
-上記のインストール方法は，NVIDIA の SA の方のブログ “[NVIDIA Docker って今どうなってるの？ (20.09 版)](https://medium.com/nvidiajapan/nvidia-docker-%E3%81%A3%E3%81%A6%E4%BB%8A%E3%81%A9%E3%81%86%E3%81%AA%E3%81%A3%E3%81%A6%E3%82%8B%E3%81%AE-20-09-%E7%89%88-558fae883f44)” で紹介されております．以下の公式ドキュメントでも同様に，cuda-drivers パッケージをインストールする方法を推奨しているようです．
+上記のインストール方法は，NVIDIA の SA の方のブログ “[NVIDIA Docker って今どうなってるの？ (20.09 版)](https://medium.com/nvidiajapan/nvidia-docker-%E3%81%A3%E3%81%A6%E4%BB%8A%E3%81%A9%E3%81%86%E3%81%AA%E3%81%A3%E3%81%A6%E3%82%8B%E3%81%AE-20-09-%E7%89%88-558fae883f44)” で紹介されております．以下の公式ドキュメントでも同様に，cuda-drivers パッケージ経由で NVIDIA Driver をインストールする方法を推奨しています．
 
 - [NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - [Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu)
@@ -128,6 +128,24 @@ nvidia-smi
 +-----------------------------------------------------------------------------------------+
 ```
 
+:::note
+NVIDIA Driver のバージョンが自動更新されないよう，以下のコマンドを実行しておくことをお勧めします．（以前に実行したことがあれば，再度実行する必要はありません．）以下を実行すると，APT パッケージの自動更新を無効化できます．
+
+```sh
+sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
+
+GUI 上で訊かれる質問で「No」を選択すると，自動更新を無効化できます．
+
+`cat /etc/apt/apt.conf.d/20auto-upgrades` の実行結果が以下のようになっていれば，自動更新が無効化されています．
+
+```sh
+APT::Periodic::Update-Package-Lists "0";
+APT::Periodic::Unattended-Upgrade "0";
+```
+
+:::
+
 ### NVIDIA Container Toolkit のインストール
 
 [NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian)を参考に，nvidia-container-toolkit をインストールします．
@@ -156,7 +174,7 @@ sudo apt-get install -y nvidia-container-toolkit
 docker run --gpus all -it --rm nvcr.io/nvidia/pytorch:25.05-py3
 ```
 
-コンテナ内で `ipython` を起動し，以下のコマンドを実行することで，PyTorch が GPU を認識しているかを確認できます．
+コンテナ内で `ipython` を実行し，以下のコマンドを実行することで，PyTorch が GPU を認識しているかを確認します．`torch.cuda.is_available()` が `True` を返す場合，GPU が利用可能であることを示しています．
 
 ```sh
 root@b3095d447671:/workspace# ipython
@@ -173,7 +191,7 @@ Out[2]: True
 
 ## まとめ
 
-基本的には公式ドキュメントに従った方法で，NVIDIA Driver を更新（再インストール）することができました．ただし，NVIDIA Container Toolkit のインストールを忘れないように注意が必要です．
+NVIDIA Driver の更新方法について，公式ドキュメントを参考にした手順を紹介しました．NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を自動で取得できます．ただし，NVIDIA Container Toolkit のインストールを忘れないように注意が必要です．
 
 ## 仲間募集
 

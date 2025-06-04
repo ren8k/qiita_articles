@@ -52,7 +52,7 @@ Docker version 28.2.2, build e6534b4
 
 ### NVIDIA Driver のアンインストール
 
-nvidia ドライバ，cuda 関連のドライバをアンインストールします．この際，NVIDIA Container Toolkit も削除される点にご注意下さい．（後続の手順で再インストールします．）
+NVIDIA Driver，cuda をアンインストールします．この際，NVIDIA Container Toolkit も削除される点にご留意下さい．（後続の手順で再インストールします．）
 
 ```sh
 sudo apt-get --purge remove nvidia-*
@@ -61,7 +61,7 @@ sudo apt-get --purge remove cuda-*
 
 ### NVIDIA Driver のインストール
 
-NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を取得します．NVIDIA 公式の [CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) に表示されるコマンドの最後の行 `sudo apt-get -y install cuda-toolkit-12-9` を `sudo apt-get -y install cuda-drivers` に変更するだけで，最新の NVIDIA Driver を自動でインストールできます．
+NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を取得します．具体的には，NVIDIA 公式の [CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) に表示されるコマンドの最後の行 `sudo apt-get -y install cuda-toolkit-12-9` を `sudo apt-get -y install cuda-drivers` に変更するだけで，最新の NVIDIA Driver を自動でインストールできます．
 
 以下に，私が実行したコマンドを示します．なお，ダウンロードページの Target Platform には，Ubuntu 22.04，Installer Type として deb (local) を選択しています．
 
@@ -80,8 +80,8 @@ sudo apt-get -y install cuda-drivers
 - [NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
 - [Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu)
 
-:::warn
-[Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) には若干異なる手順が記載されていますが，自身の環境に合わせて変数を複数設定する必要があり，少々面倒です．
+:::note warn
+[Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) には若干異なるインストール手順が記載されていますが，自身の環境に合わせて変数を複数設定する必要がある点に注意が必要です．
 :::
 
 インストール後，再起動して下さい．
@@ -120,7 +120,7 @@ nvidia-smi
 +-----------------------------------------------------------------------------------------+
 ```
 
-:::note
+:::note info
 NVIDIA Driver のバージョンが自動更新されないよう，以下のコマンドを実行しておくことをお勧めします．（以前に実行したことがあれば，再度実行する必要はありません．）以下を実行すると，APT パッケージの自動更新を無効化できます．
 
 ```sh

@@ -19,11 +19,6 @@ ignorePublish: true
 ## 環境
 
 ```sh
-$ docker --version
-Docker version 28.2.2, build e6534b4
-```
-
-```sh
 $ lsb_release -a
 No LSB modules are available.
 Distributor ID:	Ubuntu
@@ -46,14 +41,11 @@ Mon Jun  2 11:08:52 2025
 | 50%   36C    P8              36W / 350W |    752MiB / 24576MiB |     16%      Default |
 |                                         |                      |                  N/A |
 +-----------------------------------------+----------------------+----------------------+
+```
 
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|    0   N/A  N/A            2405      G   /usr/lib/xorg/Xorg                      480MiB |
-+-----------------------------------------------------------------------------------------+
+```sh
+$ docker --version
+Docker version 28.2.2, build e6534b4
 ```
 
 ## 手順

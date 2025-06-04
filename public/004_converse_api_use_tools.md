@@ -5,9 +5,9 @@ tags:
   - AWS
   - bedrock
   - 生成AI
-  - claude
+  - Claude
 private: false
-updated_at: '2024-07-30T10:35:22+09:00'
+updated_at: '2025-06-04T09:44:21+09:00'
 id: 64c4a3de56b886942251
 organization_url_name: nttdata
 slide: false

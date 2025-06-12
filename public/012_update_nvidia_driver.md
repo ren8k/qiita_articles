@@ -16,6 +16,12 @@ ignorePublish: false
 
 ## はじめに
 
+株式会社 NTT データ テクノロジーコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+
+最近，ローカル LLM を Docker コンテナ上で実行する機会がありました．しかし，利用する GPU マシンの NVIDIA Driver が古く，Docker コンテナ内の CUDA のバージョンに対応しておらず，コンテナ内で GPU を利用できませんでした．
+
+本稿では，NVIDIA Driver の更新方法について (自身の備忘も兼ねて) 紹介します．なお，Docker は
+
 ## 環境
 
 ```sh
@@ -63,6 +69,8 @@ sudo apt-get --purge remove cuda-*
 
 NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を取得します．具体的には，NVIDIA 公式の [CUDA Toolkit ダウンロードページ](https://developer.nvidia.com/cuda-downloads?target_os=Linux&target_arch=x86_64&Distribution=Ubuntu&target_version=22.04&target_type=deb_local) に表示されるコマンドの最後の行 `sudo apt-get -y install cuda-toolkit-12-9` を `sudo apt-get -y install cuda-drivers` に変更するだけで，最新の NVIDIA Driver を自動でインストールできます．
 
+<img width="550" src="https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/aa4a0d3a-c0aa-4929-9b7c-58f712811923.png">
+
 以下に，私が実行したコマンドを示します．なお，ダウンロードページの Target Platform には，Ubuntu 22.04，Installer Type として deb (local) を選択しています．
 
 ```sh
@@ -81,7 +89,7 @@ sudo apt-get -y install cuda-drivers
 - [Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu)
 
 :::note warn
-[Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) には若干異なるインストール手順が記載されていますが，自身の環境に合わせて変数を複数設定する必要がある点に注意が必要です．
+[Driver Installation Guide](https://docs.nvidia.com/datacenter/tesla/driver-installation-guide/index.html#ubuntu) には若干異なるインストール手順が記載されていますが，自身の環境に合わせて変数を複数設定する必要があります．
 :::
 
 インストール後，再起動して下さい．
@@ -129,7 +137,7 @@ sudo dpkg-reconfigure --priority=low unattended-upgrades
 
 GUI 上で訊かれる質問で「No」を選択すると，自動更新を無効化できます．
 
-`cat /etc/apt/apt.conf.d/20auto-upgrades` の実行結果が以下のようになっていれば，自動更新が無効化されています．
+`cat /etc/apt/apt.conf.d/20auto-upgrades` の実行結果が以下のようになっていれば，自動更新は無効化されています．
 
 ```sh
 APT::Periodic::Update-Package-Lists "0";
@@ -140,7 +148,7 @@ APT::Periodic::Unattended-Upgrade "0";
 
 ### NVIDIA Container Toolkit のインストール
 
-[NVIDIA Container Toolkit のインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian)を参考に，nvidia-container-toolkit をインストールします．
+[NVIDIA 公式ののインストールドキュメント](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#with-apt-ubuntu-debian)を参考に，NVIDIA Container Toolkit をインストールします．
 
 以下に，私が実行したコマンドを示します．
 
@@ -183,7 +191,7 @@ Out[2]: True
 
 ## まとめ
 
-NVIDIA Driver の更新方法について，公式ドキュメントを参考にした手順を紹介しました．NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を自動で取得できます．ただし，NVIDIA Container Toolkit のインストールを忘れないように注意が必要です．
+NVIDIA Driver の更新方法について，公式ドキュメントを参考にした手順を紹介しました．NVIDIA 提供の cuda-drivers パッケージをインストールすることで，最新の NVIDIA Driver を自動で取得できます．(`ubuntu-drivers devices` コマンドを実行し，利用可能なドライバーを確認した後，直接ドライバーをインストールする必要はありません．) ただし，NVIDIA Container Toolkit のインストールを忘れないように注意が必要です．
 
 ## 仲間募集
 

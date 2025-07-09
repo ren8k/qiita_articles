@@ -11,7 +11,7 @@ updated_at: ""
 id: null
 organization_url_name: null
 slide: false
-ignorePublish: false
+ignorePublish: true
 ---
 
 ## はじめに
@@ -21,6 +21,8 @@ ignorePublish: false
 最近，ローカル LLM を Docker コンテナ上で実行する機会がありました．しかし，利用する GPU マシンの NVIDIA Driver が古く，Docker コンテナ内の CUDA のバージョンに対応しておらず，コンテナ内で GPU を利用できませんでした．
 
 本稿では，NVIDIA Driver の更新方法について (自身の備忘も兼ねて) 紹介します．なお，Docker は
+
+/home/renya/Develop/Infra-tips/docs/20250602/references.md
 
 ## 環境
 

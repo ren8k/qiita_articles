@@ -18,7 +18,11 @@ ignorePublish: true
 
 株式会社 NTT データ デジタルサクセスソリューション事業部の [@ren8k](https://qiita.com/ren8k) です．
 
-ドキュメントを見ると，想像以上に Virtual try-on の機能が多かったので，Dive Deep してみました．
+2025/07/02 に，Amazon Nova Canvas の新機能である，[Virtual try-on と Style options for image generation がリリースされました](https://aws.amazon.com/jp/about-aws/whats-new/2025/07/amazon-nova-canvas-virtual-try-on-style-options-image-generation/)．
+
+https://aws.amazon.com/jp/blogs/news/amazon-nova-canvas-update-virtual-try-on-and-style-options-now-available/
+
+[公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html)や [API のリクエストの形式](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)を見ると，想像以上に Virtual try-on の機能が複雑かつ豊富だったので，Dive Deep して機能検証してみました．
 
 ## Virtual try-on とは
 
@@ -224,7 +228,7 @@ generate_image(
 
 - (1) パーカー特有のフードや全体の膨らみを表現できておらず，不自然
 - (2) ソース画像のインナーが変わってしまっている
-- (3) 合成されたパーカーの周りに不自然な継ぎ目が見える (これは検証 1 でも同様)
+- (3) 試着画像内のマスク領域の境界部分 (合成されたパーカーの周り) に不自然な継ぎ目が見える (これは検証 1 でも同様)
 
 以降，推論パラメータの調整により，これらの課題を解決できるかを確認します．
 
@@ -260,11 +264,11 @@ generate_image(
 
 結果として，マスク画像の形状が Bounding Box (四角形)となっており，マスク領域 (黒色の領域)が広くなっていることが確認できます．これにより，試着画像では，パーカーのフードや全体の膨らみが表現されており，より自然な合成 (試着) が実現できています．
 
-しかし，マスクの形状を Bounding Box に変更したことで，検証 2-1 の課題である「合成されたパーカーの周りに不自然な継ぎ目が見える」点がより強調される結果となっています．
+しかし，マスクの形状を Bounding Box に変更したことで，検証 2-1 の課題である「試着画像内のマスク領域の境界部分に不自然な継ぎ目が見える課題」がより強調される結果となっています．
 
 ### 検証 2-3
 
-本検証では，検証 2-1 の「ソース画像のインナーが変わってしまっている課題」を解決できるかを確認します．[公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html)を深く確認すると，Virtual try-on のパラメータには上着を重ね着する際の設定パラメータ `garmentStyling` が用意されており，`garmentStyling` の設定内で `"outerLayerStyle": "OPEN"` を指定することで，ソース画像の衣服を保持しつつ，上着を試着することが可能です．
+本検証では，検証 2-1 の「ソース画像のインナーが変わってしまっている課題」を解決できるかを確認します．[公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html#image-gen-vto-styling)を深く確認すると，Virtual try-on のパラメータには上着を重ね着する際の設定パラメータ `garmentStyling` が用意されており，`garmentStyling` の設定内で `"outerLayerStyle": "OPEN"` を指定することで，ソース画像の衣服を保持しつつ，上着を試着することが可能です．
 
 ```python
 generate_image(
@@ -298,7 +302,7 @@ generate_image(
 
 ### 検証 2-4
 
-本検証では，検証 2-1 の「合成されたパーカーの周りに不自然な継ぎ目が見える課題」を解決できるかを確認します．
+本検証では，検証 2-1 の「試着画像内のマスク領域の境界部分に不自然な継ぎ目が見える課題」を解決できるかを確認します．こちらも，[公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html#image-gen-vto-stitching)を深く確認すると，Virtual try-on のパラメータには合成 (試着) のスタイルを指定する `mergeStyle` が用意されており，`mergeStyle` の設定内で `"SEAMLESS"` を指定することで，マスク画像とソース画像の境界線が目立たないように合成 (試着) することが可能です．
 
 ```python
 generate_image(
@@ -329,10 +333,27 @@ generate_image(
 | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | ![exp3-2-1_mask_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/19c79452-487c-4357-aee5-1d54b8a021fa.png) | ![exp3-2-1_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/929dd3e5-150a-4297-a7b1-2e419d672495.png) |
 
+結果として，マスク画像の Bounding Box の形状が，試着画像に継ぎ目として浮き出てくる事象を解消することができました．この点は，検証 2-3 の結果を拡大して比較すると，より明確に確認できます．
+
 ## まとめ
 
-一方，まだ精度が不安定な点や，帽子などのアクセサリーには対応していない点など，今後の改善点も確認することができました．
+本稿では，Virtual try-on の様々な機能について，一つずつ検証しました．検証の結果，ソース画像と試着対象の参照画像を用意し，適切にパラメータを設定することで，かなり自然な試着画像を生成できることを確認しました．
+
+本記事では取り上げておりませんが，ソース画像内の人物のポーズを保持・変更する機能や，衣服以外 (室内の家具等) の配置にも対応しており，Virtual try-on の機能は奥が深いです．
+
+是非，本記事や公式ドキュメントを参考に，Virtual try-on の機能を試してみて下さい．
 
 ## おまけ
 
-生成 AI の想像力はすごいですね笑
+AWS Community Builders の Swag (帽子) を試着させようとすると，面白い結果が得られました．
+帽子などのアクセサリーにはまだ対応していないようです．(靴やズボンなどは対応しております．)
+
+生成 AI の想像力はすごいですね笑．
+
+| ソース画像                                                                                                                 | 参照画像                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| ![human.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9745df07-7280-46ec-ba57-d5b13d471afd.png) | ![swag_aws_cb_cap.jpg](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/e76a5418-48c9-4bae-b5c2-56706b8913dd.jpeg) |
+
+| マスク画像                                                                                                                               | 試着画像                                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| ![expXXX_mask_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/daed17ab-030f-4135-8d86-81c00d13dfaf.png) | ![expXXX_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a68ac509-127b-4ace-9e25-80c5480bf8a6.png) |

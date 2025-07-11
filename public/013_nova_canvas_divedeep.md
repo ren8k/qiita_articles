@@ -24,6 +24,10 @@ https://aws.amazon.com/jp/blogs/news/amazon-nova-canvas-update-virtual-try-on-an
 
 [公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html)や [API のリクエストの形式](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)を見ると，想像以上に Virtual try-on の機能が複雑かつ豊富だったので，Dive Deep して機能検証してみました．
 
+※ GitHub に，検証時に利用した Jupyter Notebook を公開しています．
+
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_virtual_try-on_and_style_option.ipynb
+
 ## Virtual try-on とは
 
 Virtual try-on は，衣服の画像を，人物が写っている画像に重ね合わせ，試着をシミュレーションする機能です．具体的には，(1) ソース画像，(2) 参照画像，(3) マスク画像 の 3 つの画像を入力とし，マスク画像に示した編集領域に合うように，参照画像をソース画像に合成する Inpaint 機能です．

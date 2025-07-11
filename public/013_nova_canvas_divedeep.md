@@ -356,3 +356,26 @@ AWS Community Builders の Swag (帽子) を試着させようとすると，面
 | マスク画像                                                                                                                               | 試着画像                                                                                                                            |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | ![expXXX_mask_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/daed17ab-030f-4135-8d86-81c00d13dfaf.png) | ![expXXX_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a68ac509-127b-4ace-9e25-80c5480bf8a6.png) |
+
+<details><summary>実行コード</summary>
+
+`garmentClass` に `OTHER_UPPER_BODY` (その他の上半身衣服) を指定することで，帽子のマスク画像を生成しようと試みましたが，帽子のマスク画像は生成されず，ソース画像の上半身のマスク画像が生成されてしまいました．
+
+```python
+generate_image(
+    {
+        "taskType": "VIRTUAL_TRY_ON",
+        "virtualTryOnParams": {
+            "sourceImage": load_image_as_base64(source_img_path),
+            "referenceImage": load_image_as_base64(resized_reference_img_path),
+            "maskType": "GARMENT",
+            "garmentBasedMask": {
+                "garmentClass": "OTHER_UPPER_BODY",
+            },
+            "returnMask": True,
+        },
+    },
+)
+```
+
+</details>

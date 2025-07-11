@@ -24,6 +24,10 @@ https://aws.amazon.com/jp/blogs/news/amazon-nova-canvas-update-virtual-try-on-an
 
 [公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html)や [API のリクエストの形式](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-req-resp-structure.html)を見ると，想像以上に Virtual try-on の機能が複雑かつ豊富だったので，Dive Deep して機能検証してみました．
 
+※ GitHub に，検証時に利用した Jupyter Notebook を公開しています．
+
+https://github.com/ren8k/aws-bedrock-titan-image-generator-app/blob/main/notebook/verify_virtual_try-on_and_style_option.ipynb
+
 ## Virtual try-on とは
 
 Virtual try-on は，衣服の画像を，人物が写っている画像に重ね合わせ，試着をシミュレーションする機能です．具体的には，(1) ソース画像，(2) 参照画像，(3) マスク画像 の 3 つの画像を入力とし，マスク画像に示した編集領域に合うように，参照画像をソース画像に合成する Inpaint 機能です．
@@ -356,3 +360,26 @@ AWS Community Builders の Swag (帽子) を試着させようとすると，面
 | マスク画像                                                                                                                               | 試着画像                                                                                                                            |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | ![expXXX_mask_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/daed17ab-030f-4135-8d86-81c00d13dfaf.png) | ![expXXX_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/a68ac509-127b-4ace-9e25-80c5480bf8a6.png) |
+
+<details><summary>実行コード</summary>
+
+`garmentClass` に `OTHER_UPPER_BODY` (その他の上半身衣服) を指定することで，帽子のマスク画像を生成しようと試みましたが，帽子のマスク画像は生成されず，ソース画像の上半身のマスク画像が生成されてしまいました．
+
+```python
+generate_image(
+    {
+        "taskType": "VIRTUAL_TRY_ON",
+        "virtualTryOnParams": {
+            "sourceImage": load_image_as_base64(source_img_path),
+            "referenceImage": load_image_as_base64(resized_reference_img_path),
+            "maskType": "GARMENT",
+            "garmentBasedMask": {
+                "garmentClass": "OTHER_UPPER_BODY",
+            },
+            "returnMask": True,
+        },
+    },
+)
+```
+
+</details>

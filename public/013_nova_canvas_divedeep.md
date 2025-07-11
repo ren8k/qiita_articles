@@ -258,16 +258,81 @@ generate_image(
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
 | ![exp2-2_mask_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/027efc89-16cc-4804-b216-a48b8754e4b6.png) | ![exp2-2_seed=42.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/426cd5b5-6306-4abd-b123-09643249cbd9.png) |
 
-結果として，マスク画像の形状が Bounding Box (四角形)となっており，マスク領域 (黒色の領域)が広くなっていることが確認できます．また，試着画像では，パーカーのフードや全体の膨らみが表現されており，より自然な合成 (試着) が実現できています．
+結果として，マスク画像の形状が Bounding Box (四角形)となっており，マスク領域 (黒色の領域)が広くなっていることが確認できます．これにより，試着画像では，パーカーのフードや全体の膨らみが表現されており，より自然な合成 (試着) が実現できています．
+
+しかし，マスクの形状を Bounding Box に変更したことで，検証 2-1 の課題である「合成されたパーカーの周りに不自然な継ぎ目が見える」点がより強調される結果となっています．
 
 ### 検証 2-3
 
-本検証では，
+本検証では，検証 2-1 の「ソース画像のインナーが変わってしまっている課題」を解決できるかを確認します．[公式ドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/image-gen-vto.html)を深く確認すると，Virtual try-on のパラメータには上着を重ね着する際の設定パラメータ `garmentStyling` が用意されており，`garmentStyling` の設定内で `"outerLayerStyle": "OPEN"` を指定することで，ソース画像の衣服を保持しつつ，上着を試着することが可能です．
+
+```python
+generate_image(
+    {
+        "taskType": "VIRTUAL_TRY_ON",
+        "virtualTryOnParams": {
+            "sourceImage": load_image_as_base64(source_img_path),
+            "referenceImage": load_image_as_base64(resized_reference_img_path),
+            "maskType": "GARMENT",
+            "garmentBasedMask": {
+                "garmentClass": "UPPER_BODY",
+                "maskShape": "BOUNDING_BOX",
+                "garmentStyling": {
+                    "outerLayerStyle": "OPEN",
+                },
+            },
+            "returnMask": True,
+        },
+    },
+    seed=1,
+)
+```
+
+以下に，自動生成されたマスク画像と，試着画像を示します．
+
+| マスク画像                                                                                                                                | 試着画像                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| ![exp4-2-2_mask_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/5db6ef46-df4a-4941-8438-8a60c7f9d6b9.png) | ![exp4-2-2_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/6e810275-d19e-4f18-9858-a100940cab8f.png) |
+
+結果として，ソース画像の衣服が編集されないように，マスク画像内の中央部（ソース画像の白シャツ部）に白い縦長の領域が追加されております．これにより，ソース画像の白シャツが保持され，パーカーを重ね着したような自然な合成 (試着) が実現できています．なお，本検証では複数の seed 値を試しており，`seed=1` の結果が最も自然だったので，その結果を示しています．
 
 ### 検証 2-4
 
-本検証では，
+本検証では，検証 2-1 の「合成されたパーカーの周りに不自然な継ぎ目が見える課題」を解決できるかを確認します．
+
+```python
+generate_image(
+    {
+        "taskType": "VIRTUAL_TRY_ON",
+        "virtualTryOnParams": {
+            "sourceImage": load_image_as_base64(source_img_path),
+            "referenceImage": load_image_as_base64(resized_reference_img_path),
+            "maskType": "GARMENT",
+            "garmentBasedMask": {
+                "garmentClass": "UPPER_BODY",
+                "maskShape": "BOUNDING_BOX",
+                "garmentStyling": {
+                    "outerLayerStyle": "OPEN",
+                },
+            },
+            "mergeStyle": "SEAMLESS",
+            "returnMask": True,
+        },
+    },
+    seed=1,
+)
+```
+
+以下に，自動生成されたマスク画像と，試着画像を示します．
+
+| マスク画像                                                                                                                                | 試着画像                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| ![exp3-2-1_mask_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/19c79452-487c-4357-aee5-1d54b8a021fa.png) | ![exp3-2-1_seed=1.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/929dd3e5-150a-4297-a7b1-2e419d672495.png) |
 
 ## まとめ
 
-summary
+一方，まだ精度が不安定な点や，帽子などのアクセサリーには対応していない点など，今後の改善点も確認することができました．
+
+## おまけ
+
+生成 AI の想像力はすごいですね笑

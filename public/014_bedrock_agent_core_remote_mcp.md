@@ -33,6 +33,11 @@ PR も出した
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 
+## Tips
+
+- role はドキュメント通りで良かった．
+- やりなおす場合は，bedrock_agentcore.yaml を削除すべき
+
 ## 内容 1
 
 ## まとめ

@@ -5,7 +5,7 @@ tags:
   - bedrock
   - Agent
   - MCP
-  - 生成AI
+  - OpenAI
 private: true
 updated_at: ""
 id: null
@@ -20,12 +20,391 @@ ignorePublish: false
 
 ## 目次
 
-## 動作環境
+- 検証内容
+- 実装内容
+- 実行環境
+- 手順
 
-EC2
+## 検証内容
 
-- AMI: ami-01e1d8271212cd19a
+OpenAI の GPT-4.1 を利用し，Web Search を実行するための MCP（Model Context Protocol）を実装しました．フレームワークとしては，OpenAI が提供する Response API を利用しました．Bedrock AgentCore Runtime では，どのようなフレームワークでも利用可能な点が特徴です．
+
+Amazon Bedrock AgentCore Runtime に，自作の MCP サーバーをデプロイし，streamable HTTP で remote MCP
+
+Amazon Bedrock AgentCore Python SDK を利用していく．
+
+## 実装内容
+
+https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
+
+```
+.
+├── README.md
+├── .env.sample
+├── mcp_client
+├── mcp_server
+└── setup
+```
+
+`.env.sample` をコピーして，`.env` を作成し，必要な環境変数を設定してください．
+
+## 実行環境
+
+以下に開発環境を示します．本検証では，ARM アーキテクチャベースの EC2 インスタンスで開発・実行しています．AMI として [AWS Deep Learning AMI](https://docs.aws.amazon.com/dlami/latest/devguide/what-is-dlami.html) を利用しました．本 AMI には，Docker や AWS CLI がプリインストールされており，非常に便利です．EC2 には，[uv](https://docs.astral.sh/uv/getting-started/installation/) をインストールしております．
+
+- OS: Ubuntu Server 24.04 LTS
+- AMI: 01e1d8271212cd19a (Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7)
 - Instance Type: m8g.xlarge (ARM)
+- Docker version: 28.3.2, build 578ccf6
+- uv version: 0.8.3
+
+以下のリポジトリでは，local 上の VSCode から EC2 へ接続して，簡単に開発環境を構築する手順をまとめております．是非ご利用ください．
+
+https://github.com/ren8k/aws-ec2-devkit-vscode
+
+## 手順
+
+### Step1. 事前準備
+
+リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行することで，`setup` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
+
+#### Amazon Cognito のセットアップ
+
+AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か Oauth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，Oauth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下の情報を取得します．
+
+- Cognito client ID
+- Cognito discovery URL
+- JWT (`Bearer_token`)
+
+```
+uv run src/setup_cognito.py
+```
+
+コードの出力結果の `Client_id`，`Discovery_url`，`Bearer_token` (Access Token) を `.env` ファイルの `COGNITO_CLIENT_ID`, `COGNITO_DISCOVERY_URL`, `COGNITO_ACCESS_TOKEN` に記載してください．
+
+<details open><summary>コード</summary>
+
+```python:setup_cognito.py
+import os
+
+import boto3
+from dotenv import load_dotenv
+
+
+def setup_cognito_user_pool(
+    username: str, temp_password: str, password: str, region: str = "us-west-2"
+) -> dict:
+    """
+    Set up a new AWS Cognito User Pool with a test user and app client.
+
+    This function creates a complete Cognito setup including:
+    - A new User Pool with password policy
+    - An app client configured for user/password authentication
+    - A test user with permanent password
+    - Initial authentication to obtain an access token
+
+    Args:
+        username: The username for the test user
+        temp_password: The temporary password for initial user creation
+        password: The permanent password to set for the user
+        region: AWS region where the User Pool will be created (default: us-west-2)
+
+    Returns:
+        dict: A dictionary containing:
+            - pool_id: The ID of the created User Pool
+            - client_id: The ID of the created app client
+            - bearer_token: The access token from initial authentication
+            - discovery_url: The OpenID Connect discovery URL for the User Pool
+    """
+    # Initialize Cognito client
+    cognito_client = boto3.client("cognito-idp", region_name=region)
+
+    try:
+        # Create User Pool
+        user_pool_response = cognito_client.create_user_pool(
+            PoolName="MCPServerPool", Policies={"PasswordPolicy": {"MinimumLength": 8}}
+        )
+        pool_id = user_pool_response["UserPool"]["Id"]
+
+        # Create App Client
+        app_client_response = cognito_client.create_user_pool_client(
+            UserPoolId=pool_id,
+            ClientName="MCPServerPoolClient",
+            GenerateSecret=False,
+            ExplicitAuthFlows=["ALLOW_USER_PASSWORD_AUTH", "ALLOW_REFRESH_TOKEN_AUTH"],
+        )
+        client_id = app_client_response["UserPoolClient"]["ClientId"]
+
+        # Create User
+        cognito_client.admin_create_user(
+            UserPoolId=pool_id,
+            Username=username,
+            TemporaryPassword=temp_password,
+            MessageAction="SUPPRESS",
+        )
+
+        # Set Permanent Password
+        cognito_client.admin_set_user_password(
+            UserPoolId=pool_id,
+            Username=username,
+            Password=password,
+            Permanent=True,
+        )
+
+        # Authenticate User and get Access Token
+        auth_response = cognito_client.initiate_auth(
+            ClientId=client_id,
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={
+                "USERNAME": username,
+                "PASSWORD": password,
+            },
+        )
+        bearer_token = auth_response["AuthenticationResult"]["AccessToken"]
+
+        # Return values if needed for further processing
+        return {
+            "pool_id": pool_id,
+            "client_id": client_id,
+            "bearer_token": bearer_token,
+            "discovery_url": f"https://cognito-idp.{region}.amazonaws.com/{pool_id}/.well-known/openid-configuration",
+        }
+
+    except Exception as e:
+        raise RuntimeError(f"Failed to set up Cognito User Pool: {e}")
+
+
+def main() -> None:
+    load_dotenv()
+    username = os.getenv("COGNITO_USERNAME", "testuser")
+    temp_password = os.getenv("COGNITO_TMP_PASSWORD", "Temp123!")
+    password = os.getenv("COGNITO_PASSWORD", "MyPassword123!")
+    if not (username and temp_password and password):
+        raise ValueError("Cognito credentials are not set in environment variables.")
+
+    response = setup_cognito_user_pool(username, temp_password, password)
+    # Output the required values
+    print(f"Pool id: {response.get('pool_id')}")
+    print(f"Client ID: {response.get('client_id')}")
+    print(f"Discovery URL: {response.get('discovery_url')}")
+    print(f"Bearer Token: {response.get('bearer_token')}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</details>
+
+#### ロールの作成
+
+以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
+
+作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバーとの認証や通信を行うために必要な権限を持つように設定されています．
+
+```
+uv run src/create_role.py
+```
+
+コードの出力結果の `Created role` を `.env` ファイルの `ROLE_ARN` に記載してください．
+
+<details open><summary>コード</summary>
+
+```python:create_role.py
+import json
+import os
+import time
+
+import boto3
+from boto3.session import Session
+from dotenv import load_dotenv
+
+
+def create_agentcore_role(agent_name: str) -> dict:
+    """Create an IAM role for the agent core.
+
+    Args:
+        agent_name (str): The name of the agent.
+
+    Returns:
+        dict: The response from the IAM create_role API call.
+    """
+    client = boto3.client("iam")
+    agentcore_role_name = f"agentcore-{agent_name}-role"
+    boto_session = Session()
+    region = boto_session.region_name
+    account_id = boto3.client("sts").get_caller_identity()["Account"]
+
+    role_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "BedrockPermissions",
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream",
+                ],
+                "Resource": [
+                    "arn:aws:bedrock:*::foundation-model/*",
+                    f"arn:aws:bedrock:{region}:{account_id}:*",
+                ],
+            },
+            {
+                "Sid": "ECRImageAccess",
+                "Effect": "Allow",
+                "Action": ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"],
+                "Resource": [f"arn:aws:ecr:{region}:{account_id}:repository/*"],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:DescribeLogStreams", "logs:CreateLogGroup"],
+                "Resource": [
+                    f"arn:aws:logs:{region}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/*"
+                ],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:DescribeLogGroups"],
+                "Resource": [f"arn:aws:logs:{region}:{account_id}:log-group:*"],
+            },
+            {
+                "Effect": "Allow",
+                "Action": ["logs:CreateLogStream", "logs:PutLogEvents"],
+                "Resource": [
+                    f"arn:aws:logs:{region}:{account_id}:log-group:/aws/bedrock-agentcore/runtimes/*:log-stream:*"
+                ],
+            },
+            {
+                "Sid": "ECRTokenAccess",
+                "Effect": "Allow",
+                "Action": ["ecr:GetAuthorizationToken"],
+                "Resource": "*",
+            },
+            {
+                "Effect": "Allow",
+                "Action": [
+                    "xray:PutTraceSegments",
+                    "xray:PutTelemetryRecords",
+                    "xray:GetSamplingRules",
+                    "xray:GetSamplingTargets",
+                ],
+                "Resource": ["*"],
+            },
+            {
+                "Effect": "Allow",
+                "Resource": "*",
+                "Action": "cloudwatch:PutMetricData",
+                "Condition": {
+                    "StringEquals": {"cloudwatch:namespace": "bedrock-agentcore"}
+                },
+            },
+            {
+                "Sid": "GetAgentAccessToken",
+                "Effect": "Allow",
+                "Action": [
+                    "bedrock-agentcore:GetWorkloadAccessToken",
+                    "bedrock-agentcore:GetWorkloadAccessTokenForJWT",
+                    "bedrock-agentcore:GetWorkloadAccessTokenForUserId",
+                ],
+                "Resource": [
+                    f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default",
+                    f"arn:aws:bedrock-agentcore:{region}:{account_id}:workload-identity-directory/default/workload-identity/{agent_name}-*",
+                ],
+            },
+        ],
+    }
+    assume_role_policy_document = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Sid": "AssumeRolePolicy",
+                "Effect": "Allow",
+                "Principal": {"Service": "bedrock-agentcore.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+                "Condition": {
+                    "StringEquals": {"aws:SourceAccount": f"{account_id}"},
+                    "ArnLike": {
+                        "aws:SourceArn": f"arn:aws:bedrock-agentcore:{region}:{account_id}:*"
+                    },
+                },
+            }
+        ],
+    }
+
+    assume_role_policy_document_json = json.dumps(assume_role_policy_document)
+    role_policy_document = json.dumps(role_policy)
+    # Create IAM Role for the AgentCore
+    try:
+        agentcore_iam_role = client.create_role(
+            RoleName=agentcore_role_name,
+            AssumeRolePolicyDocument=assume_role_policy_document_json,
+        )
+
+        # Pause to make sure role is created
+        time.sleep(10)
+    except client.exceptions.EntityAlreadyExistsException:
+        print("Role already exists -- deleting and creating it again")
+
+        # Check and detach inline policies
+        inline_policies = client.list_role_policies(
+            RoleName=agentcore_role_name, MaxItems=100
+        )
+        print("inline policies:", inline_policies)
+        for policy_name in inline_policies["PolicyNames"]:
+            client.delete_role_policy(
+                RoleName=agentcore_role_name, PolicyName=policy_name
+            )
+
+        # Check and detach managed policies
+        managed_policies = client.list_attached_role_policies(
+            RoleName=agentcore_role_name, MaxItems=100
+        )
+        print("managed policies:", managed_policies)
+        for policy in managed_policies["AttachedPolicies"]:
+            client.detach_role_policy(
+                RoleName=agentcore_role_name, PolicyArn=policy["PolicyArn"]
+            )
+
+        print(f"deleting {agentcore_role_name}")
+        client.delete_role(RoleName=agentcore_role_name)
+        print(f"recreating {agentcore_role_name}")
+        agentcore_iam_role = client.create_role(
+            RoleName=agentcore_role_name,
+            AssumeRolePolicyDocument=assume_role_policy_document_json,
+        )
+
+    # Attach the AgentCore policy
+    print(f"attaching role policy {agentcore_role_name}")
+    try:
+        client.put_role_policy(
+            PolicyDocument=role_policy_document,
+            PolicyName="AgentCorePolicy",
+            RoleName=agentcore_role_name,
+        )
+    except Exception as e:
+        print(e)
+
+    return agentcore_iam_role
+
+
+def main() -> None:
+    load_dotenv()
+    agent_name = os.getenv("AGENT_NAME", "default-agent")
+
+    role = create_agentcore_role(agent_name)
+    print(f"Created role: {role['Role']['Arn']}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</details>
+
+以下も参考になる．
+
+https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
 ## Bug
 
@@ -46,7 +425,7 @@ summary
 
 ## 仲間募集
 
-NTT データ テクノロジーコンサルティング事業本部 では、以下の職種を募集しています。
+NTT データ デジタルサクセスコンサルティング事業部 では、以下の職種を募集しています。
 
 <details><summary>1. クラウド技術を活用したデータ分析プラットフォームの開発・構築(ITアーキテクト/クラウドエンジニア)</summary>
 

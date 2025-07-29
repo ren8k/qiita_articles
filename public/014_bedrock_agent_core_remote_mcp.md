@@ -64,11 +64,11 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 
 ## 手順
 
-### Step1. 事前準備
+### Step 1. 事前準備
 
 リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行することで，`setup` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
 
-#### Amazon Cognito のセットアップ
+#### Step 1-1. Amazon Cognito のセットアップ
 
 AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か Oauth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，Oauth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下の情報を取得します．
 
@@ -196,11 +196,11 @@ if __name__ == "__main__":
 
 </details>
 
-#### ロールの作成
+#### Step 1-2. ロールの作成
 
 以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
 
-作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバーとの認証や通信を行うために必要な権限を持つように設定されています．
+作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバーとの認証や通信を行うために必要な権限を持つように設定されています．また，コードでは，同名の role が存在する場合は削除してから再作成するようにしております．
 
 ```
 uv run src/create_role.py
@@ -402,15 +402,68 @@ if __name__ == "__main__":
 
 </details>
 
-以下も参考になる．
+### Step2. MCP サーバーの実装
+
+リポジトリの `mcp_server` ディレクトリに移動し，`uv sync` を実行することで，`mcp_server` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
+
+#### Step 2-1. OpenAI o3 Web Search MCP サーバーの実装
+
+[Web Search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses)
+
+:::note info
+[Strands Agent](https://github.com/strands-agents/sdk-python) では，[Chat Completions API](https://platform.openai.com/docs/guides/text?api-mode=responses) を利用しております．このため，o3 で Web Search Tool を利用することができなかったので，OpenAI が提供している Response API を利用して Web Search Tool を実装しました．
+:::
+
+::: note info
+instructions について
+
+tool_choice が利用できないので，system prompt で web search tool を利用するように指示しています．
+:::
+
+[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)
+
+#### Step 2-2. Local 上での MCP サーバーの動作確認
+
+#### Step 2-3. MCP サーバーのデプロイ
+
+一括でデプロイするスクリプトを実装しました．
+
+ECR も自動作成してくれます．
+
+:::note info
+OpenAI の API キーの扱いについて
+
+簡単のため，本検証では OpenAI の API キーを環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity 上を API キー認証情報プロバイダーとして利用することをお勧めします．
+:::
 
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
-## Bug
+## MCP のバグについて
+
+streamable HTTP を利用する場合，以下の不具合が発生します．MCP サーバーを local で実行した場合には発生しません．
+
+### MCP=1.2.0 以上だと，streamable HTTP のレスポンスの JSON のパースに失敗してしまう
 
 PR も出した
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
+
+### MCP の実行時間が長い場合(1min 以上)，タイムアウトしてしまう．
+
+https://qiita.com/7shi/items/3bf54f47a2d38c70d39b
+
+似た Issue は上がっているが，解決済みとされている．
+
+### MCP のレスポンスに `\x85` が含まれる場合，hang してしまう．
+
+MCP のレスポンスに `\x85` が含まれる場合、json のパースに失敗してしまう．
+pydantic 起因のバグなので，いずれは修正されると思われる．
+
+https://github.com/modelcontextprotocol/python-sdk/issues/1144
+
+## その他
+
+GenAI observability でも確認できる．
 
 ## Tips
 
@@ -531,3 +584,4 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
 </div></details>
+```

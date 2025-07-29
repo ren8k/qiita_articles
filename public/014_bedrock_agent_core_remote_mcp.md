@@ -70,7 +70,7 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 
 #### Step 1-1. Amazon Cognito のセットアップ
 
-AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か Oauth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，Oauth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下の情報を取得します．
+AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か Oauth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，Oauth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
 
 - Cognito client ID
 - Cognito discovery URL
@@ -82,9 +82,9 @@ uv run src/setup_cognito.py
 
 コードの出力結果の `Client_id`，`Discovery_url`，`Bearer_token` (Access Token) を `.env` ファイルの `COGNITO_CLIENT_ID`, `COGNITO_DISCOVERY_URL`, `COGNITO_ACCESS_TOKEN` に記載してください．
 
-<details open><summary>コード</summary>
+<details open><summary>コード (折りたためます)</summary>
 
-```python:setup_cognito.py
+```python:setup/src/setup_cognito.py
 import os
 
 import boto3
@@ -200,7 +200,7 @@ if __name__ == "__main__":
 
 以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
 
-作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバーとの認証や通信を行うために必要な権限を持つように設定されています．また，コードでは，同名の role が存在する場合は削除してから再作成するようにしております．
+作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバー (AgentCore Runtime) との認証や通信を行うために必要な権限を持つように設定されています．また，コードでは，同名の role が存在する場合は削除してから role を再作成するようにしております．
 
 ```
 uv run src/create_role.py
@@ -208,9 +208,9 @@ uv run src/create_role.py
 
 コードの出力結果の `Created role` を `.env` ファイルの `ROLE_ARN` に記載してください．
 
-<details open><summary>コード</summary>
+<details open><summary>コード (折りたためます)</summary>
 
-```python:create_role.py
+```python:setup/src/create_role.py
 import json
 import os
 import time
@@ -343,7 +343,7 @@ def create_agentcore_role(agent_name: str) -> dict:
 
         # Pause to make sure role is created
         time.sleep(10)
-    except client.exceptions.EntityAlreadyExistsException:
+    except client.exceptions.EntityAlreadyExisAnthropic の tool use のドキュメントによると，tool の説明に加え，tool の引数の意味や説明を具体的に記述することがベストプラクティスであるとされているため，本実装では，Pydantic の Field を利用して引数の説明を記載することにしました。tsException:
         print("Role already exists -- deleting and creating it again")
 
         # Check and detach inline policies
@@ -383,7 +383,7 @@ def create_agentcore_role(agent_name: str) -> dict:
             RoleName=agentcore_role_name,
         )
     except Exception as e:
-        print(e)
+        print(e)Anthropic の tool use のドキュメントによると，tool の説明に加え，tool の引数の意味や説明を具体的に記述することがベストプラクティスであるとされているため，本実装では，Pydantic の Field を利用して引数の説明を記載することにしました。
 
     return agentcore_iam_role
 
@@ -402,25 +402,152 @@ if __name__ == "__main__":
 
 </details>
 
-### Step2. MCP サーバーの実装
+### Step2. MCP サーバーの作成
 
 リポジトリの `mcp_server` ディレクトリに移動し，`uv sync` を実行することで，`mcp_server` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
 
 #### Step 2-1. OpenAI o3 Web Search MCP サーバーの実装
 
-[Web Search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses)
+[OpenAI o3](https://platform.openai.com/docs/models/o3) と [Web search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses) を利用し，最新情報を調査・整理するための MCP サーバーを Python で実装しました．o3 を利用することで，多段階にわたる推論と Web 検索を組み合わせた高度な情報検索が可能になります．
+
+o3 による Web search の実行には，[OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は Agent 開発向けに設計された，[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python: mcp_server/src/mcp_server.py
+from mcp.server.fastmcp import FastMCP
+from openai import OpenAI
+from pydantic import Field
+
+INSTRUCTIONS = """
+- You must answer the question using web_search tool.
+- You must respond in japanese.
+"""
+
+mcp = FastMCP(name="openai-web-search-mcp-server", host="0.0.0.0", stateless_http=True)
+
+
+@mcp.tool()
+def openai_o3_web_search(
+    question: str = Field(
+        description="""Question text to send to OpenAI o3. It supports natural language queries.
+        Write in Japanese. Be direct and specific about your requirements.
+        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally."""
+    ),
+) -> str:
+    """An AI agent with advanced web search capabilities. Useful for finding the latest information,
+    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
+
+    Args:
+        question: The search question to perform.
+
+    Returns:
+        str: The search results with advanced reasoning and analysis.
+    """
+    try:
+        client = OpenAI()
+        response = client.responses.create(
+            model="o3",
+            tools=[{"type": "web_search_preview"}],
+            reasoning={
+                "effort": "low"
+            },  # avoid mcp's bug (To complete the response within 1 minute)
+            instructions=INSTRUCTIONS,
+            input=question,
+        )
+        return response.output_text
+    except Exception as e:
+        return f"Error occurred: {str(e)}"
+
+
+@mcp.tool()
+def greet_user(
+    name: str = Field(description="The name of the person to greet"),
+) -> str:
+    """Greet a user by name
+    Args:
+        name: The name of the user.
+    """
+    return f"Hello, {name}! Nice to meet you. This is a test message."
+
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+
+```
 
 :::note info
-[Strands Agent](https://github.com/strands-agents/sdk-python) では，[Chat Completions API](https://platform.openai.com/docs/guides/text?api-mode=responses) を利用しております．このため，o3 で Web Search Tool を利用することができなかったので，OpenAI が提供している Response API を利用して Web Search Tool を実装しました．
+[Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の[内部実装](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)を確認すると[Chat Completions API](https://platform.openai.com/docs/guides/text?api-mode=responses) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
+
+- gpt-4o-search-preview
+- gpt-4o-mini-search-preview
+
+上記の理由のため，本検証では Response API を利用しました．
 :::
+
+</details>
+
+#### 【コラム】 MCP サーバーの実装上の工夫
+
+##### Tool の引数 (Args) の 説明 (description) について
+
+公開されている MCP サーバーの実装の多くは，以下のように `@mcp.tool()` を付与した関数の docstring 中に関数の説明と引数 (Args) の説明を記載しています．
+
+```python
+@mcp.tool()
+def my_function(param1: str, param2: int):
+    """
+    この関数の説明文
+
+    Args:
+        param1: パラメータ1の説明
+        param2: パラメータ2の説明
+    """
+    # 関数の実装
+```
+
+しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られるツール定義の `input_schema` (ツールの引数情報) の `description` フィールドが空のままになってしまいます．なお，本事実は以下の Issue でも言及されています．
+
+https://github.com/modelcontextprotocol/python-sdk/issues/226
+
+ツール定義の `input_schema` の `description` フィールドに説明を設定するためには，以下のように Pydantic の `Field` を利用して引数の説明を記載する必要があります．([func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238) 参照．)
+
+```python
+from pydantic import Field
+
+@mcp.tool()
+def my_function(
+  param1: str = Field(description="パラメータ1の説明"),
+  param2: int = Field(description="パラメータ2の説明"),
+):
+    """
+    この関数の説明文
+
+    Args:
+        param1: パラメータ1の説明
+        param2: パラメータ2の説明
+    """
+    # 関数の実装
+```
+
+[Anthropic の tool use のドキュメント](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions)によると，tool の説明に加え，tool の引数の意味や説明を具体的に記述することがベストプラクティスであるとされているため，本実装では，Pydantic の `Field` を利用して引数の説明を記載しております．
+
+https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
+
+#### instruction について
+
+#### error 発生時の処理について
+
+エラー文字列をそのまま返すことで，Tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
 
 ::: note info
 instructions について
 
 tool_choice が利用できないので，system prompt で web search tool を利用するように指示しています．
-:::
 
 [reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)
+
+:::
 
 #### Step 2-2. Local 上での MCP サーバーの動作確認
 
@@ -429,6 +556,8 @@ tool_choice が利用できないので，system prompt で web search tool を�
 一括でデプロイするスクリプトを実装しました．
 
 ECR も自動作成してくれます．
+
+https://x.com/minorun365/status/1949774962161848821/photo/1
 
 :::note info
 OpenAI の API キーの扱いについて
@@ -444,7 +573,7 @@ streamable HTTP を利用する場合，以下の不具合が発生します．M
 
 ### MCP=1.2.0 以上だと，streamable HTTP のレスポンスの JSON のパースに失敗してしまう
 
-PR も出した
+PR も出した．サポートにも問合せたのでその内容を書けば良い．
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 

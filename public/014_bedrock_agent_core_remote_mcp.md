@@ -1,5 +1,5 @@
 ---
-title: Template
+title: Bedrock AgentCore Runtime で Remote MCP (OpenAI o3 Web search) を実装する上での Tips
 tags:
   - AWS
   - bedrock
@@ -506,11 +506,11 @@ def my_function(param1: str, param2: int):
     # 関数の実装
 ```
 
-しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られるツール定義の `input_schema` (ツールの引数情報) の `description` フィールドが空のままになってしまいます．なお，本事実は以下の Issue でも言及されています．
+しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られる tool 定義の `input_schema` (tool の引数情報) の `description` フィールドが空のままになってしまいます．なお，本事実は以下の Issue でも言及されています．
 
 https://github.com/modelcontextprotocol/python-sdk/issues/226
 
-ツール定義の `input_schema` の `description` フィールドに説明を設定するためには，以下のように Pydantic の `Field` を利用して引数の説明を記載する必要があります．([func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238) 参照．)
+tool 定義の `input_schema` の `description` フィールドに説明を設定するためには，以下のように Pydantic の `Field` を利用して引数の説明を記載する必要があります．([func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238) 参照．)
 
 ```python
 from pydantic import Field
@@ -534,20 +534,23 @@ def my_function(
 
 https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
 
-#### instruction について
-
 #### error 発生時の処理について
 
-エラー文字列をそのまま返すことで，Tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
+エラー発生時，エラー内容を文字列として返却することで，tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
 
-::: note info
-instructions について
+```python
+try:
+    ...
+    return response.output_text
+except Exception as e:
+    return f"Error occurred: {str(e)}"
+```
 
-tool_choice が利用できないので，system prompt で web search tool を利用するように指示しています．
+#### OpenAI o3 の 設定について
 
-[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)
+執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を矯正するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません．このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 
-:::
+また，streamable HTTP を利用する場合，MCP の処理に 1 分以上かかると hang してしまう MCP Python SDK の不具合があるので，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)しています．（本不具合については後述します．）
 
 #### Step 2-2. Local 上での MCP サーバーの動作確認
 

@@ -410,11 +410,12 @@ if __name__ == "__main__":
 
 [OpenAI o3](https://platform.openai.com/docs/models/o3) と [Web search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses) を利用し，最新情報を調査・整理するための MCP サーバーを Python で実装しました．o3 を利用することで，多段階にわたる推論と Web 検索を組み合わせた高度な情報検索が可能になります．
 
-o3 による Web search の実行には，[OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は Agent 開発向けに設計された，[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
+MCP サーバーの実装コードを以下に示します．トランスポートとして Streamable HTTP を利用するため，`mcp.run()` の引数に `transport="streamable-http"` を指定します．また，AgentCore Runtime 上に MCP サーバーをホストする要件として，[以下の 2 点を満たす必要があります．](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-how-it-works)
 
-以下に， MCP サーバーの実装コードを示します．トランスポートとして Streamable HTTP を利用するため，`mcp.run()` の引数に `transport="streamable-http"` を指定しています．
+- (1) `FastMCP` の引数 `host` を `0.0.0.0` に設定
+- (2) `FastMCP` の引数 `stateless_http` を `True` に設定
 
-`FastMCP` の引数 `stateless_http=True` を指定し，
+(1) は，MCP サーバーコンテナが `0.0.0.0:8000/mcp` で利用可能である必要があるためです． (2) は，AgentCore Runtime がデフォルトでセッション分離を提供するためです．
 
 <details open><summary>コード (折りたためます)</summary>
 
@@ -479,13 +480,15 @@ if __name__ == "__main__":
     mcp.run(transport="streamable-http")
 ```
 
+> コード中のプロンプトの一部は[本リポジトリのコード](https://github.com/yoshiko-pg/o3-search-mcp/blob/main/index.ts)を参考にさせていただきました．
+
 :::note info
-[Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の内部実装 ([openai.py](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)) を確認すると[Chat Completions API](https://platform.openai.com/docs/guides/text?api-mode=responses) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
+[Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の内部実装 ([openai.py](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)) を確認すると[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
 
 - gpt-4o-search-preview
 - gpt-4o-mini-search-preview
 
-上記の理由のため，本検証では Response API を利用しました．
+上記の理由のため，本検証では [OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は Agent 開発向けに設計された，[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
 :::
 
 </details>
@@ -508,7 +511,7 @@ def my_function(param: str):
     # 関数の実装
 ```
 
-しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の内部実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られる tool 定義の `input_schema` (tool の引数情報) の `description` フィールドが欠落してしまいます．
+しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の内部実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，関数の docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られる tool 定義の `input_schema` (tool の引数情報) の `description` フィールドが欠落してしまいます．
 
 ```json: tool 定義 (input_schemaのparamのdescriptionが欠落)
 {
@@ -583,13 +586,13 @@ except Exception as e:
 
 #### OpenAI o3 の 設定について
 
-執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を矯正するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません．このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
+執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません．このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 
 また，streamable HTTP を利用する場合，MCP の処理に 1 分以上かかると hang してしまう MCP Python SDK の不具合があるので，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)しています．（本不具合については後述します．）
 
 #### Step 2-2. Local 上での MCP サーバーの動作確認
 
-AgentRuntime へデプロイする前に，ローカル環境で MCP サーバーが正しく動作するか確認します．まず，`mcp_server` ディレクトリに移動し，以下のコマンドを実行して，MCP サーバーを起動して下さい．
+AgentRuntime へデプロイする前に，ローカル環境で MCP サーバーが正しく動作するか確認します．まず，`mcp_server` ディレクトリ上で以下のコマンドを実行し，MCP サーバーを起動します．
 
 ```bash
 uv run src/mcp_server.py
@@ -645,9 +648,12 @@ Available tools:
     Returns:
         str: The search results with advanced reasoning and analysis.
 
+    InputSchema: {'properties': {'question': {'description': 'Question text to send to OpenAI o3. It supports natural language queries.\n        Write in Japanese. Be direct and specific about your requirements.\n        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally.', 'title': 'Question', 'type': 'string'}}, 'required': ['question'], 'title': 'openai_o3_web_searchArguments', 'type': 'object'}
   - greet_user: Greet a user by name
     Args:
         name: The name of the user.
+
+    InputSchema: {'properties': {'name': {'description': 'The name of the person to greet', 'title': 'Name', 'type': 'string'}}, 'required': ['name'], 'title': 'greet_userArguments', 'type': 'object'}
 ```
 
 </details>
@@ -716,6 +722,12 @@ GenAI observability でも確認できる．
 ## まとめ
 
 summary
+
+## 参考資料
+
+https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html
+
+https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb
 
 ## 仲間募集
 

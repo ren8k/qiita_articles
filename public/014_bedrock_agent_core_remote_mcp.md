@@ -701,6 +701,8 @@ mcp_server/
 └── uv.lock
 ```
 
+コードの出力結果の `Agent ARN` を `.env` ファイルの `AGENT_ARN` に記載してください．
+
 <details open><summary>コード (折りたためます)</summary>
 
 ```python:mcp_server/scripts/deploy_mcp_server.py
@@ -789,12 +791,20 @@ if __name__ == "__main__":
 
 </details>
 
-上記のコードの自作関数 `deploy_mcp_server` では，以下 2 つのメソッドを実行しています．
+上記のコードの関数 `deploy_mcp_server` では，以下 2 つのメソッドを実行しています．
 
 - `bedrock_agentcore_starter_toolkit.Runtime.configure()`
 - `bedrock_agentcore_starter_toolkit.Runtime.launch()`
 
-`configure()` では，実行する MCP サーバーのコードや，ライブラリの依存関係ファイル (`pyproject.toml` or `requirements.txt`) のパスを，引数 `entrypoint` や `requirements_file` で指定できます．また，MCP サーバーをデプロイする上で重要な点として，OAuth 認証の設定や，Runtime のプロトコルを，引数 `authorizer_configuration` や `protocol` で設定する必要があります．
+`configure()` では，デプロイに必要な Dockerfile や設定ファイル (.bedrock_agentcore.yaml)を自動生成します．指定可能な引数について，主要なものを以下に説明します．
+
+| 引数名                     | 説明                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `entrypoint`               | 実行する MCP サーバーのコードのパス                                          |
+| `requirements_file`        | ライブラリの依存関係ファイル (`pyproject.toml` or `requirements.txt`) のパス |
+| `auto_create_ecr`          | ECR リポジトリを自動作成するかどうか (デフォルトは `True`)                   |
+| `authorizer_configuration` | OAuth 認証の設定                                                             |
+| `protocol`                 | Runtime のプロトコル (MCP を利用する場合は `MCP` を指定)                     |
 
 :::note warn
 各引数の利用方法については，[AWS CLI Reference](https://docs.aws.amazon.com/cli/latest/reference/bedrock-agentcore-control/create-agent-runtime.html) や [starter-toolkit](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/src/bedrock_agentcore_starter_toolkit/notebook/runtime/bedrock_agentcore.py#L34) の実装が参考になります．
@@ -806,12 +816,53 @@ if __name__ == "__main__":
 - `.dockerignore`
 - `Dockerfile`
 
+`.bedrock_agentcore.yaml` は， AgentCore Runtime の設定ファイルであり，launch 時に指定した情報が反映されます．参考のため，以下にマスクしたものを示します．
+
+<details><summary>.bedrock_agentcore.yaml (折りたたんでます)</summary>
+
+```yaml:.bedrock_agentcore.yaml
+default_agent: <agent name>
+agents:
+  <agent name>:
+    name: <agent name>
+    entrypoint: /home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_server/src/mcp_server.py
+    platform: linux/arm64
+    container_runtime: docker
+    aws:
+      execution_role: arn:aws:iam::<aws-account-id>:role/agentcore-<agent name>-role
+      execution_role_auto_create: false
+      account: "<aws-account-id>"
+      region: <region>
+      ecr_repository: <aws-account-id>.dkr.ecr.<region>.amazonaws.com/bedrock-agentcore-<agent name>
+      ecr_auto_create: false
+      network_configuration:
+        network_mode: PUBLIC
+      protocol_configuration:
+        server_protocol: MCP
+      observability:
+        enabled: true
+    bedrock_agentcore:
+      agent_id: <agent name>-<agent id>
+      agent_arn: arn:aws:bedrock-agentcore:<region>:<aws-account-id>:runtime/<agent name>-<agent id>
+      agent_session_id: null
+    codebuild:
+      project_name: null
+      execution_role: null
+      source_bucket: null
+    authorizer_configuration:
+      customJWTAuthorizer:
+        allowedClients:
+          - <cognito-client-id>
+        discoveryUrl: https://cognito-idp.<region>.amazonaws.com/<region>_<cognito-discovery-id>/.well-known/openid-configuration
+    oauth_configuration: null
+```
+
+</details>
+
 `launch()` では，実際に Docker イメージのビルドや ECR へのプッシュ，AgentCore Runtime へのデプロイを行います．引数 `env_vars` で環境変数を指定することで，MCP サーバーの実行時に必要な環境変数を設定できます．今回は，OpenAI API キーを `OPENAI_API_KEY` という環境変数名で指定しています．
 
 :::note info
-OpenAI の API キーの扱いについて
-
-簡単のため，本検証では OpenAI の API キーを環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity を API キー認証情報プロバイダーとして利用する方が良いでしょう．
+本検証では OpenAI の API キーを AgentCore Runtime のコンテナの環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity を API キー認証情報プロバイダーとして利用する方が良いでしょう．
 :::
 
 https://qiita.com/moritalous/items/6c822e68404e93d326a4

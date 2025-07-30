@@ -1,5 +1,5 @@
 ---
-title: Bedrock AgentCore Runtime で Remote MCP (OpenAI o3 Web search) を実装する上での Tips
+title: Bedrock AgentCore Runtime で Remote MCP サーバー (OpenAI o3 Web search) をデプロイし，Strands Agents で利用する
 tags:
   - AWS
   - bedrock
@@ -482,6 +482,8 @@ if __name__ == "__main__":
 
 > コード中のプロンプトの一部は[本リポジトリのコード](https://github.com/yoshiko-pg/o3-search-mcp/blob/main/index.ts)を参考にさせていただきました．
 
+</details>
+
 :::note info
 [Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の内部実装 ([openai.py](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)) を確認すると[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
 
@@ -491,13 +493,11 @@ if __name__ == "__main__":
 上記の理由のため，本検証では [OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は Agent 開発向けに設計された，[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
 :::
 
-</details>
-
 #### 【コラム】 MCP サーバーの実装上の工夫
 
 ##### Tool の引数 (Args) の 説明 (description) について
 
-公開されている MCP サーバーの実装の多くは，以下のように `@mcp.tool()` を付与した関数の docstring 中に関数の説明と引数 (Args) の説明を記載しています．
+[MCP 公式ドキュメントの実装例](https://modelcontextprotocol.io/quickstart/server#implementing-tool-execution)では，以下のように `@mcp.tool()` を付与した関数の docstring 中に関数の説明と引数 (Args) の説明を記載しています．
 
 ```python
 @mcp.tool()
@@ -568,10 +568,6 @@ def my_function(
 
 https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
 
-:::note warn
-LLM の性能によっては，関数の docstring に引数の説明を記載するだけも問題無いのかもしれません．
-:::
-
 #### error 発生時の処理について
 
 エラー発生時，エラー内容を文字列として返却することで，tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
@@ -588,7 +584,7 @@ except Exception as e:
 
 執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません．このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 
-また，streamable HTTP を利用する場合，MCP の処理に 1 分以上かかると hang してしまう MCP Python SDK の不具合があるので，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)しています．（本不具合については後述します．）
+また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．）
 
 #### Step 2-2. Local 上での MCP サーバーの動作確認
 
@@ -667,23 +663,164 @@ Available tools:
 npx @modelcontextprotocol/inspector
 ```
 
+Web UI 上で，Transport Type を `Streamable HTTP` に，URL を `http://localhost:8000/mcp` に設定することで，MCP サーバーと接続できます．
 :::
 
-#### Step 2-3. MCP サーバーのデプロイ
+### Step 3. MCP サーバーを AgentCore Runtime にデプロイ
 
-一括でデプロイするスクリプトを実装しました．
+[bedrock-agentcore-starter-toolkit](https://github.com/aws/bedrock-agentcore-starter-toolkit) を利用することで，ローカルで開発した MCP サーバーを AgentCore Runtime に容易にデプロイすることができます．具体的には，`agentcore configure` コマンドや `agentcore launch` コマンドで，以下の処理を自動実行することができます．
 
-ECR も自動作成してくれます．
+- デプロイに必要な `Dockerfile` や設定ファイル (`.bedrock_agentcore.yaml`)の作成
+- ECR リポジトリの作成
+- Docker イメージのビルドと ECR へのプッシュ
+- AgentCore Runtime へのデプロイ
 
-https://x.com/minorun365/status/1949774962161848821/photo/1
+:::note warn
+Docker イメージは，[ARM64 アーキテクチャ向けにビルド](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/getting-started-custom.html#build-and-deploy-arm64-image)する必要があります．異なる CPU アーキテクチャを利用している場合，`agentcore launch` コマンドに `--codebuild` オプションを指定することで，CodeBuild を利用して ARM64 アーキテクチャ向けにビルド・デプロイすることができます．
+
+https://github.com/aws/bedrock-agentcore-starter-toolkit/releases/tag/v0.1.1
+:::
+
+本検証では，Python を利用し，starter-toolkit で Dockerfile や設定ファイルの作成からデプロイまでを一括で実行するスクリプトを実装しました．以下のコマンドを実行することで，MCP サーバーを AgentCore Runtime にデプロイできます．
+
+```bash
+uv run scripts/deploy_mcp_server.py
+```
+
+なお，ディレクトリ構成は以下の前提です．
+
+```
+mcp_server/
+├── README.md
+├── pyproject.toml # ライブラリ依存関係ファイル
+├── scripts
+│   └── deploy_mcp_server.py # デプロイ用スクリプト
+├── src
+│   ├── __init__.py
+│   └── mcp_server.py # MCP サーバー
+└── uv.lock
+```
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python:mcp_server/scripts/deploy_mcp_server.py
+import os
+
+from bedrock_agentcore_starter_toolkit import Runtime
+from dotenv import load_dotenv
+
+
+def deploy_mcp_server(
+    cognito_client_id: str,
+    cognito_discovery_url: str,
+    role_arn: str,
+    agent_name: str,
+    env_vars: dict,
+    entrypoint: str = "./src/mcp_server.py",
+    requirements_file: str = "./pyproject.toml",
+    region: str = "us-west-2",
+) -> None:
+    agentcore_runtime = Runtime()
+
+    auth_config = {
+        "customJWTAuthorizer": {
+            "allowedClients": [cognito_client_id],
+            "discoveryUrl": cognito_discovery_url,
+        }
+    }
+
+    print("Configuring AgentCore Runtime...")
+    agentcore_runtime.configure(
+        entrypoint=entrypoint,
+        execution_role=role_arn,
+        auto_create_ecr=True,
+        requirements_file=requirements_file,
+        region=region,
+        authorizer_configuration=auth_config,
+        protocol="MCP",
+        agent_name=agent_name,
+    )
+    print("Configuration completed ✓\n")
+
+    print("Launching MCP server to AgentCore Runtime...")
+    print("This may take several minutes...")
+    launch_result = agentcore_runtime.launch(
+        env_vars={"OPENAI_API_KEY": env_vars.get("OPENAI_API_KEY")},
+    )
+    print("Launch completed ✓\n")
+    print(f"Agent ARN: {launch_result.agent_arn}")
+    print(f"Agent ID: {launch_result.agent_id}")
+
+
+def main() -> None:
+    """
+    Main function to execute the deployment of the MCP server.
+    """
+    load_dotenv()
+    cognito_client_id = os.getenv("COGNITO_CLIENT_ID")
+    cognito_discovery_url = os.getenv("COGNITO_DISCOVERY_URL")
+    role_arn = os.getenv("ROLE_ARN")
+    agent_name = os.getenv(
+        "AGENT_NAME"
+    )  # Must start with a letter, contain only letters/numbers/underscores, and be 1-48 characters long.
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+
+    if not (
+        cognito_client_id
+        and cognito_discovery_url
+        and role_arn
+        and agent_name
+        and openai_api_key
+    ):
+        raise ValueError("Required environment variables are not set.")
+
+    deploy_mcp_server(
+        cognito_client_id,
+        cognito_discovery_url,
+        role_arn,
+        agent_name,
+        {"OPENAI_API_KEY": openai_api_key},
+    )
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</details>
+
+上記のコードの自作関数 `deploy_mcp_server` では，以下 2 つのメソッドを実行しています．
+
+- `bedrock_agentcore_starter_toolkit.Runtime.configure()`
+- `bedrock_agentcore_starter_toolkit.Runtime.launch()`
+
+`configure()` では，実行する MCP サーバーのコードや，ライブラリの依存関係ファイル (`pyproject.toml` or `requirements.txt`) のパスを，引数 `entrypoint` や `requirements_file` で指定できます．また，MCP サーバーをデプロイする上で重要な点として，OAuth 認証の設定や，Runtime のプロトコルを，引数 `authorizer_configuration` や `protocol` で設定する必要があります．
+
+:::note warn
+各引数の利用方法については，[AWS CLI Reference](https://docs.aws.amazon.com/cli/latest/reference/bedrock-agentcore-control/create-agent-runtime.html) や [starter-toolkit](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/src/bedrock_agentcore_starter_toolkit/notebook/runtime/bedrock_agentcore.py#L34) の実装が参考になります．
+:::
+
+上記の実行により，以下のファイルが `mcp_server` ディレクトリに自動生成されます．
+
+- `.bedrock_agentcore.yaml`
+- `.dockerignore`
+- `Dockerfile`
+
+`launch()` では，実際に Docker イメージのビルドや ECR へのプッシュ，AgentCore Runtime へのデプロイを行います．引数 `env_vars` で環境変数を指定することで，MCP サーバーの実行時に必要な環境変数を設定できます．今回は，OpenAI API キーを `OPENAI_API_KEY` という環境変数名で指定しています．
 
 :::note info
 OpenAI の API キーの扱いについて
 
-簡単のため，本検証では OpenAI の API キーを環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity 上を API キー認証情報プロバイダーとして利用することをお勧めします．
+簡単のため，本検証では OpenAI の API キーを環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity を API キー認証情報プロバイダーとして利用する方が良いでしょう．
 :::
 
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
+
+### Step 4. remote MCP サーバーの動作確認
+
+#### Step 4-1. 簡易的な MCP クライアントの実行
+
+#### Step 4-2. Strands Agents を利用した MCP クライアントの実行
 
 ## MCP のバグについて
 
@@ -837,4 +974,3 @@ Snowflake は、これら先端テクノロジーとのエコシステムの形�
 https://www.nttdata.com/jp/ja/lineup/snowflake/
 
 </div></details>
-```

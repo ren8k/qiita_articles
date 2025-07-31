@@ -16,7 +16,7 @@ ignorePublish: false
 
 ## はじめに
 
-株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+株式会社 NTT データ デジタルサクセスソリューション事業部の [@ren8k](https://qiita.com/ren8k) です．
 
 2025/07/17 に，AWS の新サービスである [Amazon Bedrock AgentCore がプレビューで利用可能になりました．](https://aws.amazon.com/jp/about-aws/whats-new/2025/07/amazon-bedrock-agentcore-preview/)
 

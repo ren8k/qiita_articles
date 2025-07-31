@@ -917,9 +917,7 @@ https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 
 ### Step 4. remote MCP サーバーの動作確認
 
-リポジトリの `mcp_client` ディレクトリに移動して下さい．
-
-#### Step 4-1. 簡易的な MCP クライアントの実行
+簡易的な MCP クライアントにより，remote MCP サーバーの動作確認を行います．リポジトリの `mcp_client` ディレクトリに移動して下さい．
 
 以下のコマンドを実行し，MCP サーバーに接続して，tool の一覧を取得できることを確認します．なお，`.env` ファイルに以下の変数が設定されていることを確認して下さい．
 
@@ -996,6 +994,7 @@ async def main():
     headers = {
         "authorization": f"Bearer {bearer_token}",
         "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
     }
 
     print(f"\nConnect to: {mcp_endpoint}")
@@ -1041,7 +1040,11 @@ Found 2 tools available.
 
 </details>
 
-重要な点として，remote MCP サーバーの接続先のエンドポイントは以下の形式となります．以下のエンドポイントについては，[ドキュメントの実装例](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)や，[GitHub のサンプル](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)から確認することができます． (AWS コンソール上では確認することができませんでした．)
+コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しています．重要な点は，引数で指定している `mcp_endpoint` (remote MCP サーバーの接続先のエンドポイント) と header の形式です．
+
+#### mcp_endpoint
+
+接続先エンドポイントは，以下の形式である必要があります．以下のエンドポイントについては，[ドキュメントの実装例](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)や，[GitHub のサンプル](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)から確認することができます． (AWS コンソール上では確認することができませんでした．)
 
 ```
 https://bedrock-agentcore.<region>.amazonaws.com/runtimes/<encoded-agent-arn>/invocations?qualifier=DEFAULT
@@ -1049,11 +1052,194 @@ https://bedrock-agentcore.<region>.amazonaws.com/runtimes/<encoded-agent-arn>/in
 
 また，`<encoded-agent-arn>` の部分は，URL エンコードされた AgentCore Runtime の ARN である必要があります．具体的には，`:` を `%3A` に，`/` を `%2F` に置換する必要があります．
 
-コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しております．メソッド `session.initialize()` で MCP サーバーとの接続を初期化，メソッド `session.list_tools()` で MCP サーバーが提供する tool の一覧を取得しています．
+#### header
 
-#### Step 4-2. Strands Agents を利用した MCP クライアントの実行
+header の形式は，以下の形式である必要があります．authorization ヘッダーには，Cognito のアクセストークンを設定する必要があります．Content-Type ヘッダーおよび Accept ヘッダーは省略可能ですが，記述する場合は [MCP の仕様](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#sending-messages-to-the-server)に[従う必要があります](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)．
+
+```json
+{
+  "authorization": "Bearer <token>",
+  "Content-Type": "application/json",
+  "Accept": "application/json, text/event-stream"
+}
+```
+
+### Step 5. Strands Agents を利用した MCP クライアントの実行
 
 https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/
+
+:::note info
+o3 MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．
+
+<details><summary>実行コマンドと回答結果 (折りたたんでます)</summary>
+
+```
+$ uv run src/agent.py
+LangGraphにおけるMCPの実装方法について調べてみますね。
+Tool #1: openai_o3_web_search
+```
+
+**Strands Agent の回答 (ここから)**
+
+LangGraph における MCP（Model Context Protocol）の実装方法について調べました。以下に詳細をまとめます：
+
+## MCP とは
+
+MCP は、LLM が外部ツールやデータソースを標準化された方法で発見・呼び出せるようにするオープンプロトコルです。LangGraph では双方向の統合が可能で、MCP サーバーのツールを使用することも、LangGraph のグラフを MCP ツールとして公開することもできます。
+
+## 必要なパッケージ
+
+### MCP ツールを使う側（クライアント）
+
+```bash
+pip install langchain-mcp-adapters
+```
+
+### MCP サーバーを作る側
+
+```bash
+pip install mcp
+```
+
+### LangGraph Server 側
+
+```bash
+pip install "langgraph-api>=0.2.3" "langgraph-sdk>=0.1.61"
+```
+
+## カスタム MCP サーバーの作成
+
+### 1. Stdio 方式のサンプル（math_server.py）
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Math")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+
+@mcp.tool()
+def multiply(a: int, b: int) -> int:
+    """Multiply two numbers"""
+    return a * b
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+```
+
+### 2. HTTP 方式のサンプル（weather_server.py）
+
+```python
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Weather")
+
+@mcp.tool()
+async def get_weather(location: str) -> str:
+    return "It's always sunny in New York"
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")  # デフォルトポート :8000
+```
+
+## LangGraph エージェントで MCP ツールを使用
+
+### ReAct エージェントの例
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+client = MultiServerMCPClient(
+    {
+        "math": {
+            "command": "python",
+            "args": ["/abs/path/math_server.py"],
+            "transport": "stdio",
+        },
+        "weather": {
+            "url": "http://localhost:8000/mcp",
+            "transport": "streamable_http",
+        }
+    }
+)
+tools = await client.get_tools()
+
+agent = create_react_agent("anthropic:claude-3-5-sonnet-latest", tools)
+
+resp = await agent.ainvoke(
+    {"messages": [{"role": "user", "content": "what's (3 + 5) x 12?"}]}
+)
+print(resp)
+```
+
+### カスタムワークフローの例
+
+```python
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langchain.chat_models import init_chat_model
+from langgraph.graph import StateGraph, MessagesState, START, END
+from langgraph.prebuilt import ToolNode
+
+model = init_chat_model("anthropic:claude-3-5-sonnet-latest")
+
+client = MultiServerMCPClient({...})  # 上記と同様の設定
+tools = await client.get_tools()
+model_with_tools = model.bind_tools(tools)
+
+tool_node = ToolNode(tools)
+
+async def call_model(state: MessagesState):
+    messages = state["messages"]
+    return {"messages": [await model_with_tools.ainvoke(messages)]}
+
+def need_tools(state: MessagesState):
+    return "tools" if state["messages"][-1].tool_calls else END
+
+builder = StateGraph(MessagesState)
+builder.add_node("call_model", call_model)
+builder.add_node("tools", tool_node)
+builder.add_edge(START, "call_model")
+builder.add_conditional_edges("call_model", need_tools)
+builder.add_edge("tools", "call_model")
+graph = builder.compile()
+```
+
+## LangGraph Server で MCP エンドポイントを公開
+
+必要バージョンをインストールしてデプロイすると、`/mcp`エンドポイントが自動で有効になります。
+
+### langgraph.json での設定例
+
+```json
+{
+  "graphs": {
+    "my_agent": {
+      "path": "./my_agent/agent.py:graph",
+      "description": "A description of what the agent does"
+    }
+  }
+}
+```
+
+## 重要なポイント
+
+1. **認証**: `/mcp`は LangGraph 全体と同じ認証方式を継承
+2. **セッション**: 現状 MCP リクエストはステートレス
+3. **無効化**: `langgraph.json`に`"disable_mcp": true`を追加して無効化可能
+4. **複数サーバー対応**: `MultiServerMCPClient`で複数の MCP サーバー（stdio/HTTP 混在）に対応
+
+この Session termination failed: 404
+実装により、LangGraph で MCP を活用した柔軟なエージェントシステムを構築できます。
+
+**Strands Agent の回答 (ここまで)**
+
+</details>
+
+:::
 
 ## MCP のバグについて
 
@@ -1079,36 +1265,40 @@ pydantic 起因のバグなので，いずれは修正されると思われる�
 https://github.com/modelcontextprotocol/python-sdk/issues/1144
 
 ```
+
 ((pytorch) ) ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
 warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
-LangGraphにおけるMCP（Model Context Protocol）の実装方法について調べてみますね。
+LangGraph における MCP（Model Context Protocol）の実装方法について調べてみますね。
 Tool #1: openai_o3_web_search
 Error parsing SSE message
 Traceback (most recent call last):
-  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in _handle_sse_event
-    message = JSONRPCMessage.model_validate_json(sse.data)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
-    return cls.__pydantic_validator__.validate_json(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core._pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
-  Invalid JSON: EOF while parsing a string at line 1 column 83 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,..."text":"以下では、', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in \_handle_sse_event
+message = JSONRPCMessage.model_validate_json(sse.data)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
+return cls.**pydantic_validator**.validate_json(
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core.\_pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
+Invalid JSON: EOF while parsing a string at line 1 column 83 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,..."text":"以下では、', input_type=str]
+For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+
 ```
 
 ```
+
 Tool #1: openai_o3_web_search
 Error parsing SSE message
 Traceback (most recent call last):
-  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in _handle_sse_event
-    message = JSONRPCMessage.model_validate_json(sse.data)
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
-    return cls.__pydantic_validator__.validate_json(
-           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core._pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
-  Invalid JSON: EOF while parsing a string at line 1 column 3373 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,...ル作成可能\\n\\n', input_type=str]
-    For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in \_handle_sse_event
+message = JSONRPCMessage.model_validate_json(sse.data)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
+return cls.**pydantic_validator**.validate_json(
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core.\_pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
+Invalid JSON: EOF while parsing a string at line 1 column 3373 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,...ル作成可能\\n\\n', input_type=str]
+For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+
 ```
 
 ## その他
@@ -1119,8 +1309,6 @@ GenAI observability でも確認できる．
 
 - role はドキュメント通りで良かった．
 - やりなおす場合は，bedrock_agentcore.yaml を削除すべき
-
-## 内容 1
 
 ## まとめ
 

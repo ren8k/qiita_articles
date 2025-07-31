@@ -1,0 +1,133 @@
+ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
+warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について調べてみます。
+Tool #1: openai_o3_web_search
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について詳しく調べました。以下に要点をまとめます：
+
+## 1. 必要パッケージのインストール
+
+```bash
+# MCPクライアント/ツールアダプター
+pip install langchain-mcp-adapters
+
+# LangGraphサーバーをMCP対応にする場合
+pip install "langgraph-api>=0.2.3" "langgraph-sdk>=0.1.61"
+
+# 独自MCPサーバー作成用
+pip install mcp
+```
+
+## 2. MCPクライアント側の実装（外部MCPツールを使用）
+
+```python
+import asyncio
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+async def main():
+    # MCPクライアントの設定
+    client = MultiServerMCPClient({
+        "math": {
+            "command": "python",
+            "args": ["/path/to/math_server.py"],
+            "transport": "stdio"
+        },
+        "weather": {
+            "url": "http://localhost:8000/mcp",
+            "transport": "streamable_http"
+        }
+    })
+
+    # ツール一覧を取得
+    tools = await client.get_tools()
+
+    # ReactエージェントにMCPツールを統合
+    agent = create_react_agent("anthropic:claude-3-7-sonnet-latest", tools)
+
+    # 実行例
+    response = await agent.ainvoke({
+        "messages": [{"role": "user", "content": "What's (3+5)*12?"}]
+    })
+    print(response)
+
+asyncio.run(main())
+```
+
+## 3. 独自MCPサーバーの実装例
+
+### STDIOベースのサーバー
+```python
+# math_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Math")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    return a + b
+
+@mcp.tool()
+def multiply(a: int, b: int) -> int:
+    return a * b
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
+```
+
+### HTTPベースのサーバー
+```python
+# weather_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Weather")
+
+@mcp.tool()
+async def get_weather(location: str) -> str:
+    return f"Weather in {location}: Sunny"
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+```
+
+## 4. LangGraphエージェントのMCP公開
+
+LangGraph API 0.2.3以降では、デプロイしたエージェントが自動的に`/mcp`エンドポイントで公開されます。特別なコードは不要で、`langgraph.json`で名前や説明を設定できます。
+
+## 5. StateGraphでの統合例
+
+```python
+from langgraph.graph import StateGraph
+from langgraph.prebuilt import ToolNode
+
+# StateGraphベースのワークフロー
+workflow = StateGraph(MessagesState)
+workflow.add_node("agent", agent_node)
+workflow.add_node("tools", ToolNode(tools))  # MCPツールを含む
+
+workflow.add_edge("agent", "tools")
+workflow.add_edge("tools", "agent")
+```
+
+## 主な特徴
+
+- **双方向統合**: LangGraphエージェントをMCPツールとして公開し、同時に外部MCPツールを利用可能
+- **複数トランスポート**: stdio、Streamable HTTP両方に対応
+- **認証サポート**: ユーザースコープのツールアクセスに対応
+- **簡単な実装**: `@mcp.tool()`デコレーターで数行でツール作成可能
+
+このSession termination failed: 404
+仕組みにより、LangGraphと他のエージェント/ツール間で標準化された方法で連携できます。
+
+
+```
+
+7/28/2025, 8:51:21 PM fdafb05d-42cb-438f-b913-abd5bb70cfaa
+{"cacheReadInputTokenCount":0,"cacheWriteInputTokenCount":0,"inputBodyJson":{"inferenceConfig":{},"m...
+2479
+{"outputBodyJson":{"metrics":{"latencyMs":13093},"output":{"message":{"content":[{"text":"LangGraphに...
+1093
+-
+3572
+us.anthropic.claude-sonnet-4-20250514-v1:0
+7/28/2025, 8:50:52 PM a1c7b82a-aad5-44cf-a9bb-742673f3b2bd
+```

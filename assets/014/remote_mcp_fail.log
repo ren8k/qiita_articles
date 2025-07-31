@@ -1,0 +1,46 @@
+((pytorch) ) ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
+warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について調べてみます。
+Tool #1: openai_web_search
+Error parsing SSE message
+Traceback (most recent call last):
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in _handle_sse_event
+    message = JSONRPCMessage.model_validate_json(sse.data)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
+    return cls.__pydantic_validator__.validate_json(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
+  Invalid JSON: EOF while parsing a string at line 1 column 180 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,...るまでの手順を', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+^C^CSession termination failed: 404
+Traceback (most recent call last):
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/strands/agent/agent.py", line 377, in __call__
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 451, in result
+    self._condition.wait(timeout)
+  File "/usr/local/lib/python3.12/threading.py", line 355, in wait
+    waiter.acquire()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/src/agent.py", line 36, in <module>
+    main()
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/src/agent.py", line 30, in main
+    agent("LangGraphにおけるMCPの実装方法 (python) について調べて")
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/strands/agent/agent.py", line 375, in __call__
+    with ThreadPoolExecutor() as executor:
+         ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.12/concurrent/futures/_base.py", line 647, in __exit__
+    self.shutdown(wait=True)
+  File "/usr/local/lib/python3.12/concurrent/futures/thread.py", line 239, in shutdown
+    t.join()
+  File "/usr/local/lib/python3.12/threading.py", line 1149, in join
+    self._wait_for_tstate_lock()
+  File "/usr/local/lib/python3.12/threading.py", line 1169, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

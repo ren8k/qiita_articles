@@ -1,0 +1,141 @@
+((pytorch) ) ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
+warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について調べてみますね。
+Tool #1: openai_web_search
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について詳しく調べました。以下に要点をまとめてお伝えします。
+
+## MCPとは？
+
+MCP（Model Context Protocol）は、LLMが外部ツールやデータに安全かつ標準的にアクセスするためのプロトコルです。LangGraphはこのMCPをネイティブでサポートしており、以下の2つの使い方ができます：
+
+1. **外部のMCPサーバのツールを呼び出す**（クライアント側）
+2. **LangGraphエージェントをMCPツールとして公開する**（サーバ側）
+
+## 1. 必要パッケージのインストール
+
+```bash
+pip install langgraph langchain-mcp-adapters
+
+# LangGraph サーバを立てる場合
+pip install "langgraph-api>=0.2.3" "langgraph-sdk>=0.1.61"
+
+# 自前サーバを作る場合
+pip install mcp        # 公式SDK
+# または簡易版
+pip install fastmcp
+```
+
+## 2. 外部MCPサーバのツールを呼び出す（クライアント側）
+
+`MultiServerMCPClient`を使って複数のMCPサーバからツールを取得し、LangGraphエージェントで利用できます：
+
+```python
+import asyncio
+from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.prebuilt import create_react_agent
+
+async def main():
+    client = MultiServerMCPClient(
+        {
+            "math": {
+                "command": "python",
+                "args": ["/path/to/math_server.py"],
+                "transport": "stdio",
+            },
+            "weather": {
+                "url": "http://localhost:8000/mcp",
+                "transport": "streamable_http",
+            }
+        }
+    )
+
+    tools = await client.get_tools()  # すべてのMCPツールを取得
+    agent = create_react_agent(
+        "anthropic:claude-3-7-sonnet-latest",
+        tools
+    )
+
+    result = await agent.ainvoke({
+        "messages": [{"role":"user", "content":"(3+5)*12は?"}]
+    })
+    print(result)
+
+asyncio.run(main())
+```
+
+## 3. LangGraphエージェントをMCPツールとして公開（サーバ側）
+
+### 設定ファイル（langgraph.json）
+
+```json
+{
+  "graphs": {
+    "my_agent": {
+      "path": "./my_agent/agent.py:graph",
+      "description": "社内FAQに回答するエージェント"
+    }
+  }
+}
+```
+
+### サーバ起動
+
+```bash
+uv run langgraph_api.main --port 2024
+```
+
+これにより`/mcp`エンドポイントが自動で公開され、外部からMCPツールとして利用できるようになります。
+
+## 4. 独自MCPサーバの作成（FastMCP例）
+
+```python
+# math_server.py
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("Math")
+
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """2つの整数を足す"""
+    return a + b
+
+@mcp.tool()
+def multiply(a: int, b: int) -> int:
+    """2つの整数を掛ける"""
+    return a * b
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")  # または "streamable-http"
+```
+
+## 5. トランスポートの種類
+
+- **stdio**: ローカル実行（プロセス間通信）
+- **SSE**: Server-Sent Events
+- **Streamable-HTTP**: HTTP経由での通信
+
+## 6. 認証とセキュリティ
+
+```python
+# 認証ヘッダの例（Streamable-HTTP/SSE使用時）
+client = MultiServerMCPClient(
+    {
+        "secure_server": {
+            "url": "https://api.example.com/mcp",
+            "transport": "streamable_http",
+            "headers": {
+                "Authorization": "Bearer your-token-here"
+            }
+        }
+    }
+)
+```
+
+## 運用上の注意点
+
+- **セッション**: LangGraphの`/mcp`エンドポイントは現状ステートレス
+- **無効化**: `langgraph.json`で`"disable_mcp": true`を設定可能
+- **スキーマ定義**: `TypedDict`でinput/outputスキーマを明示することを推奨
+
+MCSession termination failed: 404
+Pを活用することで、LLMエージェントと外部ツールの疎結合・再利用可能な統合が実現できます。((pytorch) )

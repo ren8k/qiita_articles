@@ -240,7 +240,7 @@ def my_function(
 
 https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
 
-#### error 発生時の処理について
+##### error 発生時の処理について
 
 エラー発生時，エラー内容を文字列として返却することで，tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
 
@@ -252,7 +252,7 @@ except Exception as e:
     return f"Error occurred: {str(e)}"
 ```
 
-#### OpenAI o3 の 設定について
+##### OpenAI o3 の 設定について
 
 執筆時点 (2025/07/31) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 

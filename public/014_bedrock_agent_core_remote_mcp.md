@@ -57,6 +57,7 @@ https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
 - Instance Type: m8g.xlarge (ARM)
 - Docker version: 28.3.2, build 578ccf6
 - uv version: 0.8.3
+- default region: us-west-2
 
 以下のリポジトリでは，local 上の VSCode から EC2 へ接続して，簡単に開発環境を構築する手順をまとめております．是非ご利用ください．
 
@@ -839,8 +840,8 @@ agents:
       observability:
         enabled: true
     bedrock_agentcore:
-      agent_id: <agent name>-<agent id>
-      agent_arn: arn:aws:bedrock-agentcore:<region>:<aws-account-id>:runtime/<agent name>-<agent id>
+      agent_id: <agent name>-<runtime id>
+      agent_arn: arn:aws:bedrock-agentcore:<region>:<aws-account-id>:runtime/<agent name>-<runtime id>
       agent_session_id: null
     codebuild:
       project_name: null
@@ -909,10 +910,10 @@ CMD ["opentelemetry-instrument", "python", "-m", "src.mcp_server"]
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
 :::note alert
-MCP サーバーで利用するライブラリ `mcp` のバージョンは `mcp<=1.11.0` として下さい．
+MCP サーバーで利用するパッケージ `mcp` のバージョンについて，OAuth 関連のバグが存在するため，`mcp==1.11.0` ，もしくは `mcp==1.12.2` として下さい．
 :::
 
-https://github.com/awslabs/amazon-bedrock-agentcore-samples/issues/121
+https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 
 ### Step 4. remote MCP サーバーの動作確認
 
@@ -920,9 +921,10 @@ https://github.com/awslabs/amazon-bedrock-agentcore-samples/issues/121
 
 #### Step 4-1. 簡易的な MCP クライアントの実行
 
-以下のコードを実行し，を
+以下のコマンドを実行し，MCP サーバーに接続して，tool の一覧を取得できることを確認します．なお，`.env` ファイルに以下の変数が設定されていることを確認して下さい．
 
-ツールの一覧
+- `AGENT_ARN`: AgentCore Runtime 上にデプロイした MCP サーバーの ARN
+- `COGNITO_ACCESS_TOKEN`: Cognito のアクセストークン (Bearer Token)
 
 ```bash
 uv run src/mcp_client_remote.py
@@ -1004,7 +1006,50 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+```bash: 出力結果
+Connect to: https://bedrock-agentcore.<region>.amazonaws.com/runtimes/arn%3Aaws%3Abedrock-agentcore%3A<region>%3A<account-id>%3Aruntime%2F<agent-arn>/invocations?qualifier=DEFAULT
+
+🔄 Initializing MCP session...
+✓ MCP session initialized
+
+🔄 Listing available tools...
+
+📋 Available MCP Tools:
+==================================================
+🔧 openai_o3_web_search
+   Description: An AI agent with advanced web search capabilities. Useful for finding the latest information,
+    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
+
+    Args:
+        question: The search question to perform.
+
+    Returns:
+        str: The search results with advanced reasoning and analysis.
+
+   Parameters: ['question']
+
+🔧 greet_user
+   Description: Greet a user by name
+    Args:
+        name: The name of the user.
+
+   Parameters: ['name']
+
+✅ Successfully connected to MCP server!
+Found 2 tools available.
+```
+
 </details>
+
+重要な点として，remote MCP サーバーの接続先のエンドポイントは以下の形式となります．以下のエンドポイントについては，[ドキュメントの実装例](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)や，[GitHub のサンプル](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)から確認することができます． (AWS コンソール上では確認することができませんでした．)
+
+```
+https://bedrock-agentcore.<region>.amazonaws.com/runtimes/<encoded-agent-arn>/invocations?qualifier=DEFAULT
+```
+
+また，`<encoded-agent-arn>` の部分は，URL エンコードされた AgentCore Runtime の ARN である必要があります．具体的には，`:` を `%3A` に，`/` を `%2F` に置換する必要があります．
+
+コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しております．メソッド `session.initialize()` で MCP サーバーとの接続を初期化，メソッド `session.list_tools()` で MCP サーバーが提供する tool の一覧を取得しています．
 
 #### Step 4-2. Strands Agents を利用した MCP クライアントの実行
 

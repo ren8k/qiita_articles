@@ -1066,20 +1066,72 @@ header の形式は，以下の形式である必要があります．authorizat
 
 ### Step 5. Strands Agents を利用した MCP クライアントの実行
 
-https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/
+最後に，[Strands Agents](https://strandsagents.com/latest/) を利用し，MCP サーバーに接続します．Strands Agents は，AWS が公開した OSS の AI Agent 開発フレームワークであり，数行で Agent を実装することができます．Strands Agents が提供するクラス [`MCPClient`](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/tools/mcp-tools/)を利用することで，非常に簡単に MCP サーバーを利用することができます．
+
+`mcp_client` ディレクトリ上で，以下のコマンドを実行することで，Strands Agents 経由で MCP サーバーを利用できます．
+
+```bash
+uv run src/agent.py
+```
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python:mcp_client/src/agent.py
+import os
+
+from dotenv import load_dotenv
+from mcp.client.streamable_http import streamablehttp_client
+from strands import Agent
+from strands.tools.mcp import MCPClient
+
+PROMPT = "LangGraphにおけるMCPの実装方法 (python) について調べて. "
+
+
+def get_mcp_endpoint(agent_arn: str, region: str = "us-west-2") -> str:
+    encoded_arn = agent_arn.replace(":", "%3A").replace("/", "%2F")
+    return f"https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{encoded_arn}/invocations?qualifier=DEFAULT"
+
+
+def main() -> None:
+    load_dotenv()
+    agent_arn = os.getenv("AGENT_ARN")
+    bearer_token = os.getenv("COGNITO_ACCESS_TOKEN")
+    mcp_endpoint = get_mcp_endpoint(agent_arn)
+    headers = {"authorization": f"Bearer {bearer_token}"}
+
+    mcp_client = MCPClient(
+        lambda: streamablehttp_client(
+            mcp_endpoint,
+            headers=headers,
+            timeout=300,
+        )
+    )
+
+    try:
+        with mcp_client:
+            tools = mcp_client.list_tools_sync()
+            agent = Agent(tools=tools)
+            agent(PROMPT)
+    except Exception as e:
+        raise RuntimeError(f"Failed to connect to MCP server or execute agent: {e}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+</details>
+
+上記のコードと Step 4 のコードを比較すると，少量のコードで実装できることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われております．
 
 :::note info
 o3 MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．
 
-<details><summary>実行コマンドと回答結果 (折りたたんでます)</summary>
+<details><summary>回答結果 (折りたたんでます)</summary>
 
-```
-$ uv run src/agent.py
-LangGraphにおけるMCPの実装方法について調べてみますね。
+LangGraph における MCP の実装方法について調べてみますね。
+
 Tool #1: openai_o3_web_search
-```
-
-**Strands Agent の回答 (ここから)**
 
 LangGraph における MCP（Model Context Protocol）の実装方法について調べました。以下に詳細をまとめます：
 
@@ -1235,11 +1287,11 @@ graph = builder.compile()
 この Session termination failed: 404
 実装により、LangGraph で MCP を活用した柔軟なエージェントシステムを構築できます。
 
-**Strands Agent の回答 (ここまで)**
-
 </details>
 
 :::
+
+OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．
 
 ## MCP のバグについて
 
@@ -1319,6 +1371,8 @@ summary
 https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb
+
+https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/
 
 ## 仲間募集
 

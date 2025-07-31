@@ -65,11 +65,272 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 
 ## 手順
 
-### Step 1. 事前準備
+### Step 1. MCP サーバーの作成
 
-リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行することで，`setup` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
+リポジトリの `mcp_server` ディレクトリに移動し，`uv sync` を実行することで，`mcp_server` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．また，`.env` ファイルに，`OPENAI_API_KEY` を設定してください．
 
-#### Step 1-1. Amazon Cognito のセットアップ
+#### Step 1-1. OpenAI o3 Web Search MCP サーバーの実装
+
+[OpenAI o3](https://platform.openai.com/docs/models/o3) と [Web search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses) を利用し，最新情報を調査・整理するための MCP サーバーを Python で実装しました．o3 を利用することで，多段階にわたる推論と Web 検索を組み合わせた高度な情報検索が可能になります．
+
+MCP サーバーの実装コードを以下に示します．トランスポートとして Streamable HTTP を利用するため，`mcp.run()` の引数に `transport="streamable-http"` を指定します．なお，AgentCore Runtime 上に MCP サーバーをホストする要件として，[以下の 2 点を満たす必要があります．](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-how-it-works)
+
+- (1) `FastMCP` の引数 `host` を `0.0.0.0` に設定
+- (2) `FastMCP` の引数 `stateless_http` を `True` に設定
+
+(1) は，MCP サーバーコンテナが `0.0.0.0:8000/mcp` で利用可能である必要があるためです． (2) は，AgentCore Runtime がデフォルトでセッション分離を提供するためです．
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python: mcp_server/src/mcp_server.py
+from mcp.server.fastmcp import FastMCP
+from openai import OpenAI
+from pydantic import Field
+
+INSTRUCTIONS = """
+- You must answer the question using web_search tool.
+- You must respond in japanese.
+"""
+
+mcp = FastMCP(name="openai-web-search-mcp-server", host="0.0.0.0", stateless_http=True)
+
+
+@mcp.tool()
+def openai_o3_web_search(
+    question: str = Field(
+        description="""Question text to send to OpenAI o3. It supports natural language queries.
+        Write in Japanese. Be direct and specific about your requirements.
+        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally."""
+    ),
+) -> str:
+    """An AI agent with advanced web search capabilities. Useful for finding the latest information,
+    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
+
+    Args:
+        question: The search question to perform.
+
+    Returns:
+        str: The search results with advanced reasoning and analysis.
+    """
+    try:
+        client = OpenAI()
+        response = client.responses.create(
+            model="o3",
+            tools=[{"type": "web_search_preview"}],
+            instructions=INSTRUCTIONS,
+            input=question,
+        )
+        return response.output_text
+    except Exception as e:
+        return f"Error occurred: {str(e)}"
+
+
+@mcp.tool()
+def greet_user(
+    name: str = Field(description="The name of the person to greet"),
+) -> str:
+    """Greet a user by name
+    Args:
+        name: The name of the user.
+    """
+    return f"Hello, {name}! Nice to meet you. This is a test message."
+
+
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+```
+
+> コード中のプロンプトの一部は[本リポジトリのコード](https://github.com/yoshiko-pg/o3-search-mcp/blob/main/index.ts)を参考にさせていただきました．
+
+</details>
+
+:::note info
+[Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の内部実装 ([openai.py](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)) を確認すると[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
+
+- gpt-4o-search-preview
+- gpt-4o-mini-search-preview
+
+上記の理由のため，本検証では [OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は，Agent 開発向けに設計された [Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
+:::
+
+#### 【コラム】 MCP サーバーの実装上の工夫
+
+##### Tool の引数 (Args) の 説明 (description) について
+
+[MCP 公式ドキュメントの実装例](https://modelcontextprotocol.io/quickstart/server#implementing-tool-execution)では，関数の docstring 中に関数の説明と引数 (Args) の説明を記載しています．
+
+```python:実装例
+@mcp.tool()
+def my_function(param: str):
+    """
+    この関数の説明文
+
+    Args:
+        param: パラメーターの説明
+    """
+    # 関数の実装
+```
+
+一方，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の内部実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，関数の docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られる tool 定義の `input_schema` (tool の引数情報) の `description` フィールドが欠落してしまいます．
+
+```json:tool 定義 (input_schemaのparamのdescriptionが欠落)
+{
+  "properties": {
+    "param": {
+      "title": "Param",
+      "type": "string"
+    }
+  },
+  "required": ["param"],
+  "title": "my_functionArguments",
+  "type": "object"
+}
+```
+
+なお，本事実は以下の Issue でも言及されています．
+
+https://github.com/modelcontextprotocol/python-sdk/issues/226
+
+tool 定義の `input_schema` の `description` フィールドに説明を設定するためには，以下のように Pydantic の `Field` を利用して引数の説明を記載する必要があります．([func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238) 参照．)
+
+```python:Field を利用
+from pydantic import Field
+
+@mcp.tool()
+def my_function(
+  param: str = Field(description="パラメーターの説明"),
+):
+    """
+    この関数の説明文
+
+    Args:
+        param: パラメーターの説明
+    """
+    # 関数の実装
+```
+
+```json:tool 定義 (input_schemaのparamのdescriptionが設定される)
+{
+  "properties": {
+    "param": {
+      "description": "パラメーターの説明",
+      "title": "Param",
+      "type": "string"
+    }
+  },
+  "required": ["param"],
+  "title": "my_functionArguments",
+  "type": "object"
+}
+```
+
+[Anthropic の tool use のドキュメント](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions)によると，tool の説明に加え，tool の引数の意味や説明を具体的に記述することがベストプラクティスであるとされているため，本実装では，Pydantic の `Field` を利用して引数の説明を記載しております．
+
+https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
+
+#### error 発生時の処理について
+
+エラー発生時，エラー内容を文字列として返却することで，tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
+
+```python
+try:
+    ...
+    return response.output_text
+except Exception as e:
+    return f"Error occurred: {str(e)}"
+```
+
+#### OpenAI o3 の 設定について
+
+執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
+
+<!-- また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．） -->
+
+#### Step 1-2. Local 上での MCP サーバーの動作確認
+
+AgentRuntime へデプロイする前に，ローカル環境で MCP サーバーが正しく動作するか確認します．まず，`mcp_server` ディレクトリ上で以下のコマンドを実行し，MCP サーバーを起動します．
+
+```bash
+uv run src/mcp_server.py
+```
+
+次に，別のターミナルを開き，`mcp_client` ディレクトリに移動し，`uv sync` を実行します．その後，以下のコードを実行することで，簡易的な MCP クライアントから MCP サーバーに接続して，tool の一覧が取得可能なことを確認します．
+
+```bash
+uv run mcp_client/src/mcp_client_local.py
+```
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python:mcp_server/src/mcp_server.py
+import asyncio
+
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+
+async def main():
+    mcp_url = "http://localhost:8000/mcp"
+    headers = {}
+
+    async with streamablehttp_client(
+        mcp_url, headers, timeout=120, terminate_on_close=False
+    ) as (
+        read_stream,
+        write_stream,
+        _,
+    ):
+        async with ClientSession(read_stream, write_stream) as session:
+            await session.initialize()
+            tool_result = await session.list_tools()
+            print("Available tools:")
+            for tool in tool_result.tools:
+                print(f"  - {tool.name}: {tool.description}")
+                print(f"    InputSchema: {tool.inputSchema.get('properties')}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+```bash: 出力結果
+Available tools:
+  - openai_o3_web_search: An AI agent with advanced web search capabilities. Useful for finding the latest information,
+    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
+
+    Args:
+        question: The search question to perform.
+
+    Returns:
+        str: The search results with advanced reasoning and analysis.
+
+    InputSchema: {'properties': {'question': {'description': 'Question text to send to OpenAI o3. It supports natural language queries.\n        Write in Japanese. Be direct and specific about your requirements.\n        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally.', 'title': 'Question', 'type': 'string'}}, 'required': ['question'], 'title': 'openai_o3_web_searchArguments', 'type': 'object'}
+  - greet_user: Greet a user by name
+    Args:
+        name: The name of the user.
+
+    InputSchema: {'properties': {'name': {'description': 'The name of the person to greet', 'title': 'Name', 'type': 'string'}}, 'required': ['name'], 'title': 'greet_userArguments', 'type': 'object'}
+```
+
+</details>
+
+:::note info
+[MCP Inspector](https://github.com/modelcontextprotocol/inspector) を利用することで，Web UI 上で MCP サーバーの動作を確認することができます．(実行には [Node.js](https://nodejs.org/ja/download) をダウンロードする必要があります．)
+
+以下のコマンドで MCP Inspector を起動できます．
+
+```bash
+npx @modelcontextprotocol/inspector
+```
+
+Web UI 上で，Transport Type を `Streamable HTTP` に，URL を `http://localhost:8000/mcp` に設定することで，MCP サーバーと接続できます．
+:::
+
+### Step 2. Cognito と IAM ロールの準備
+
+OAuth 認証や，AgentCore Runtime で MCP サーバーを利用するためのリソースを準備します．リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行することで，`setup` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
+
+#### Step 2-1. Amazon Cognito のセットアップ
 
 AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か OAuth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では OAuth 2.0 を利用するため，以下のコードを実行することで，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
 
@@ -197,7 +458,7 @@ if __name__ == "__main__":
 
 </details>
 
-#### Step 1-2. ロールの作成
+#### Step 2-2. IAM ロールの作成
 
 以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
 
@@ -403,267 +664,6 @@ if __name__ == "__main__":
 
 </details>
 
-### Step2. MCP サーバーの作成
-
-リポジトリの `mcp_server` ディレクトリに移動し，`uv sync` を実行することで，`mcp_server` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．また，`.env` ファイルに，`OPENAI_API_KEY` を設定してください．
-
-#### Step 2-1. OpenAI o3 Web Search MCP サーバーの実装
-
-[OpenAI o3](https://platform.openai.com/docs/models/o3) と [Web search](https://platform.openai.com/docs/guides/tools-web-search?api-mode=responses) を利用し，最新情報を調査・整理するための MCP サーバーを Python で実装しました．o3 を利用することで，多段階にわたる推論と Web 検索を組み合わせた高度な情報検索が可能になります．
-
-MCP サーバーの実装コードを以下に示します．トランスポートとして Streamable HTTP を利用するため，`mcp.run()` の引数に `transport="streamable-http"` を指定します．また，AgentCore Runtime 上に MCP サーバーをホストする要件として，[以下の 2 点を満たす必要があります．](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-how-it-works)
-
-- (1) `FastMCP` の引数 `host` を `0.0.0.0` に設定
-- (2) `FastMCP` の引数 `stateless_http` を `True` に設定
-
-(1) は，MCP サーバーコンテナが `0.0.0.0:8000/mcp` で利用可能である必要があるためです． (2) は，AgentCore Runtime がデフォルトでセッション分離を提供するためです．
-
-<details open><summary>コード (折りたためます)</summary>
-
-```python: mcp_server/src/mcp_server.py
-from mcp.server.fastmcp import FastMCP
-from openai import OpenAI
-from pydantic import Field
-
-INSTRUCTIONS = """
-- You must answer the question using web_search tool.
-- You must respond in japanese.
-"""
-
-mcp = FastMCP(name="openai-web-search-mcp-server", host="0.0.0.0", stateless_http=True)
-
-
-@mcp.tool()
-def openai_o3_web_search(
-    question: str = Field(
-        description="""Question text to send to OpenAI o3. It supports natural language queries.
-        Write in Japanese. Be direct and specific about your requirements.
-        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally."""
-    ),
-) -> str:
-    """An AI agent with advanced web search capabilities. Useful for finding the latest information,
-    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
-
-    Args:
-        question: The search question to perform.
-
-    Returns:
-        str: The search results with advanced reasoning and analysis.
-    """
-    try:
-        client = OpenAI()
-        response = client.responses.create(
-            model="o3",
-            tools=[{"type": "web_search_preview"}],
-            instructions=INSTRUCTIONS,
-            input=question,
-        )
-        return response.output_text
-    except Exception as e:
-        return f"Error occurred: {str(e)}"
-
-
-@mcp.tool()
-def greet_user(
-    name: str = Field(description="The name of the person to greet"),
-) -> str:
-    """Greet a user by name
-    Args:
-        name: The name of the user.
-    """
-    return f"Hello, {name}! Nice to meet you. This is a test message."
-
-
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
-```
-
-> コード中のプロンプトの一部は[本リポジトリのコード](https://github.com/yoshiko-pg/o3-search-mcp/blob/main/index.ts)を参考にさせていただきました．
-
-</details>
-
-:::note info
-[Strands Agents](https://github.com/strands-agents/sdk-python) を利用しても，[OpenAI のモデルの推論](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/model-providers/openai/)は可能です．しかし，Strands Agents の [Python SDK](https://github.com/strands-agents/sdk-python) の内部実装 ([openai.py](https://github.com/strands-agents/sdk-python/blob/3f4c3a35ce14800e4852998e0c2b68f90295ffb7/src/strands/models/openai.py#L347)) を確認すると[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) が利用されており，o3 で Web search を利用することができません．[Chat Completion API で Web search を利用する](https://platform.openai.com/docs/guides/tools-web-search?api-mode=chat)場合，以下のモデルを利用する必要があるためです．
-
-- gpt-4o-search-preview
-- gpt-4o-mini-search-preview
-
-上記の理由のため，本検証では [OpenAI Response API](https://platform.openai.com/docs/api-reference/responses) を利用しています．Response API は Agent 開発向けに設計された，[Chat Completions API](https://platform.openai.com/docs/api-reference/chat) の上位互換の API です．具体的には，[会話の状態](https://platform.openai.com/docs/guides/conversation-state?api-mode=chat)を API 側でステートフルに管理することや，Web search 等の組み込みツールを容易に利用することが可能です．
-:::
-
-#### 【コラム】 MCP サーバーの実装上の工夫
-
-##### Tool の引数 (Args) の 説明 (description) について
-
-[MCP 公式ドキュメントの実装例](https://modelcontextprotocol.io/quickstart/server#implementing-tool-execution)では，以下のように `@mcp.tool()` を付与した関数の docstring 中に関数の説明と引数 (Args) の説明を記載しています．
-
-```python
-@mcp.tool()
-def my_function(param: str):
-    """
-    この関数の説明文
-
-    Args:
-        param: パラメーターの説明
-    """
-    # 関数の実装
-```
-
-しかし，MCP の [Python-SDK](https://github.com/modelcontextprotocol/python-sdk) の内部実装 ([base.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/tools/base.py#L59) や [func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238)) を確認すると，関数の docstring の内容をパースせず，Args の引数説明を抽出しておりません．その結果，`session.list_tools()` で得られる tool 定義の `input_schema` (tool の引数情報) の `description` フィールドが欠落してしまいます．
-
-```json: tool 定義 (input_schemaのparamのdescriptionが欠落)
-{
-  "properties": {
-    "param": {
-      "title": "Param",
-      "type": "string"
-    }
-  },
-  "required": ["param"],
-  "title": "my_functionArguments",
-  "type": "object"
-}
-```
-
-なお，本事実は以下の Issue でも言及されています．
-
-https://github.com/modelcontextprotocol/python-sdk/issues/226
-
-tool 定義の `input_schema` の `description` フィールドに説明を設定するためには，以下のように Pydantic の `Field` を利用して引数の説明を記載する必要があります．([func_metadata.py](https://github.com/modelcontextprotocol/python-sdk/blob/49991fd2c78cded9f70e25871a006f9bab693d4b/src/mcp/server/fastmcp/utilities/func_metadata.py#L212-L238) 参照．)
-
-```python
-from pydantic import Field
-
-@mcp.tool()
-def my_function(
-  param: str = Field(description="パラメーターの説明"),
-):
-    """
-    この関数の説明文
-
-    Args:
-        param: パラメーターの説明
-    """
-    # 関数の実装
-```
-
-```json: tool 定義 (input_schemaのparamのdescriptionが設定される)
-{
-  "properties": {
-    "param": {
-      "description": "パラメーターの説明",
-      "title": "Param",
-      "type": "string"
-    }
-  },
-  "required": ["param"],
-  "title": "my_functionArguments",
-  "type": "object"
-}
-```
-
-[Anthropic の tool use のドキュメント](https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions)によると，tool の説明に加え，tool の引数の意味や説明を具体的に記述することがベストプラクティスであるとされているため，本実装では，Pydantic の `Field` を利用して引数の説明を記載しております．
-
-https://docs.anthropic.com/en/docs/agents-and-tools/tool-use/implement-tool-use#best-practices-for-tool-definitions
-
-#### error 発生時の処理について
-
-エラー発生時，エラー内容を文字列として返却することで，tool の呼び出し元の LLM が，エラーの内容とその解決方法を提示できるようにしております．
-
-```python
-try:
-    ...
-    return response.output_text
-except Exception as e:
-    return f"Error occurred: {str(e)}"
-```
-
-#### OpenAI o3 の 設定について
-
-執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
-
-<!-- また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．） -->
-
-#### Step 2-2. Local 上での MCP サーバーの動作確認
-
-AgentRuntime へデプロイする前に，ローカル環境で MCP サーバーが正しく動作するか確認します．まず，`mcp_server` ディレクトリ上で以下のコマンドを実行し，MCP サーバーを起動します．
-
-```bash
-uv run src/mcp_server.py
-```
-
-次に，別のターミナルを開き，`mcp_client` ディレクトリに移動し，`uv sync` を実行します．その後，以下のコードを実行することで，簡易的な MCP クライアントから MCP サーバーに接続して，tool の一覧を取得可能なことを確認します．
-
-```bash
-uv run mcp_client/src/mcp_client_local.py
-```
-
-<details open><summary>コード (折りたためます)</summary>
-
-```python:mcp_server/src/mcp_server.py
-import asyncio
-
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
-
-
-async def main():
-    mcp_url = "http://localhost:8000/mcp"
-    headers = {}
-
-    async with streamablehttp_client(
-        mcp_url, headers, timeout=120, terminate_on_close=False
-    ) as (
-        read_stream,
-        write_stream,
-        _,
-    ):
-        async with ClientSession(read_stream, write_stream) as session:
-            await session.initialize()
-            tool_result = await session.list_tools()
-            print("Available tools:")
-            for tool in tool_result.tools:
-                print(f"  - {tool.name}: {tool.description}")
-                print(f"    InputSchema: {tool.inputSchema.get('properties')}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-```bash: 出力結果
-Available tools:
-  - openai_o3_web_search: An AI agent with advanced web search capabilities. Useful for finding the latest information,
-    troubleshooting errors, and discussing ideas or design challenges. Supports natural language queries.
-
-    Args:
-        question: The search question to perform.
-
-    Returns:
-        str: The search results with advanced reasoning and analysis.
-
-    InputSchema: {'properties': {'question': {'description': 'Question text to send to OpenAI o3. It supports natural language queries.\n        Write in Japanese. Be direct and specific about your requirements.\n        Avoid chain-of-thought instructions like "think step by step" as o3 handles reasoning internally.', 'title': 'Question', 'type': 'string'}}, 'required': ['question'], 'title': 'openai_o3_web_searchArguments', 'type': 'object'}
-  - greet_user: Greet a user by name
-    Args:
-        name: The name of the user.
-
-    InputSchema: {'properties': {'name': {'description': 'The name of the person to greet', 'title': 'Name', 'type': 'string'}}, 'required': ['name'], 'title': 'greet_userArguments', 'type': 'object'}
-```
-
-</details>
-
-:::note info
-[MCP Inspector](https://github.com/modelcontextprotocol/inspector) を利用することで，Web UI 上で MCP サーバーの動作を確認することができます．(実行には [Node.js](https://nodejs.org/ja/download) をダウンロードする必要があります．)
-
-以下のコマンドで MCP Inspector を起動できます．
-
-```bash
-npx @modelcontextprotocol/inspector
-```
-
-Web UI 上で，Transport Type を `Streamable HTTP` に，URL を `http://localhost:8000/mcp` に設定することで，MCP サーバーと接続できます．
-:::
-
 ### Step 3. MCP サーバーを AgentCore Runtime にデプロイ
 
 [bedrock-agentcore-starter-toolkit](https://github.com/aws/bedrock-agentcore-starter-toolkit) を利用することで，ローカルで開発した MCP サーバーを AgentCore Runtime に容易にデプロイすることができます．具体的には，`agentcore configure` コマンドや `agentcore launch` コマンドで，以下の処理を自動実行することができます．
@@ -674,7 +674,7 @@ Web UI 上で，Transport Type を `Streamable HTTP` に，URL を `http://local
 - AgentCore Runtime へのデプロイ
 
 :::note warn
-Docker イメージは，[ARM64 アーキテクチャ向けにビルド](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/getting-started-custom.html#build-and-deploy-arm64-image)する必要があります．異なる CPU アーキテクチャを利用している場合，`agentcore launch` コマンドに `--codebuild` オプションを指定することで，CodeBuild を利用して ARM64 アーキテクチャ向けにビルド・デプロイすることができます．
+Docker イメージは，[ARM64 アーキテクチャ向けにビルド](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/getting-started-custom.html#build-and-deploy-arm64-image)する必要があります．異なる CPU アーキテクチャを利用している場合，`agentcore launch` コマンドに `--codebuild` オプションを指定することで，CodeBuild を利用して ARM64 アーキテクチャ向けにビルド・デプロイすることができます．(bedrock-agentcore-starter-toolkit を最新化して下さい．)
 
 https://github.com/aws/bedrock-agentcore-starter-toolkit/releases/tag/v0.1.1
 :::
@@ -695,7 +695,7 @@ mcp_server/
 │   └── deploy_mcp_server.py # デプロイ用スクリプト
 ├── src
 │   ├── __init__.py
-│   └── mcp_server.py # MCP サーバー
+│   └── mcp_server.py # OpenAI o3 MCP サーバー
 └── uv.lock
 ```
 
@@ -804,7 +804,7 @@ if __name__ == "__main__":
 | `authorizer_configuration` | OAuth 認証の設定                                                             |
 | `protocol`                 | Runtime のプロトコル (MCP を利用する場合は `MCP` を指定)                     |
 
-:::note warn
+:::note note
 各引数の利用方法については，[AWS CLI Reference](https://docs.aws.amazon.com/cli/latest/reference/bedrock-agentcore-control/create-agent-runtime.html) や [starter-toolkit](https://github.com/aws/bedrock-agentcore-starter-toolkit/blob/main/src/bedrock_agentcore_starter_toolkit/notebook/runtime/bedrock_agentcore.py#L34) の実装が参考になります．
 :::
 
@@ -826,7 +826,7 @@ agents:
     entrypoint: /home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_server/src/mcp_server.py
     platform: linux/arm64
     container_runtime: docker
-    aws:MCP サーバーを AgentCore Runtime にデプロイできます．
+    aws:
       execution_role: arn:aws:iam::<aws-account-id>:role/agentcore-<agent name>-role
       execution_role_auto_create: false
       account: "<aws-account-id>"
@@ -903,14 +903,14 @@ CMD ["opentelemetry-instrument", "python", "-m", "src.mcp_server"]
 
 `launch()` では，実際に Docker イメージのビルドや ECR へのプッシュ，AgentCore Runtime へのデプロイを行います．引数 `env_vars` で環境変数を指定することで，MCP サーバーの実行時に必要な環境変数を設定できます．今回は，OpenAI API キーを `OPENAI_API_KEY` という環境変数名で指定しています．
 
-:::note info
+:::note warn
 本検証では OpenAI の API キーを AgentCore Runtime のコンテナの環境変数 `OPENAI_API_KEY` に設定しておりますが，AWS コンソール上では平文で保存されてしまいます．本番環境においては，Secret Manager で保存したり，以下の記事のように，AgentCore Identity を API キー認証情報プロバイダーとして利用する方が良いでしょう．
 :::
 
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
 :::note alert
-MCP サーバーで利用するパッケージ `mcp` のバージョンについて，OAuth 関連のバグが存在するため，`mcp==1.11.0` ，もしくは `mcp==1.12.2` として下さい．（本不具合については後述します．）
+MCP サーバーで利用するパッケージ `mcp` のバージョンについて，執筆時点 (2025/07/29) で最新の`mcp==1.12.2` として下さい．仮に OAuth 関連で不具合が発生する場合，`mcp==1.11.0` にダウングレードして下さい．（本不具合については後述します．）
 :::
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
@@ -927,6 +927,15 @@ https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 ```bash
 uv run src/mcp_client_remote.py
 ```
+
+:::note info
+Cognito のアクセストークンの期限は 1 時間で切れます．期限が切れた場合，`setup` ディレクトリに移動後，以下のコードを実行することで新しいアクセストークンを取得できます．
+
+```bash
+uv run src/setup_cognito.py
+```
+
+:::
 
 <details open><summary>コード (折りたためます)</summary>
 
@@ -1040,11 +1049,11 @@ Found 2 tools available.
 
 </details>
 
-コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しています．重要な点は，引数で指定している `mcp_endpoint` (remote MCP サーバーの接続先のエンドポイント) と header の形式です．
+コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しています．重要な点は，引数で指定している `mcp_endpoint` (remote MCP サーバーの接続先のエンドポイント) と `headers` の形式です．
 
 #### mcp_endpoint
 
-接続先エンドポイントは，以下の形式である必要があります．以下のエンドポイントについては，[ドキュメントの実装例](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)や，[GitHub のサンプル](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)から確認することができます． (AWS コンソール上では確認することができませんでした．)
+接続先エンドポイントは，以下の形式である必要があります．以下は，[ドキュメントの実装例](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)や，[GitHub のサンプル](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)から確認することができます． (AWS コンソール上では確認することができませんでした．)
 
 ```
 https://bedrock-agentcore.<region>.amazonaws.com/runtimes/<encoded-agent-arn>/invocations?qualifier=DEFAULT
@@ -1052,7 +1061,7 @@ https://bedrock-agentcore.<region>.amazonaws.com/runtimes/<encoded-agent-arn>/in
 
 また，`<encoded-agent-arn>` の部分は，URL エンコードされた AgentCore Runtime の ARN である必要があります．具体的には，`:` を `%3A` に，`/` を `%2F` に置換する必要があります．
 
-#### header
+#### headers
 
 header の形式は，以下の形式である必要があります．authorization ヘッダーには，Cognito のアクセストークンを設定する必要があります．Content-Type ヘッダーおよび Accept ヘッダーは省略可能ですが，記述する場合は [MCP の仕様](https://modelcontextprotocol.io/specification/2025-06-18/basic/transports#sending-messages-to-the-server)に[従う必要があります](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html#runtime-mcp-invoke-server)．
 
@@ -1122,7 +1131,7 @@ if __name__ == "__main__":
 
 </details>
 
-上記のコードと Step 4 のコードを比較すると，少量のコードで実装できることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われております．
+上記のコードと Step 4 のコードを比較すると，少量のコードであることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われており、非常にシンプルな実装になっています．
 
 :::note info
 o3 MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．
@@ -1293,8 +1302,9 @@ graph = builder.compile()
 
 OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．
 
-## MCP のバグについて
+## 観測した MCP のバグについて
 
+執筆時点 (2025/07/29)
 streamable HTTP を利用する場合，以下の不具合が発生します．MCP サーバーを local で実行した場合には発生しません．
 
 ### MCP=1.2.0 以上だと，streamable HTTP のレスポンスの JSON のパースに失敗してしまう

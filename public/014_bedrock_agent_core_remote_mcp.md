@@ -9,7 +9,7 @@ tags:
   - OpenAI
   - bedrock
 private: false
-updated_at: '2025-08-01T08:51:15+09:00'
+updated_at: '2025-08-01T08:58:19+09:00'
 id: 1ef730d343c870b71e50
 organization_url_name: null
 slide: false

@@ -70,7 +70,7 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 
 #### Step 1-1. Amazon Cognito のセットアップ
 
-AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か Oauth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，Oauth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
+AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か OAuth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，OAuth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
 
 - Cognito client ID
 - Cognito discovery URL
@@ -200,7 +200,7 @@ if __name__ == "__main__":
 
 以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
 
-作成されるロールは，指定した Agent 名の Runtime が，指定した region の remote MCP サーバー (AgentCore Runtime) との認証や通信を行うために必要な権限を持つように設定されています．また，コードでは，同名の role が存在する場合は削除してから role を再作成するようにしております．
+ロールでは，指定した Runtime (remote MCP サーバー) に対する session initialize に必要な権限や，Runtime 作成時に必要な権限 (ECR へのアクセス等)，Runtime 運用時に必要な権限 (CloudWatch Logs への書き込み権限等) が設定されています．また，コードでは，同名の role が存在する場合は削除してから role を再作成するようにしております．
 
 ```bash
 uv run src/create_role.py

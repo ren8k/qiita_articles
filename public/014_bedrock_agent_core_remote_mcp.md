@@ -32,11 +32,11 @@ OpenAI o3 と Web Search tool による詳細な検索を行うための MCP（M
 
 ## 実装内容
 
-以下リポジトリにて公開しております．
+実装は以下リポジトリにて公開しております．
 
 https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
 
-以下がディレクトリ構成です．MCP Client, MCP Server, および，Cognito や IAM ロールのセットアップを行うコードを，実践的に利用する想定で実装しました．
+以下がディレクトリ構成です．MCP Client, MCP Server, および，Cognito や IAM ロールのセットアップを行うコードを実践的に利用する想定で実装し，各ディレクトリで管理しております．
 
 ```
 .

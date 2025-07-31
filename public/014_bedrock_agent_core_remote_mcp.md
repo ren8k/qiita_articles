@@ -579,9 +579,9 @@ except Exception as e:
 
 #### OpenAI o3 の 設定について
 
-執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません．このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
+執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 
-また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．）
+<!-- また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．） -->
 
 #### Step 2-2. Local 上での MCP サーバーの動作確認
 

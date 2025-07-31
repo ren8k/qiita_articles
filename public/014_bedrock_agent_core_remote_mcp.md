@@ -20,9 +20,9 @@ ignorePublish: false
 
 2025/07/17 に，AWS の新サービスである [Amazon Bedrock AgentCore がプレビューで利用可能になりました．](https://aws.amazon.com/jp/about-aws/whats-new/2025/07/amazon-bedrock-agentcore-preview/)
 
-AgentCore は，〜〜〜サービスであり，6 種類の機能を提供しています．特に，AgentCore Runtime は，〜〜〜
+AgentCore は，AI Agent の運用を AWS 上で容易に実現するための PaaS であり，Building Block として利用可能な 7 種類の機能 (Runtime, Identity, Memory, Code Interpreter, Browser, Gateway, Observability)を提供しています．特に，AgentCore Runtime は，コンテナ化された AI Agent をサーバーレスでデプロイ可能な機能であり，実際に利用した CPU リソースに応じた課金が行われるので，コスト効率が良いです．なお，AI Agent は任意のフレームワークで実装して問題ございません．
 
-AgentCore Runtime を利用することで，Cognito による OAuth 認証付きの，Remote MCP サーバーをサーバーレスで構築することができます．
+また，AgentCore Runtime では，AI Agent 本体だけでなく，Cognito による OAuth 認証付きの，[Remote MCP サーバーをデプロイ](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)することが可能です．本稿では，本機能を深く掘り下げ，実際に Remote MCP サーバーをデプロイし，Strands Agents から利用する方法について解説します．
 
 ## 検証内容
 
@@ -338,7 +338,7 @@ Web UI 上で，Transport Type を `Streamable HTTP` に，URL を `http://local
 
 ### Step 2. Cognito と IAM ロールの準備
 
-OAuth 認証や，AgentCore Runtime で MCP サーバーを利用するためのリソースを準備します．リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行することで，`setup` ディレクトリ内のコードの実行に必要なパッケージをインストールして下さい．
+OAuth 認証や，AgentCore Runtime で MCP サーバーを利用するためのリソースを準備します．リポジトリの `setup` ディレクトリに移動し，`uv sync` を実行して下さい．
 
 #### Step 2-1. Amazon Cognito のセットアップ
 

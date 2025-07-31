@@ -1135,6 +1135,8 @@ if __name__ == "__main__":
     main()
 ```
 
+> [公式ドキュメントの実装例](https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/)を参考にしました．
+
 </details>
 
 上記のコードと Step 4 のコードを比較すると，少量のコードであることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われており、非常にシンプルな実装になっています．
@@ -1308,6 +1310,10 @@ graph = builder.compile()
 
 OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．
 
+:::note warn
+MCP サーバーの実行ログについて，CloudWatch Logs GenAI Observability の Bedrock AgentCore タブ内に記録されないようです．Strands Agent の実行内容については，CloudWatch Logs GenAI Observability の Model Invocations タブ内に記録されます．
+:::
+
 ## 観測した MCP のバグについて
 
 執筆時点 (2025/07/31) では，
@@ -1369,15 +1375,6 @@ For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
 
 ```
 
-## その他
-
-GenAI observability でも確認できる．
-
-## Tips
-
-- role はドキュメント通りで良かった．
-- やりなおす場合は，bedrock_agentcore.yaml を削除すべき
-
 ## まとめ
 
 summary
@@ -1387,8 +1384,6 @@ summary
 https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb
-
-https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/
 
 ## 仲間募集
 

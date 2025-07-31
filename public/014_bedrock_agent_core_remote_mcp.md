@@ -18,24 +18,25 @@ ignorePublish: false
 
 株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
 
-## 目次
+2025/07/17 に，AWS の新サービスである [Amazon Bedrock AgentCore がプレビューで利用可能になりました．](https://aws.amazon.com/jp/about-aws/whats-new/2025/07/amazon-bedrock-agentcore-preview/)
 
-- 検証内容
-- 実装内容
-- 実行環境
-- 手順
+AgentCore は，〜〜〜サービスであり，6 種類の機能を提供しています．特に，AgentCore Runtime は，〜〜〜
+
+AgentCore Runtime を利用することで，Cognito による OAuth 認証付きの，Remote MCP サーバーをサーバーレスで構築することができます．
 
 ## 検証内容
 
-OpenAI の GPT-4.1 を利用し，Web Search を実行するための MCP（Model Context Protocol）を実装しました．フレームワークとしては，OpenAI が提供する Response API を利用しました．Bedrock AgentCore Runtime では，どのようなフレームワークでも利用可能な点が特徴です．
+OpenAI o3 と Web Search tool による詳細な検索を行うための MCP（Model Context Protocol）サーバーを実装しました．フレームワークとしては，OpenAI が提供する Response API を利用しました．そして，bedrock-agentcore-starter-toolkit を利用し，実装した MCP サーバーを AgentCore Runtime に Remote MCP サーバーとしてデプロイしました．最後に，Strands Agents から streamable HTTP で Remote MCP サーバーに接続し，利用可能なことを検証しました．
 
-Amazon Bedrock AgentCore Runtime に，自作の MCP サーバーをデプロイし，streamable HTTP で Remote MCP
-
-Amazon Bedrock AgentCore Python SDK を利用していく．
+![architecture.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/458ae1be-3f7a-4e1c-8cf9-8fecf629d9e5.png)
 
 ## 実装内容
 
+以下リポジトリにて公開しております．
+
 https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
+
+以下がディレクトリ構成です．MCP Client, MCP Server, および，Cognito や IAM ロールのセットアップを行うコードを，実践的に利用する想定で実装しました．
 
 ```
 .
@@ -46,11 +47,11 @@ https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
 └── setup
 ```
 
-`.env.sample` をコピーして，`.env` を作成し，必要な環境変数を設定してください．
+なお，`.env.sample` をコピーして `.env` を作成し，後述する手順にて環境変数を設定してください．
 
 ## 実行環境
 
-以下に開発環境を示します．本検証では，ARM アーキテクチャベースの EC2 インスタンスで開発・実行しています．AMI として [AWS Deep Learning AMI](https://docs.aws.amazon.com/dlami/latest/devguide/what-is-dlami.html) を利用しました．本 AMI には，Docker や AWS CLI がプリインストールされており，非常に便利です．EC2 には，[uv](https://docs.astral.sh/uv/getting-started/installation/) をインストールしております．
+開発環境を以下に示します．本検証では，ARM アーキテクチャベースの EC2 インスタンスで開発・実行しています．AgentCore Runtime の仕様上，Docker イメージを ARM64 アーキテクチャ向けにビルドする必要があるためです．AMI として [AWS Deep Learning AMI](https://docs.aws.amazon.com/dlami/latest/devguide/what-is-dlami.html) を利用しました．本 AMI には，Docker や AWS CLI がプリインストールされており，非常に便利です．EC2 には，[uv](https://docs.astral.sh/uv/getting-started/installation/) をインストールしております．
 
 - OS: Ubuntu Server 24.04 LTS
 - AMI: 01e1d8271212cd19a (Deep Learning OSS Nvidia Driver AMI GPU PyTorch 2.7)
@@ -59,18 +60,20 @@ https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
 - uv version: 0.8.3
 - default region: us-west-2
 
-以下のリポジトリでは，local 上の VSCode から EC2 へ接続して，簡単に開発環境を構築する手順をまとめております．是非ご利用ください．
+参考に，Local 上の VSCode から EC2 へ接続し，簡単に開発環境を構築する手順を以下のリポジトリにまとめております．是非ご利用ください．
 
 https://github.com/ren8k/aws-ec2-devkit-vscode
 
 ## 手順
+
+以下の各 Step を順に実行し，Remote MCP サーバーの構築と利用を行います．
 
 - Step 1. MCP サーバーの作成
 - Step 2. Cognito と IAM ロールの準備
 - Step 3. MCP サーバーを AgentCore Runtime にデプロイ
 - Step 4. Remote MCP サーバーの動作確認
 - Step 5. Strands Agents から Remote MCP サーバーを利用
-- Step 6. Claude Code から Remote MCP サーバーを利用
+- Step 6. (おまけ) Claude Code から Remote MCP サーバーを利用
 
 ### Step 1. MCP サーバーの作成
 
@@ -1142,9 +1145,9 @@ if __name__ == "__main__":
 
 上記のコードと Step 4 のコードを比較すると，少量のコードであることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われており、非常にシンプルな実装になっています．
 
-oo3 Web Search MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．(出力が多いので，GitHub に upload しています．)
+o3 Web search MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．(出力が多いので，GitHub に upload しています．)
 
-https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp/blob/main/assets/resut_o3_mcp.md
+https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp/blob/main/assets/strands_agent_results_using_o3_mcp.md
 
 OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．ただし，Strands Agents の回答の最後に `Session termination failed: 404` というエラー出力が表示されており，こちらについては原因不明です．
 
@@ -1176,15 +1179,15 @@ claude mcp add --transport http \
 
 ![cc_result.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9e95cc5c-df92-4bbc-a91c-f74568a6c41d.png)
 
-Claude Code と o3 を組み合わせることで，開発効率が大幅に向上できそうです．
+Claude Code と o3 を組み合わせることで，開発効率を大幅に向上できそうです．
 
-## 観測した MCP のバグについて
+## 観測した MCP の不具合について
 
 執筆時点 (2025/07/31) では，トランスポートとして streamable HTTP を利用する場合，パッケージ `mcp` では以下の不具合が発生することを確認しております．
 
-### 1. MCP サーバーのレスポンスに `\x85` が含まれる場合，hang してしまう．
+### 1. MCP サーバーのレスポンスに `\x85` が含まれる場合，hang してしまう
 
-極稀ですが，MCP の最終的なレスポンス (o3 の出力結果) に `\x85` が含まれる場合、json のパースに失敗してしまいます．
+極稀ですが，MCP の最終的なレスポンス (o3 の出力結果) に `\x85` が含まれる場合、MCP サーバーのレスポンスのパースに失敗してしまいます．
 
 https://github.com/modelcontextprotocol/python-sdk/issues/1144
 
@@ -1213,20 +1216,22 @@ For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
 
 ### 2. `mcp>=1.2.0` の場合，MCP サーバーへの接続でエラーが発生する
 
-パッケージのバージョン起因で，OAuth 認証直後，streamable HTTP のレスポンスの JSON のパースに失敗する事象が発生しておりました．(AWS Samples でも不具合があったので PR を作成しておりました．) `mcp==1.11.0` にダウングレードすることで解決しましたが，現在は`mcp>=1.8.0`であればどのバージョンでも問題なく動作するようです．
+パッケージのバージョン起因で，OAuth 認証直後，streamable HTTP のレスポンス (JSON) のパースに失敗する事象が発生しておりました．(AWS Samples でも不具合があったので PR を作成しておりました．) `mcp==1.11.0` にダウングレードすることで解決しましたが，現在は`mcp>=1.8.0`であればどのバージョンでも問題なく動作するようです．(実機検証済み)
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 
-### 3. MCP の実行時間が長い場合，ハングしてしまう．
+### 3. MCP の実行時間が長い場合，hang してしまう
 
-o3 の検索時間が長く，MCP の処理時間が 1 分以上となる場合，MCP のレスポンスが返却されず，MCP Client がハングしてしまう事象が発生しておりました． (以下の記事に似た事象でした．) こちらも現在は解決しているようです．
-
-https://qiita.com/7shi/items/3bf54f47a2d38c70d39b
+o3 の検索時間が長く，MCP の処理時間が 1 分以上となる場合，MCP のレスポンスが返却されず，MCP Client がハングしてしまう事象が発生しておりました．(MCP の出力自体は OpenAI Dashboard の Logs から確認しております．) こちらに関しては原因不明ですが，現在は解決しているようです．(実機検証済み)
 
 ## まとめ
 
 本記事では，AWS Bedrock AgentCore Runtime 上に Remote MCP サーバーをデプロイし，
-Strands Agents を利用して MCP サーバーを呼び出す方法について解説しました．
+Strands Agents を利用して MCP サーバーを呼び出す方法について解説しました．AgentCore Runtime を利用することで，streamable HTTP で接続可能な OAuth 認証付きの Remote MCP サーバーを容易に構築することができるので，業務での活用 (MCP サーバーの横展開など) が期待されます．
+
+また，本検証では，MCP 起因の不具合で原因追求に時間を要しましたが，MCP のエラー出力からは根本原因を特定することが難しい点が課題でした．AgentCore Runtime にデプロイ後に不具合が発生した場合は，まずは [mcp python-sdk の Issue](https://github.com/modelcontextprotocol/python-sdk/issues) を確認することを推奨します．
+
+AgentCore は公開されてまだ日が浅く，公式ドキュメントでも詳細な情報が不足しておりますが，本記事の内容が参考になれば幸いです．
 
 ## 参考資料
 

@@ -69,7 +69,8 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 - Step 2. Cognito と IAM ロールの準備
 - Step 3. MCP サーバーを AgentCore Runtime にデプロイ
 - Step 4. Remote MCP サーバーの動作確認
-- Step 5. Strands Agents から MCP サーバーを利用
+- Step 5. Strands Agents から Remote MCP サーバーを利用
+- Step 6. Claude Code から Remote MCP サーバーを利用
 
 ### Step 1. MCP サーバーの作成
 
@@ -1079,9 +1080,9 @@ header の形式は，以下の形式である必要があります．authorizat
 }
 ```
 
-### Step 5. Strands Agents から MCP サーバーを利用
+### Step 5. Strands Agents から Remote MCP サーバーを利用
 
-最後に，[Strands Agents](https://strandsagents.com/latest/) を利用し，MCP サーバーに接続します．Strands Agents は，AWS が公開した OSS の AI Agent 開発フレームワークであり，数行で Agent を実装することができます．Strands Agents が提供するクラス [`MCPClient`](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/tools/mcp-tools/)を利用することで，非常に簡単に MCP サーバーを利用することができます．
+[Strands Agents](https://strandsagents.com/latest/) を利用し，MCP サーバーに接続します．Strands Agents は，AWS が公開した OSS の AI Agent 開発フレームワークであり，数行で Agent を実装することができます．Strands Agents が提供するクラス [`MCPClient`](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/tools/mcp-tools/)を利用することで，非常に簡単に MCP サーバーを利用することができます．
 
 `mcp_client` ディレクトリ上で，以下のコマンドを実行することで，Strands Agents 経由で MCP サーバーを利用できます．
 
@@ -1141,222 +1142,53 @@ if __name__ == "__main__":
 
 上記のコードと Step 4 のコードを比較すると，少量のコードであることがわかります．特に，MCP サーバーの初期化処理 (initialize) やセッションの管理が `MCPClient` で自動で行われており、非常にシンプルな実装になっています．
 
+oo3 Web Search MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．(出力が多いので，GitHub に upload しています．)
+
+https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp/blob/main/assets/resut_o3_mcp.md
+
+OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．ただし，Strands Agents の回答の最後に `Session termination failed: 404` というエラー出力が表示されており，こちらについては原因不明です．
+
 :::note info
-o3 MCP の調査結果を基にした Strands Agents の回答結果を以下に示します．
+MCP サーバーの実行ログについて，CloudWatch Logs GenAI Observability の Bedrock AgentCore タブ内に記録されないようです．Strands Agent の Agent Loop の実行内容については，CloudWatch Logs GenAI Observability の Model Invocations タブ内に記録されます．
+:::
 
-<details><summary>回答結果 (折りたたんでます)</summary>
+### Step 6. Claude Code から Remote MCP サーバーを利用
 
-LangGraph における MCP の実装方法について調べてみますね。
-
-Tool #1: openai_o3_web_search
-
-LangGraph における MCP（Model Context Protocol）の実装方法について調べました。以下に詳細をまとめます：
-
-## MCP とは
-
-MCP は、LLM が外部ツールやデータソースを標準化された方法で発見・呼び出せるようにするオープンプロトコルです。LangGraph では双方向の統合が可能で、MCP サーバーのツールを使用することも、LangGraph のグラフを MCP ツールとして公開することもできます。
-
-## 必要なパッケージ
-
-### MCP ツールを使う側（クライアント）
+最後に，Claude Code から o3 Web search MCP サーバーを利用してみます．`mcp_client` ディレクトリ上で，以下のコマンドを実行します．
 
 ```bash
-pip install langchain-mcp-adapters
+bash src/claude_code.py
 ```
 
-### MCP サーバーを作る側
+[Claude Code の公式ドキュメント](https://docs.anthropic.com/en/docs/claude-code/mcp)を参考に，header の設定を行っております．
 
-```bash
-pip install mcp
+<details open><summary>コード (折りたためます)</summary>
+
+```shell:setup_claude_code.sh (一部抜粋)
+claude mcp add --transport http \
+    o3-mcp-server "$MCP_ENDPOINT" \
+    --header "Authorization: Bearer $COGNITO_ACCESS_TOKEN"
 ```
-
-### LangGraph Server 側
-
-```bash
-pip install "langgraph-api>=0.2.3" "langgraph-sdk>=0.1.61"
-```
-
-## カスタム MCP サーバーの作成
-
-### 1. Stdio 方式のサンプル（math_server.py）
-
-```python
-from mcp.server.fastmcp import FastMCP
-
-mcp = FastMCP("Math")
-
-@mcp.tool()
-def add(a: int, b: int) -> int:
-    """Add two numbers"""
-    return a + b
-
-@mcp.tool()
-def multiply(a: int, b: int) -> int:
-    """Multiply two numbers"""
-    return a * b
-
-if __name__ == "__main__":
-    mcp.run(transport="stdio")
-```
-
-### 2. HTTP 方式のサンプル（weather_server.py）
-
-```python
-from mcp.server.fastmcp import FastMCP
-
-mcp = FastMCP("Weather")
-
-@mcp.tool()
-async def get_weather(location: str) -> str:
-    return "It's always sunny in New York"
-
-if __name__ == "__main__":
-    mcp.run(transport="streamable-http")  # デフォルトポート :8000
-```
-
-## LangGraph エージェントで MCP ツールを使用
-
-### ReAct エージェントの例
-
-```python
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.prebuilt import create_react_agent
-
-client = MultiServerMCPClient(
-    {
-        "math": {
-            "command": "python",
-            "args": ["/abs/path/math_server.py"],
-            "transport": "stdio",
-        },
-        "weather": {
-            "url": "http://localhost:8000/mcp",
-            "transport": "streamable_http",
-        }
-    }
-)
-tools = await client.get_tools()
-
-agent = create_react_agent("anthropic:claude-3-5-sonnet-latest", tools)
-
-resp = await agent.ainvoke(
-    {"messages": [{"role": "user", "content": "what's (3 + 5) x 12?"}]}
-)
-print(resp)
-```
-
-### カスタムワークフローの例
-
-```python
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain.chat_models import init_chat_model
-from langgraph.graph import StateGraph, MessagesState, START, END
-from langgraph.prebuilt import ToolNode
-
-model = init_chat_model("anthropic:claude-3-5-sonnet-latest")
-
-client = MultiServerMCPClient({...})  # 上記と同様の設定
-tools = await client.get_tools()
-model_with_tools = model.bind_tools(tools)
-
-tool_node = ToolNode(tools)
-
-async def call_model(state: MessagesState):
-    messages = state["messages"]
-    return {"messages": [await model_with_tools.ainvoke(messages)]}
-
-def need_tools(state: MessagesState):
-    return "tools" if state["messages"][-1].tool_calls else END
-
-builder = StateGraph(MessagesState)
-builder.add_node("call_model", call_model)
-builder.add_node("tools", tool_node)
-builder.add_edge(START, "call_model")
-builder.add_conditional_edges("call_model", need_tools)
-builder.add_edge("tools", "call_model")
-graph = builder.compile()
-```
-
-## LangGraph Server で MCP エンドポイントを公開
-
-必要バージョンをインストールしてデプロイすると、`/mcp`エンドポイントが自動で有効になります。
-
-### langgraph.json での設定例
-
-```json
-{
-  "graphs": {
-    "my_agent": {
-      "path": "./my_agent/agent.py:graph",
-      "description": "A description of what the agent does"
-    }
-  }
-}
-```
-
-## 重要なポイント
-
-1. **認証**: `/mcp`は LangGraph 全体と同じ認証方式を継承
-2. **セッション**: 現状 MCP リクエストはステートレス
-3. **無効化**: `langgraph.json`に`"disable_mcp": true`を追加して無効化可能
-4. **複数サーバー対応**: `MultiServerMCPClient`で複数の MCP サーバー（stdio/HTTP 混在）に対応
-
-この Session termination failed: 404
-実装により、LangGraph で MCP を活用した柔軟なエージェントシステムを構築できます。
 
 </details>
 
-:::
+以下が実際の利用結果です．
 
-OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生成されています．
+![cc_result.png](https://qiita-image-store.s3.ap-northeast-1.amazonaws.com/0/3792375/9e95cc5c-df92-4bbc-a91c-f74568a6c41d.png)
 
-:::note warn
-MCP サーバーの実行ログについて，CloudWatch Logs GenAI Observability の Bedrock AgentCore タブ内に記録されないようです．Strands Agent の実行内容については，CloudWatch Logs GenAI Observability の Model Invocations タブ内に記録されます．
-:::
+Claude Code と o3 を組み合わせることで，開発効率が大幅に向上できそうです．
 
 ## 観測した MCP のバグについて
 
-執筆時点 (2025/07/31) では，
-streamable HTTP を利用する場合，以下の不具合が発生します．MCP サーバーを local で実行した場合には発生しません．
+執筆時点 (2025/07/31) では，トランスポートとして streamable HTTP を利用する場合，パッケージ `mcp` では以下の不具合が発生することを確認しております．
 
-### MCP=1.2.0 以上だと，streamable HTTP のレスポンスの JSON のパースに失敗してしまう
+### 1. MCP サーバーのレスポンスに `\x85` が含まれる場合，hang してしまう．
 
-PR も出した．サポートにも問合せたのでその内容を書けば良い．
-
-https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
-
-### MCP の実行時間が長い場合(1min 以上)，タイムアウトしてしまう．
-
-https://qiita.com/7shi/items/3bf54f47a2d38c70d39b
-
-似た Issue は上がっているが，解決済みとされている．
-
-### MCP のレスポンスに `\x85` が含まれる場合，hang してしまう．
-
-MCP のレスポンスに `\x85` が含まれる場合、json のパースに失敗してしまう．
-pydantic 起因のバグなので，いずれは修正されると思われる．
+極稀ですが，MCP の最終的なレスポンス (o3 の出力結果) に `\x85` が含まれる場合、json のパースに失敗してしまいます．
 
 https://github.com/modelcontextprotocol/python-sdk/issues/1144
 
-```
-
-((pytorch) ) ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
-warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
-LangGraph における MCP（Model Context Protocol）の実装方法について調べてみますね。
-Tool #1: openai_o3_web_search
-Error parsing SSE message
-Traceback (most recent call last):
-File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in \_handle_sse_event
-message = JSONRPCMessage.model_validate_json(sse.data)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
-return cls.**pydantic_validator**.validate_json(
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-pydantic_core.\_pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
-Invalid JSON: EOF while parsing a string at line 1 column 83 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,..."text":"以下では、', input_type=str]
-For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
-
-```
+<details><summary>エラー内容 (折りたたんでます)</summary>
 
 ```
 
@@ -1375,15 +1207,31 @@ For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
 
 ```
 
+</details>
+
+その他，2025/07/30 時点では以下のような不具合も観測しておりましたが，**2025/07/31 時点では解決しているようです．**
+
+### 2. `mcp>=1.2.0` の場合，MCP サーバーへの接続でエラーが発生する
+
+パッケージのバージョン起因で，OAuth 認証直後，streamable HTTP のレスポンスの JSON のパースに失敗する事象が発生しておりました．(AWS Samples でも不具合があったので PR を作成しておりました．) `mcp==1.11.0` にダウングレードすることで解決しましたが，現在は`mcp>=1.8.0`であればどのバージョンでも問題なく動作するようです．
+
+https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
+
+### 3. MCP の実行時間が長い場合，ハングしてしまう．
+
+o3 の検索時間が長く，MCP の処理時間が 1 分以上となる場合，MCP のレスポンスが返却されず，MCP Client がハングしてしまう事象が発生しておりました． (以下の記事に似た事象でした．) こちらも現在は解決しているようです．
+
+https://qiita.com/7shi/items/3bf54f47a2d38c70d39b
+
 ## まとめ
 
-summary
+本記事では，AWS Bedrock AgentCore Runtime 上に Remote MCP サーバーをデプロイし，
+Strands Agents を利用して MCP サーバーを呼び出す方法について解説しました．
 
 ## 参考資料
 
-https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html
-
-https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb
+- [Deploy MCP servers in AgentCore Runtime](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-mcp.html)
+- [GitHub - 01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server](https://github.com/awslabs/amazon-bedrock-agentcore-samples/blob/main/01-tutorials/01-AgentCore-runtime/02-hosting-MCP-server/hosting_mcp_server.ipynb)
 
 ## 仲間募集
 

@@ -29,7 +29,7 @@ ignorePublish: false
 
 OpenAI の GPT-4.1 を利用し，Web Search を実行するための MCP（Model Context Protocol）を実装しました．フレームワークとしては，OpenAI が提供する Response API を利用しました．Bedrock AgentCore Runtime では，どのようなフレームワークでも利用可能な点が特徴です．
 
-Amazon Bedrock AgentCore Runtime に，自作の MCP サーバーをデプロイし，streamable HTTP で remote MCP
+Amazon Bedrock AgentCore Runtime に，自作の MCP サーバーをデプロイし，streamable HTTP で Remote MCP
 
 Amazon Bedrock AgentCore Python SDK を利用していく．
 
@@ -64,6 +64,12 @@ https://github.com/ren8k/aws-bedrock-agentcore-runtime-remote-mcp
 https://github.com/ren8k/aws-ec2-devkit-vscode
 
 ## 手順
+
+- Step 1. MCP サーバーの作成
+- Step 2. Cognito と IAM ロールの準備
+- Step 3. MCP サーバーを AgentCore Runtime にデプロイ
+- Step 4. Remote MCP サーバーの動作確認
+- Step 5. Strands Agents から MCP サーバーを利用
 
 ### Step 1. MCP サーバーの作成
 
@@ -242,7 +248,7 @@ except Exception as e:
 
 #### OpenAI o3 の 設定について
 
-執筆時点 (2025/07/29) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
+執筆時点 (2025/07/31) では，OpenAI o3 で Function Calling を利用する場合，tool の利用を強制するための設定である [`tool_choice`](https://platform.openai.com/docs/guides/function-calling?api-mode=chat#tool-choice) を利用できません． (`tool_choice="auto"` の設定でなければなりません．) このため，Response API の引数 `instructions` にて，Web search を必ず実行するように (システムプロンプトとして) 指示しています．
 
 <!-- また，streamable HTTP を利用する場合，MCP 内部の実行に 1 分以上かかると hang してしまう MCP Python SDK の不具合を観測しました．このため，[reasoning を low に設定](https://platform.openai.com/docs/guides/reasoning?api-mode=responses)することで，MCP の処理時間が 1 分以内になるようにしております．（本不具合については後述します．） -->
 
@@ -462,7 +468,7 @@ if __name__ == "__main__":
 
 以下のコードを実行し，AgentCore Runtime 用の IAM ロールを作成します．作成されるロールは，[AWS 公式ドキュメントに記載のロール](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-permissions.html)と同一です．
 
-ロールでは，指定した Runtime (remote MCP サーバー) に対する session initialize に必要な権限や，Runtime 作成時に必要な権限 (ECR へのアクセス等)，Runtime 運用時に必要な権限 (CloudWatch Logs への書き込み権限等) が設定されています．また，コードでは，同名の role が存在する場合は削除してから role を再作成するようにしております．
+ロールでは，指定した Runtime (Remote MCP サーバー) に対する session initialize に必要な権限や，Runtime 作成時に必要な権限 (ECR へのアクセス等)，Runtime 運用時に必要な権限 (CloudWatch Logs への書き込み権限等) が設定されています．また，コードでは，同名の role が存在する場合は削除してから role を再作成するようにしております．
 
 ```bash
 uv run src/create_role.py
@@ -910,14 +916,14 @@ CMD ["opentelemetry-instrument", "python", "-m", "src.mcp_server"]
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
 :::note alert
-MCP サーバーで利用するパッケージ `mcp` のバージョンについて，執筆時点 (2025/07/29) で最新の`mcp==1.12.2` として下さい．仮に OAuth 関連で不具合が発生する場合，`mcp==1.11.0` にダウングレードして下さい．（本不具合については後述します．）
+MCP サーバーで利用するパッケージ `mcp` のバージョンについて，執筆時点 (2025/07/31) で最新の`mcp==1.12.2` として下さい．仮に OAuth 関連で不具合が発生する場合，`mcp==1.11.0` にダウングレードして下さい．（本不具合については後述します．）
 :::
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86
 
-### Step 4. remote MCP サーバーの動作確認
+### Step 4. Remote MCP サーバーの動作確認
 
-簡易的な MCP クライアントにより，remote MCP サーバーの動作確認を行います．リポジトリの `mcp_client` ディレクトリに移動して下さい．
+簡易的な MCP クライアントにより，Remote MCP サーバーの動作確認を行います．リポジトリの `mcp_client` ディレクトリに移動して下さい．
 
 以下のコマンドを実行し，MCP サーバーに接続して，tool の一覧を取得できることを確認します．なお，`.env` ファイルに以下の変数が設定されていることを確認して下さい．
 
@@ -1049,7 +1055,7 @@ Found 2 tools available.
 
 </details>
 
-コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しています．重要な点は，引数で指定している `mcp_endpoint` (remote MCP サーバーの接続先のエンドポイント) と `headers` の形式です．
+コードでは，パッケージ `mcp` の `streamablehttp_client` を利用して，MCP サーバーに接続しています．重要な点は，引数で指定している `mcp_endpoint` (Remote MCP サーバーの接続先のエンドポイント) と `headers` の形式です．
 
 #### mcp_endpoint
 
@@ -1073,7 +1079,7 @@ header の形式は，以下の形式である必要があります．authorizat
 }
 ```
 
-### Step 5. Strands Agents を利用した MCP クライアントの実行
+### Step 5. Strands Agents から MCP サーバーを利用
 
 最後に，[Strands Agents](https://strandsagents.com/latest/) を利用し，MCP サーバーに接続します．Strands Agents は，AWS が公開した OSS の AI Agent 開発フレームワークであり，数行で Agent を実装することができます．Strands Agents が提供するクラス [`MCPClient`](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/tools/mcp-tools/)を利用することで，非常に簡単に MCP サーバーを利用することができます．
 
@@ -1304,7 +1310,7 @@ OpenAI o3 の Web search 特有の詳細な検索結果を基に，回答が生�
 
 ## 観測した MCP のバグについて
 
-執筆時点 (2025/07/29)
+執筆時点 (2025/07/31) では，
 streamable HTTP を利用する場合，以下の不具合が発生します．MCP サーバーを local で実行した場合には発生しません．
 
 ### MCP=1.2.0 以上だと，streamable HTTP のレスポンスの JSON のパースに失敗してしまう

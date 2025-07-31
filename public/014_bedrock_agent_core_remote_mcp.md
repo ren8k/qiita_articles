@@ -1,5 +1,5 @@
 ---
-title: Bedrock AgentCore Runtime で Remote MCP サーバー (OpenAI o3 Web search) をデプロイし，Strands Agents で利用する
+title: Bedrock AgentCore Runtime で Remote MCP サーバー (OpenAI o3 Web search) をデプロイし，Strands Agents から利用する
 tags:
   - AWS
   - bedrock
@@ -454,9 +454,6 @@ def openai_o3_web_search(
         response = client.responses.create(
             model="o3",
             tools=[{"type": "web_search_preview"}],
-            reasoning={
-                "effort": "low"
-            },  # avoid mcp's bug (To complete the response within 1 minute)
             instructions=INSTRUCTIONS,
             input=question,
         )
@@ -681,7 +678,7 @@ Docker イメージは，[ARM64 アーキテクチャ向けにビルド](https:/
 https://github.com/aws/bedrock-agentcore-starter-toolkit/releases/tag/v0.1.1
 :::
 
-本検証では，Python を利用し，starter-toolkit で Dockerfile や設定ファイルの作成からデプロイまでを一括で実行するスクリプトを実装しました．以下のコマンドを実行することで，MCP サーバーを AgentCore Runtime にデプロイできます．
+本検証では，Python で starter-toolkit を利用し，Dockerfile や設定ファイルの作成からデプロイまでを一括で実行するスクリプトを実装しました．リポジトリの `mcp_server` ディレクトリに移動し，以下のコマンドを実行することで，MCP サーバーを AgentCore Runtime にデプロイできます．
 
 ```bash
 uv run scripts/deploy_mcp_server.py
@@ -816,7 +813,7 @@ if __name__ == "__main__":
 - `.dockerignore`
 - `Dockerfile`
 
-`.bedrock_agentcore.yaml` は， AgentCore Runtime の設定ファイルであり，launch 時に指定した情報が反映されます．参考のため，以下にマスクしたものを示します．
+`.bedrock_agentcore.yaml` は， AgentCore Runtime の設定ファイルであり，launch 時に指定した情報が反映されます．また，`Dockerfile` も簡単なものが自動生成されます．参考のため，以下に `.bedrock_agentcore.yaml` と `Dockerfile` の内容を示します．
 
 <details><summary>.bedrock_agentcore.yaml (折りたたんでます)</summary>
 
@@ -828,7 +825,7 @@ agents:
     entrypoint: /home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_server/src/mcp_server.py
     platform: linux/arm64
     container_runtime: docker
-    aws:
+    aws:MCP サーバーを AgentCore Runtime にデプロイできます．
       execution_role: arn:aws:iam::<aws-account-id>:role/agentcore-<agent name>-role
       execution_role_auto_create: false
       account: "<aws-account-id>"
@@ -859,6 +856,50 @@ agents:
 
 </details>
 
+<details><summary>Dockerfile (折りたたんでます)</summary>
+
+```dockerfile:Dockerfile
+FROM public.ecr.aws/docker/library/python:3.12-slim
+WORKDIR /app
+
+
+
+COPY . .
+# Install from pyproject.toml directory
+RUN pip install .
+
+
+
+
+RUN pip install aws-opentelemetry-distro>=0.10.0
+
+
+# Set AWS region environment variable
+
+ENV AWS_REGION=<region>
+ENV AWS_DEFAULT_REGION=<region>
+
+
+# Signal that this is running in Docker for host binding logic
+ENV DOCKER_CONTAINER=1
+
+# Create non-root user
+RUN useradd -m -u 1000 bedrock_agentcore
+USER bedrock_agentcore
+
+EXPOSE 8080
+EXPOSE 8000
+
+# Copy entire project (respecting .dockerignore)
+COPY . .
+
+# Use the full module path
+
+CMD ["opentelemetry-instrument", "python", "-m", "src.mcp_server"]
+```
+
+</details>
+
 `launch()` では，実際に Docker イメージのビルドや ECR へのプッシュ，AgentCore Runtime へのデプロイを行います．引数 `env_vars` で環境変数を指定することで，MCP サーバーの実行時に必要な環境変数を設定できます．今回は，OpenAI API キーを `OPENAI_API_KEY` という環境変数名で指定しています．
 
 :::note info
@@ -867,11 +908,107 @@ agents:
 
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
+:::note alert
+MCP サーバーで利用するライブラリ `mcp` のバージョンは `mcp<=1.11.0` として下さい．
+:::
+
+https://github.com/awslabs/amazon-bedrock-agentcore-samples/issues/121
+
 ### Step 4. remote MCP サーバーの動作確認
+
+リポジトリの `mcp_client` ディレクトリに移動して下さい．
 
 #### Step 4-1. 簡易的な MCP クライアントの実行
 
+以下のコードを実行し，を
+
+ツールの一覧
+
+```bash
+uv run src/mcp_client_remote.py
+```
+
+<details open><summary>コード (折りたためます)</summary>
+
+```python:mcp_client/src/mcp_client_remote.py
+import asyncio
+import os
+import sys
+
+from dotenv import load_dotenv
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+
+
+def get_mcp_endpoint(agent_arn: str, region: str = "us-west-2") -> str:
+    encoded_arn = agent_arn.replace(":", "%3A").replace("/", "%2F")
+    return f"https://bedrock-agentcore.{region}.amazonaws.com/runtimes/{encoded_arn}/invocations?qualifier=DEFAULT"
+
+
+async def connect_to_server(mcp_endpoint: str, headers: dict) -> None:
+    try:
+        async with streamablehttp_client(
+            mcp_endpoint, headers, timeout=120, terminate_on_close=False
+        ) as (
+            read_stream,
+            write_stream,
+            _,
+        ):
+            async with ClientSession(read_stream, write_stream) as session:
+                print("\n🔄 Initializing MCP session...")
+                await session.initialize()
+                print("✓ MCP session initialized")
+
+                print("\n🔄 Listing available tools...")
+                tool_result = await session.list_tools()
+
+                print("\n📋 Available MCP Tools:")
+                print("=" * 50)
+                for tool in tool_result.tools:
+                    print(f"🔧 {tool.name}")
+                    print(f"   Description: {tool.description}")
+                    if hasattr(tool, "inputSchema") and tool.inputSchema:
+                        properties = tool.inputSchema.get("properties", {})
+                        if properties:
+                            print(f"   Parameters: {list(properties.keys())}")
+                    print()
+
+                print("✅ Successfully connected to MCP server!")
+                print(f"Found {len(tool_result.tools)} tools available.")
+
+    except Exception as e:
+        print(f"❌ Error connecting to MCP server: {e}")
+        sys.exit(1)
+
+
+async def main():
+    load_dotenv()
+    agent_arn = os.getenv("AGENT_ARN")
+    bearer_token = os.getenv("COGNITO_ACCESS_TOKEN")
+    if not (agent_arn and bearer_token):
+        raise ValueError(
+            "Required environment variables AGENT_ARN and COGNITO_ACCESS_TOKEN are not set."
+        )
+
+    mcp_endpoint = get_mcp_endpoint(agent_arn)
+    headers = {
+        "authorization": f"Bearer {bearer_token}",
+        "Content-Type": "application/json",
+    }
+
+    print(f"\nConnect to: {mcp_endpoint}")
+    await connect_to_server(mcp_endpoint, headers)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+</details>
+
 #### Step 4-2. Strands Agents を利用した MCP クライアントの実行
+
+https://strandsagents.com/latest/documentation/docs/examples/python/mcp_calculator/
 
 ## MCP のバグについて
 
@@ -895,6 +1032,39 @@ MCP のレスポンスに `\x85` が含まれる場合、json のパースに失
 pydantic 起因のバグなので，いずれは修正されると思われる．
 
 https://github.com/modelcontextprotocol/python-sdk/issues/1144
+
+```
+((pytorch) ) ubuntu@ip-172-30-4-2:~/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client$ uv run src/agent.py
+warning: `VIRTUAL_ENV=/opt/pytorch` does not match the project environment path `.venv` and will be ignored; use `--active` to target the active environment instead
+LangGraphにおけるMCP（Model Context Protocol）の実装方法について調べてみますね。
+Tool #1: openai_o3_web_search
+Error parsing SSE message
+Traceback (most recent call last):
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in _handle_sse_event
+    message = JSONRPCMessage.model_validate_json(sse.data)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
+    return cls.__pydantic_validator__.validate_json(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
+  Invalid JSON: EOF while parsing a string at line 1 column 83 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,..."text":"以下では、', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+```
+
+```
+Tool #1: openai_o3_web_search
+Error parsing SSE message
+Traceback (most recent call last):
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/mcp/client/streamable_http.py", line 162, in _handle_sse_event
+    message = JSONRPCMessage.model_validate_json(sse.data)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/ubuntu/workspace/aws-bedrock-agentcore-runtime-remote-mcp/mcp_client/.venv/lib/python3.12/site-packages/pydantic/main.py", line 746, in model_validate_json
+    return cls.__pydantic_validator__.validate_json(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+pydantic_core._pydantic_core.ValidationError: 1 validation error for JSONRPCMessage
+  Invalid JSON: EOF while parsing a string at line 1 column 3373 [type=json_invalid, input_value='{"jsonrpc":"2.0","id":2,...ル作成可能\\n\\n', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.11/v/json_invalid
+```
 
 ## その他
 

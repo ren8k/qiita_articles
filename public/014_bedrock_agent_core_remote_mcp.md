@@ -71,7 +71,7 @@ https://github.com/ren8k/aws-ec2-devkit-vscode
 
 #### Step 1-1. Amazon Cognito のセットアップ
 
-AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か OAuth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では，OAuth 2.0 を利用するため，以下のコードを実行し，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
+AgentCore Runtime にデプロイした MCP サーバーの認証方法には，[AWS IAM か OAuth 2.0 を利用できます](https://docs.aws.amazon.com/bedrock-agentcore/latest/devguide/runtime-how-it-works.html#runtime-auth-security)．本検証では OAuth 2.0 を利用するため，以下のコードを実行することで，Cognito User Pool と Cognito User を作成後，認証のために必要な以下 3 つの情報を取得します．
 
 - Cognito client ID
 - Cognito discovery URL
@@ -83,7 +83,7 @@ uv run src/setup_cognito.py
 
 コードの出力結果の `Client_id`，`Discovery_url`，`Bearer_token` (Access Token) を `.env` ファイルの `COGNITO_CLIENT_ID`, `COGNITO_DISCOVERY_URL`, `COGNITO_ACCESS_TOKEN` に記載してください．
 
-<details open><summary>コード (折りたためます)</summary>
+<details><summary>コード (折りたたんでます)</summary>
 
 ```python:setup/src/setup_cognito.py
 import os
@@ -209,7 +209,7 @@ uv run src/create_role.py
 
 コードの出力結果の `Created role` を `.env` ファイルの `ROLE_ARN` に記載してください．
 
-<details open><summary>コード (折りたためます)</summary>
+<details><summary>コード (折りたたんでます)</summary>
 
 ```python:setup/src/create_role.py
 import json
@@ -910,7 +910,7 @@ CMD ["opentelemetry-instrument", "python", "-m", "src.mcp_server"]
 https://qiita.com/moritalous/items/6c822e68404e93d326a4
 
 :::note alert
-MCP サーバーで利用するパッケージ `mcp` のバージョンについて，OAuth 関連のバグが存在するため，`mcp==1.11.0` ，もしくは `mcp==1.12.2` として下さい．
+MCP サーバーで利用するパッケージ `mcp` のバージョンについて，OAuth 関連のバグが存在するため，`mcp==1.11.0` ，もしくは `mcp==1.12.2` として下さい．（本不具合については後述します．）
 :::
 
 https://github.com/awslabs/amazon-bedrock-agentcore-samples/pull/86

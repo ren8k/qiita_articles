@@ -7,7 +7,7 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2025-08-01T09:10:24+09:00'
+updated_at: "2025-08-01T09:10:24+09:00"
 id: af7b127cdffd859856f2
 organization_url_name: nttdata
 slide: false
@@ -53,6 +53,14 @@ Virtual try-on は，衣服の画像を人物が写っている画像に重ね�
 本節以降，AWS SDK for Python (boto3) を使用し，Virtual try-on の機能を検証します．説明のため，Amazon Nova Canvas によりマスク画像，試着画像を生成して表示するヘルパー関数 `generate_image` を定義します．
 
 ```python
+import base64
+import io
+import json
+
+import boto3
+from PIL import Image
+
+
 def generate_image(
     payload: dict,
     num_image: int = 1,

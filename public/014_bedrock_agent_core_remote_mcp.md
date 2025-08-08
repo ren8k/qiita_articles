@@ -1,14 +1,16 @@
 ---
-title: Bedrock AgentCore Runtime で Remote MCP サーバー (OpenAI o3 Web search) をデプロイし，Strands Agents から利用する
+title: >-
+  Bedrock AgentCore Runtime で Remote MCP サーバー (OpenAI o3 Web search)
+  をデプロイし，Strands Agents から利用する
 tags:
   - AWS
-  - bedrock
-  - Agent
   - MCP
+  - Agent
   - OpenAI
+  - bedrock
 private: false
-updated_at: ""
-id: null
+updated_at: '2025-08-01T09:10:25+09:00'
+id: 1ef730d343c870b71e50
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

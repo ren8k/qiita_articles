@@ -7,8 +7,8 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: ""
-id: null
+updated_at: '2025-08-01T09:10:24+09:00'
+id: af7b127cdffd859856f2
 organization_url_name: nttdata
 slide: false
 ignorePublish: false

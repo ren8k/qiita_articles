@@ -16,7 +16,7 @@ ignorePublish: true
 
 ## はじめに
 
-株式会社 NTT データ デジタルサクセスコンサルティング事業部の [@ren8k](https://qiita.com/ren8k) です．
+株式会社 NTT データ デジタルサクセスソリューション事業部の [@ren8k](https://qiita.com/ren8k) です．
 
 ## 目次
 

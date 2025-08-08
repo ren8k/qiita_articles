@@ -5,9 +5,9 @@ tags:
   - lambda
   - React
   - bedrock
-  - langgraph
+  - LangGraph
 private: false
-updated_at: "2025-01-04T10:15:52+09:00"
+updated_at: '2025-06-04T09:44:21+09:00'
 id: 8525fb170c13ec861857
 organization_url_name: nttdata
 slide: false

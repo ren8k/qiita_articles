@@ -338,7 +338,7 @@ Strands Agents の `strands.models.OpenAIModel` の内部実装では， OpenAI 
 
 ## まとめ
 
-Amazon Bedrock の gpt-oss を，Bedrock ConverseStream API，OpenAI Completions API，Strands Agents を通して利用する方法を紹介しました．執筆時点（2025/08/20）では，gpt-oss の最終的な回答と Reasoning 部を完全に分離するためには，OpenAI Completions API を利用すると良さそうです．
+Amazon Bedrock の gpt-oss を，Bedrock ConverseStream API，OpenAI Completions API，Strands Agents を通して利用する方法を紹介しました．執筆時点（2025/08/20）では，gpt-oss の最終的な回答と Reasoning 部を完全に分離させて処理するためには，OpenAI Completions API や Strands Agents (strands.models.OpenAIModel) を利用すると良さそうです．
 
 ## 仲間募集
 

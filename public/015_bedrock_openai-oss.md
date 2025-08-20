@@ -72,12 +72,12 @@ if __name__ == "__main__":
     main()
 ```
 
-ConverseStreaming API のレスポンスでは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に処理しやすいです．
+ConverseStreaming API のレスポンスでは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
 
 - `reasoningContent`: Reasoning 部の出力
 - `text`: 最終的な出力
 
-しかし，執筆時点（2025/08/19）において，レスポンスの `text` フィールドに Reasoning 部と思われる出力が含まれることがあります．具体的には，`text` フィールド中に `<reasoning>` タグを含む回答が混ざることがあります．これは API 側のバグの可能性があり，いずれは修正されると考えられます．
+しかし，執筆時点（2025/08/20）において，レスポンスの `text` フィールドに Reasoning 部と思われる出力が含まれることがあります．具体的には，`text` フィールド中に `<reasoning>` タグを含む回答が混ざることがあります．これは API 側のバグの可能性があり，いずれは修正されると考えられます．
 
 <details><summary>chunk["contentBlockDelta"]["delta"] の出力例 (折りたたんでます)</summary>
 
@@ -207,9 +207,138 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
+Strands Agents のレスポンスでは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
+
+- `reasoningText`: Reasoning 部の出力
+- `data`: 最終的な出力
+
+しかし，Strands Agents で `strands.models.BedrockModel` を利用する場合，内部では ConverseStreaming API が利用されるため，最終的な出力に Reasoning 部が混ざることがあります．
+
+<details><summary>chunk の出力例 (折りたたんでます)</summary>
+
+```
+{'init_event_loop': True}
+{'start': True}
+{'start_event_loop': True}
+{'event': {'messageStart': {'role': 'assistant'}}}
+{'event': {'contentBlockDelta': {'delta': {'reasoningContent': {'text': 'We ask: "3.11と3.9'}}, 'contentBlockIndex': 0}}}
+{'reasoningText': 'We ask: "3.11と3.9', 'delta': {'reasoningContent': {'text': 'We ask: "3.11と3.9'}}, 'reasoning': True, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'reasoningContent': {'text': 'はどちらが大きいですか？" This is a simple numeric comparison. 3.11 is greater than 3.'}}, 'contentBlockIndex': 0}}}
+{'reasoningText': 'はどちらが大きいですか？" This is a simple numeric comparison. 3.11 is greater than 3.', 'delta': {'reasoningContent': {'text': 'はどちらが大きいですか？" This is a simple numeric comparison. 3.11 is greater than 3.'}}, 'reasoning': True, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'reasoningContent': {'text': '9? Wait, consider decimal: 3.11 = 3.110 ... 3.9 = 3.900, so'}}, 'contentBlockIndex': 0}}}
+{'reasoningText': '9? Wait, consider decimal: 3.11 = 3.110 ... 3.9 = 3.900, so', 'delta': {'reasoningContent': {'text': '9? Wait, consider decimal: 3.11 = 3.110 ... 3.9 = 3.900, so'}}, 'reasoning': True, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'reasoningContent': {'text': ' 3.9 is larger. So answer: 3.9>3.11. But depends: 3.11 vs '}}, 'contentBlockIndex': 0}}}
+{'reasoningText': ' 3.9 is larger. So answer: 3.9>3.11. But depends: 3.11 vs ', 'delta': {'reasoningContent': {'text': ' 3.9 is larger. So answer: 3.9>3.11. But depends: 3.11 vs '}}, 'reasoning': True, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'reasoningContent': {'text': '3.9. 3.9 > 3.11. So answer in Japanese with explanation.'}}, 'contentBlockIndex': 0}}}
+{'reasoningText': '3.9. 3.9 > 3.11. So answer in Japanese with explanation.', 'delta': {'reasoningContent': {'text': '3.9. 3.9 > 3.11. So answer in Japanese with explanation.'}}, 'reasoning': True, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockStop': {'contentBlockIndex': 0}}}
+{'event': {'contentBlockDelta': {'delta': {'text': '`3.9` の方が大きいです。  \n- 3.11 は 3.110… と表され'}, 'contentBlockIndex': 1}}}
+{'data': '`3.9` の方が大きいです。  \n- 3.11 は 3.110… と表され', 'delta': {'text': '`3.9` の方が大きいです。  \n- 3.11 は 3.110… と表され'}, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '、3.9 は 3.900… と表されます。  \n- 小数点以下の数字を比較すると、'}, 'contentBlockIndex': 1}}}
+{'data': '、3.9 は 3.900… と表されます。  \n- 小数点以下の数字を比較すると、', 'delta': {'text': '、3.9 は 3.900… と表されます。  \n- 小数点以下の数字を比較すると、'}, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '3.900… のほうが 3.110… よりも大きいです。'}, 'contentBlockIndex': 1}}}
+{'data': '3.900… のほうが 3.110… よりも大きいです。', 'delta': {'text': '3.900… のほうが 3.110… よりも大きいです。'}, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': ''}, 'contentBlockIndex': 1}}}
+{'data': '', 'delta': {'text': ''}, 'agent': <strands.agent.agent.Agent object at 0x71a95e0323c0>, 'event_loop_cycle_id': UUID('1acf9679-2dac-4128-a112-aa27750be77e'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x71a95de51fd0>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockStop': {'contentBlockIndex': 1}}}
+{'event': {'messageStop': {'stopReason': 'end_turn'}}}
+{'event': {'metadata': {'usage': {'inputTokens': 69, 'outputTokens': 222, 'totalTokens': 291}, 'metrics': {'latencyMs': 887}}}}
+{'message': {'role': 'assistant', 'content': [{'reasoningContent': {'reasoningText': {'text': 'We ask: "3.11と3.9はどちらが大きいですか？" This is a simple numeric comparison. 3.11 is greater than 3.9? Wait, consider decimal: 3.11 = 3.110 ... 3.9 = 3.900, so 3.9 is larger. So answer: 3.9>3.11. But depends: 3.11 vs 3.9. 3.9 > 3.11. So answer in Japanese with explanation.', 'signature': ''}}}, {'text': '`3.9` の方が大きいです。  \n- 3.11 は 3.110… と表され、3.9 は 3.900… と表されます。  \n- 小数点以下の数字を比較すると、3.900… のほうが 3.110… よりも大きいです。'}]}}
+{'result': AgentResult(stop_reason='end_turn', message={'role': 'assistant', 'content': [{'reasoningContent': {'reasoningText': {'text': 'We ask: "3.11と3.9はどちらが大きいですか？" This is a simple numeric comparison. 3.11 is greater than 3.9? Wait, consider decimal: 3.11 = 3.110 ... 3.9 = 3.900, so 3.9 is larger. So answer: 3.9>3.11. But depends: 3.11 vs 3.9. 3.9 > 3.11. So answer in Japanese with explanation.', 'signature': ''}}}, {'text': '`3.9` の方が大きいです。  \n- 3.11 は 3.110… と表され、3.9 は 3.900… と表されます。  \n- 小数点以下の数字を比較すると、3.900… のほうが 3.110… よりも大きいです。'}]}, metrics=EventLoopMetrics(cycle_count=1, tool_metrics={}, cycle_durations=[1.367772102355957], traces=[<strands.telemetry.metrics.Trace object at 0x71a95de51fd0>], accumulated_usage={'inputTokens': 69, 'outputTokens': 222, 'totalTokens': 291}, accumulated_metrics={'latencyMs': 887}), state={})}
+```
+
+</details>
+
+## Strands Agents (strands.models.OpenAIModel)
+
+```python
+import asyncio
+import os
+
+from dotenv import load_dotenv
+from strands import Agent
+from strands.models.openai import OpenAIModel
+
+MODEL_ID = "openai.gpt-oss-20b-1:0"
+load_dotenv(override=True)
+
+
+async def main() -> None:
+    model = OpenAIModel(
+        client_args={
+            "base_url": "https://bedrock-runtime.us-west-2.amazonaws.com/openai/v1",
+            "api_key": os.getenv("AWS_BEARER_TOKEN_BEDROCK"),
+        },
+        # **model_config
+        model_id=MODEL_ID,
+        params={
+            "max_completion_tokens": 1024,
+            "temperature": 1.0,
+            "top_p": 1.0,
+            "reasoning_effort": "medium",
+        },
+    )
+    agent = Agent(
+        model=model,
+        system_prompt="質問に対して日本語で回答してください。",
+        callback_handler=None,
+    )
+    response = agent.stream_async("3.11と3.9はどちらが大きいですか？")
+
+    async for event in response:
+        if "data" in event:
+            if "<reasoning>" not in event["data"]:
+                print(event["data"], end="", flush=True)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+Strands Agents の `strands.models.OpenAIModel` の内部実装では， OpenAI Completions API が利用されているので，レスポンスは Reasoning 部と最終的な出力が分離されていません．しかし，レスポンスの `data` フィールドにおいて，Reasoning 部は全て `<reasoning>` で確実に囲まれるので，最終的な出力のみをうまくフィルタリングすることができます．
+
+<details><summary>event の出力例 (折りたたんでます)</summary>
+
+```
+{'init_event_loop': True}
+{'start': True}
+{'start_event_loop': True}
+{'event': {'messageStart': {'role': 'assistant'}}}
+{'event': {'contentBlockStart': {'start': {}}}}
+{'event': {'contentBlockDelta': {'delta': {'text': '<reasoning>The user asks: "3.11と3</reasoning>'}}}}
+{'data': '<reasoning>The user asks: "3.11と3</reasoning>', 'delta': {'text': '<reasoning>The user asks: "3.11と3</reasoning>'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '<reasoning>.9はどちらが大きいですか？" ("Which is larger, 3.11 or 3.9</reasoning>'}}}}
+{'data': '<reasoning>.9はどちらが大きいですか？" ("Which is larger, 3.11 or 3.9</reasoning>', 'delta': {'text': '<reasoning>.9はどちらが大きいですか？" ("Which is larger, 3.11 or 3.9</reasoning>'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '<reasoning>?") It\'s a straightforward comparison: 3.11 > 3.9? Actually 3.11 is greater than 3.</reasoning>'}}}}
+{'data': '<reasoning>?") It\'s a straightforward comparison: 3.11 > 3.9? Actually 3.11 is greater than 3.</reasoning>', 'delta': {'text': '<reasoning>?") It\'s a straightforward comparison: 3.11 > 3.9? Actually 3.11 is greater than 3.</reasoning>'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': "<reasoning>9? Wait 3.11 vs 3.9. 3.9 is greater than 3.11? Let's compare</reasoning>"}}}}
+{'data': "<reasoning>9? Wait 3.11 vs 3.9. 3.9 is greater than 3.11? Let's compare</reasoning>", 'delta': {'text': "<reasoning>9? Wait 3.11 vs 3.9. 3.9 is greater than 3.11? Let's compare</reasoning>"}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '<reasoning>: 3.9 = 3.90. 3.11 is 3.11. 3.9 > </reasoning>'}}}}
+{'data': '<reasoning>: 3.9 = 3.90. 3.11 is 3.11. 3.9 > </reasoning>', 'delta': {'text': '<reasoning>: 3.9 = 3.90. 3.11 is 3.11. 3.9 > </reasoning>'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '<reasoning>3.11 indeed. So answer: 3.9 is larger. Provide explanation. No other constraints.</reasoning>'}}}}
+{'data': '<reasoning>3.11 indeed. So answer: 3.9 is larger. Provide explanation. No other constraints.</reasoning>', 'delta': {'text': '<reasoning>3.11 indeed. So answer: 3.9 is larger. Provide explanation. No other constraints.</reasoning>'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '3.11 と 3.9 を比べると、**3.9 のほうが大きい**'}}}}
+{'data': '3.11 と 3.9 を比べると、**3.9 のほうが大きい**', 'delta': {'text': '3.11 と 3.9 を比べると、**3.9 のほうが大きい**'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': 'です。  \n数値を小数点以下の桁で比較すると、3.9 は 3.90 と書け'}}}}
+{'data': 'です。  \n数値を小数点以下の桁で比較すると、3.9 は 3.90 と書け', 'delta': {'text': 'です。  \n数値を小数点以下の桁で比較すると、3.9 は 3.90 と書け'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': 'ます。  \n3.90（3.9） と 3.11 を比較すると、小数第1位（10分'}}}}
+{'data': 'ます。  \n3.90（3.9） と 3.11 を比較すると、小数第1位（10分', 'delta': {'text': 'ます。  \n3.90（3.9） と 3.11 を比較すると、小数第1位（10分'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': 'の1位）が 9 と 1 なので 9 の方が大きく、数字全体として 3.'}}}}
+{'data': 'の1位）が 9 と 1 なので 9 の方が大きく、数字全体として 3.', 'delta': {'text': 'の1位）が 9 と 1 なので 9 の方が大きく、数字全体として 3.'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockDelta': {'delta': {'text': '9 の方が大きいと判断できます。'}}}}
+{'data': '9 の方が大きいと判断できます。', 'delta': {'text': '9 の方が大きいと判断できます。'}, 'agent': <strands.agent.agent.Agent object at 0x7b2f96cba7b0>, 'event_loop_cycle_id': UUID('f96219e8-6d45-4296-96dd-b876b20ed9a5'), 'request_state': {}, 'event_loop_cycle_trace': <strands.telemetry.metrics.Trace object at 0x7b2f96b68440>, 'event_loop_cycle_span': NonRecordingSpan(SpanContext(trace_id=0x00000000000000000000000000000000, span_id=0x0000000000000000, trace_flags=0x00, trace_state=[], is_remote=False))}
+{'event': {'contentBlockStop': {}}}
+{'event': {'messageStop': {'stopReason': 'end_turn'}}}
+{'event': {'metadata': {'usage': {'inputTokens': 69, 'outputTokens': 269, 'totalTokens': 338}, 'metrics': {'latencyMs': 0}}}}
+{'message': {'role': 'assistant', 'content': [{'text': '<reasoning>The user asks: "3.11と3</reasoning><reasoning>.9はどちらが大きいですか？" ("Which is larger, 3.11 or 3.9</reasoning><reasoning>?") It\'s a straightforward comparison: 3.11 > 3.9? Actually 3.11 is greater than 3.</reasoning><reasoning>9? Wait 3.11 vs 3.9. 3.9 is greater than 3.11? Let\'s compare</reasoning><reasoning>: 3.9 = 3.90. 3.11 is 3.11. 3.9 > </reasoning><reasoning>3.11 indeed. So answer: 3.9 is larger. Provide explanation. No other constraints.</reasoning>3.11 と 3.9 を比べると、**3.9 のほうが大きい**です。  \n数値を小数点以下の桁で比較すると、3.9 は 3.90 と書けます。  \n3.90（3.9） と 3.11 を比較すると、小数第1位（10分の1位）が 9 と 1 なので 9 の方が大きく、数字全体として 3.9 の方が大きいと判断できます。'}]}}
+{'result': AgentResult(stop_reason='end_turn', message={'role': 'assistant', 'content': [{'text': '<reasoning>The user asks: "3.11と3</reasoning><reasoning>.9はどちらが大きいですか？" ("Which is larger, 3.11 or 3.9</reasoning><reasoning>?") It\'s a straightforward comparison: 3.11 > 3.9? Actually 3.11 is greater than 3.</reasoning><reasoning>9? Wait 3.11 vs 3.9. 3.9 is greater than 3.11? Let\'s compare</reasoning><reasoning>: 3.9 = 3.90. 3.11 is 3.11. 3.9 > </reasoning><reasoning>3.11 indeed. So answer: 3.9 is larger. Provide explanation. No other constraints.</reasoning>3.11 と 3.9 を比べると、**3.9 のほうが大きい**です。  \n数値を小数点以下の桁で比較すると、3.9 は 3.90 と書けます。  \n3.90（3.9） と 3.11 を比較すると、小数第1位（10分の1位）が 9 と 1 なので 9 の方が大きく、数字全体として 3.9 の方が大きいと判断できます。'}]}, metrics=EventLoopMetrics(cycle_count=1, tool_metrics={}, cycle_durations=[1.9280362129211426], traces=[<strands.telemetry.metrics.Trace object at 0x7b2f96b68440>], accumulated_usage={'inputTokens': 69, 'outputTokens': 269, 'totalTokens': 338}, accumulated_metrics={'latencyMs': 0}), state={})}
+```
+
+</details>
+
 ## まとめ
 
-summary
+Amazon Bedrock の gpt-oss を，Bedrock ConverseStream API，OpenAI Completions API，Strands Agents を通して利用する方法を紹介しました．執筆時点（2025/08/20）では，gpt-oss の最終的な回答と Reasoning 部を完全に分離するためには，OpenAI Completions API を利用すると良さそうです．
 
 ## 仲間募集
 

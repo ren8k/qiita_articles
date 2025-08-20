@@ -7,7 +7,7 @@ tags:
   - 画像生成
   - 生成AI
 private: false
-updated_at: '2025-08-01T09:10:24+09:00'
+updated_at: "2025-08-01T09:10:24+09:00"
 id: af7b127cdffd859856f2
 organization_url_name: nttdata
 slide: false
@@ -53,6 +53,14 @@ Virtual try-on は，衣服の画像を人物が写っている画像に重ね�
 本節以降，AWS SDK for Python (boto3) を使用し，Virtual try-on の機能を検証します．説明のため，Amazon Nova Canvas によりマスク画像，試着画像を生成して表示するヘルパー関数 `generate_image` を定義します．
 
 ```python
+import base64
+import io
+import json
+
+import boto3
+from PIL import Image
+
+
 def generate_image(
     payload: dict,
     num_image: int = 1,
@@ -143,7 +151,7 @@ generate_image(
 `taskType` には `VIRTUAL_TRY_ON` を指定し，`virtualTryOnParams` に，ソース画像，参照画像，マスク画像に関するパラメータを指定します．以下に，各パラメータの説明を示します．
 
 - `sourceImage`: ソース画像．`source_img_path` にはソース画像のパスを指定しています．
-- `referenceImage`: 参照画像．`reference_img_path` には参照画像のパスを指定しています．
+- `referenceImage`: 参照画像．`resized_reference_img_path` には参照画像のパス (必要であれば，[サポートされている画像解像度](https://docs.aws.amazon.com/ja_jp/nova/latest/userguide/image-gen-access.html#image-gen-resolutions)にリサイズした画像のパス) を指定しています．
 - `maskType`: マスク画像の設定．`GARMENT` を指定することで，衣服に特化したマスクを自動生成しています．
 - `garmentBasedMask`: 置換対象の衣服の設定．本設定に基づき，マスク画像を生成します．
 - `garmentClass`: 事前定義された衣服のクラスであり，ソース画像内で置換したい対象領域 (衣服) を指す．`UPPER_BODY` を指定することで，図中の上半身のマスクを自動生成します．

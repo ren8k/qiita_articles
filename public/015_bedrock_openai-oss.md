@@ -103,6 +103,10 @@ ConverseStreaming API のレスポンスは，Reasoning 部と最終的な出力
 
 </details>
 
+:::note warn
+[gpt-oss のリポジトリ](https://github.com/openai/gpt-oss?tab=readme-ov-file#recommended-sampling-parameters)には，サンプリングパラメーターの `temperature` と `top_p` の推奨値は共に 1.0 と明記されているため，コード上でも合わせております．
+:::
+
 ## OpenAI Completions API
 
 :::note

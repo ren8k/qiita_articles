@@ -255,6 +255,10 @@ Strands Agents のレスポンスは，Reasoning 部と最終的な出力が以�
 
 ## Strands Agents (strands.models.OpenAIModel)
 
+:::note
+以下のコードの実行には，[Amazon Bedrock API keys](https://docs.aws.amazon.com/bedrock/latest/userguide/getting-started-api-keys.html) の発行が必要です．以下のコードでは，`.env` ファイル上で `AWS_BEARER_TOKEN_BEDROCK` という環境変数に Bedrock API keys を設定していることを前提としています．
+:::
+
 ```python
 import asyncio
 import os

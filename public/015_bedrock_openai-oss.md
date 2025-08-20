@@ -1,14 +1,14 @@
 ---
 title: Amazon Bedrock から 4 つの方法で gpt-oss を streaming で利用する
 tags:
-  - AWS
-  - bedrock
   - Python
+  - AWS
   - OpenAI
+  - bedrock
   - 生成AI
 private: true
-updated_at: ""
-id: null
+updated_at: '2025-08-20T22:16:10+09:00'
+id: 5e1388d5af0f6541d9c4
 organization_url_name: null
 slide: false
 ignorePublish: false

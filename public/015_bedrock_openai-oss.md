@@ -7,7 +7,7 @@ tags:
   - bedrock
   - 生成AI
 private: true
-updated_at: '2025-08-20T22:16:10+09:00'
+updated_at: "2025-08-20T22:16:10+09:00"
 id: 5e1388d5af0f6541d9c4
 organization_url_name: null
 slide: false
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     main()
 ```
 
-ConverseStreaming API のレスポンスでは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
+ConverseStreaming API のレスポンスは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
 
 - `reasoningContent`: Reasoning 部の出力
 - `text`: 最終的な出力
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     main()
 ```
 
-Completions API のレスポンスでは，Reasoning 部と最終的な出力が分離されていません．しかし，レスポンスの `content` フィールドにおいて，Reasoning 部は全て `<reasoning>` で確実に囲まれるので，最終的な出力のみをうまくフィルタリングすることができます．
+Completions API のレスポンスは，Reasoning 部と最終的な出力が分離されていません．しかし，レスポンスの `content` フィールドにおいて，Reasoning 部は全て `<reasoning>` で確実に囲まれるので，最終的な出力のみをうまくフィルタリングすることができます．
 
 <details><summary>chunk.choices[0].delta.content の出力例 (折りたたんでます)</summary>
 
@@ -207,7 +207,7 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Strands Agents のレスポンスでは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
+Strands Agents のレスポンスは，Reasoning 部と最終的な出力が以下のフィールドで分離されており，非常に便利です．
 
 - `reasoningText`: Reasoning 部の出力
 - `data`: 最終的な出力
